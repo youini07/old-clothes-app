@@ -253,17 +253,6 @@ router.post('/init-superadmin', async (req, res) => {
   }
 });
 
-// 비밀번호/이메일 강제 변경 API (임시)
-router.post('/force-update-admin', async (req, res) => {
-  const { email, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-  await prisma.user.updateMany({
-    where: { role: 'SUPER_ADMIN' },
-    data: { email, password: hashedPassword }
-  });
-  res.json({ message: '슈퍼관리자 정보가 업데이트 되었습니다.' });
-});
-
 // 비밀번호 변경 API
 router.patch('/password', authenticate, async (req: any, res: any) => {
   const { currentPassword, newPassword } = req.body;
