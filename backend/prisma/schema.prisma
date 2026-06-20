@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String?  @unique // 카카오 로그인 이메일 또는 자체 로그인 이메일(ID)
+  password  String?  // 자체 로그인을 위한 비밀번호 (암호화되어 저장)
+  kakaoId   String?  @unique // 카카오 고유 ID
+  name      String
+  phone     String?
+  businessName String? // 상호명
+  role      String   @default("CUSTOMER")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // 파트너(업체 사장님)일 경우
+  isApproved      Boolean  @default(false) // 파트너 승인 여부
+  coverageRegions Coverage[]
+  drivers         DriverProfile[] // 사장님이 고용한 기사들
+  useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
+  
+  // 고객일 경우
+  customerRequests Request[] @relation("CustomerRequests")
+  
+  // 기사일 경우
+  driverProfile   DriverProfile? @relation("UserToDriver")
+}
+
+// 기사 전용 프로필 (사장이 기사를 등록/관리)
+model DriverProfile {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  user      User     @relation("UserToDriver", fields: [userId], references: [id])
+  
+  partnerId String
+  partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
+  
+  vehicleInfo String? // 차량 정보
+  
+  assignedRequests Request[] @relation("AssignedDriver")
+}
+
+// 권역 (시/도 - 시/군/구 - 읍/면/동)
+model Region {
+  id       String   @id @default(uuid())
+  province String   // 예: 경기도
+  city     String   // 예: 평택시
+  town     String?  // 예: 비전동 (선택사항)
+  
+  coverages Coverage[]
+  requests  Request[]
+}
+
+// 파트너별 권역 할당
+model Coverage {
+  id        String   @id @default(uuid())
+  partnerId String
+  partner   User     @relation(fields: [partnerId], references: [id])
+  
+  regionId  String
+  region    Region   @relation(fields: [regionId], references: [id])
+  
+  @@unique([partnerId, regionId])
+}
+
+model Request {
+  id             String        @id @default(uuid())
+  
+  // 고객 정보
+  customerId     String?
+  customer       User?         @relation("CustomerRequests", fields: [customerId], references: [id])
+  userName       String        // 비회원 신청 대응
+  phone          String        // 비회원 신청 대응
+  
+  // 담당 지역 및 파트너/기사 할당
+  regionId       String?
+  region         Region?       @relation(fields: [regionId], references: [id])
+  partnerId      String?       // 배정된 업체 사장님 ID
+  
+  driverId       String?
+  driver         DriverProfile? @relation("AssignedDriver", fields: [driverId], references: [id])
+  
+  // 수거지 정보
+  address        String
+  detailAddress  String
+  zipCode        String
+  
+  // 수거 관련 시간
+  desiredDate    DateTime      // 고객 희망 날짜
+  confirmedDate  DateTime?     // 기사 확정 시간 (방문 예정)
+  completedDate  DateTime?     // 수거 완료 시간
+  
+  // 동선 순서
+  orderIndex     Int           @default(0) // 기사가 수동 조작 가능한 방문 순서
+  
+  // 수거 물품 데이터
+  estimatedVolume String       // 고객이 적은 예상 수거량
+  actualWeight    Float?       // 기사가 입력한 실제 수거 무게 (kg)
+  
+  // 상태 추적 및 예상 소요 시간
+  etaMinutes      Int?         // 기사가 출발 시 계산된 예상 도착 시간 (분)
+
+  // 3단계 증빙 사진 (R2 저장용 URL)
+  itemPhotoUrl    String?      // 1단계: 수거 전 물품 사진
+  scalePhotoUrl   String?      // 2단계: 저울에 올린 무게 사진
+  extraPhotoUrl   String?      // 3단계: 특이사항 사진
+  
+  driverNote      String?      // 기사가 남기는 특이사항 메모
+  
+  status         String        @default("PENDING")
+  
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+}

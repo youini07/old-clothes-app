@@ -1,0 +1,162 @@
+import React, { useState } from 'react';
+import axios from 'axios';
+
+export default function RequestForm() {
+  const [userName, setUserName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [detailAddress, setDetailAddress] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [estimatedVolume, setEstimatedVolume] = useState('');
+  const [desiredDate, setDesiredDate] = useState('');
+  const [regionInfo, setRegionInfo] = useState({ province: '', city: '', town: '' });
+
+  const handleAddressSearch = () => {
+    new (window as any).daum.Postcode({
+      oncomplete: function(data: any) {
+        if (!data.address.startsWith('경기')) {
+          alert('현재는 경기도 지역만 수거 서비스를 제공하고 있습니다.');
+          return;
+        }
+        setAddress(data.address);
+        setZipCode(data.zonecode);
+        
+        // 백엔드 권역 매칭을 위한 상세 행정구역 데이터
+        let provinceName = data.sido;
+        if (provinceName === '경기') provinceName = '경기도'; // DB 포맷 통일
+        
+        setRegionInfo({
+          province: provinceName,
+          city: data.sigungu,
+          town: data.bname || data.bname1 || ''
+        });
+      }
+    }).open();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/requests`, {
+        userName,
+        phone,
+        address,
+        detailAddress,
+        zipCode,
+        desiredDate,
+        estimatedVolume,
+        regionInfo
+      });
+      alert(response.data.message || '수거 신청이 완료되었습니다!');
+      // TODO: 신청 완료 후 내역 확인 페이지로 이동
+    } catch (error) {
+      console.error(error);
+      alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-50 p-4 pb-20">
+      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 space-y-8">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">헌옷 수거 신청</h2>
+          <p className="text-sm text-gray-500 mt-1">방문하실 주소와 희망 일정을 입력해주세요.</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* 신청인 정보 */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">이름</label>
+            <input
+              type="text"
+              value={userName}
+              onChange={(e) => setUserName(e.target.value)}
+              placeholder="홍길동"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">연락처</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="010-0000-0000"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* 주소 입력부 */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">방문 주소</label>
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                readOnly
+                value={zipCode}
+                placeholder="우편번호"
+                className="w-1/3 px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none"
+              />
+              <button
+                type="button"
+                onClick={handleAddressSearch}
+                className="w-2/3 px-4 py-3 text-sm font-medium text-white bg-blue-600 rounded-xl hover:bg-blue-700"
+              >
+                주소 찾기
+              </button>
+            </div>
+            <input
+              type="text"
+              readOnly
+              value={address}
+              placeholder="기본 주소"
+              className="w-full px-4 py-3 bg-gray-100 border border-gray-200 rounded-xl focus:outline-none"
+            />
+            <input
+              type="text"
+              value={detailAddress}
+              onChange={(e) => setDetailAddress(e.target.value)}
+              placeholder="상세 주소를 입력해주세요"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* 예상 물품량 */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">예상 수거량</label>
+            <textarea
+              value={estimatedVolume}
+              onChange={(e) => setEstimatedVolume(e.target.value)}
+              placeholder="예: 헌옷 10kg, 신발 2켤레 (대략적으로 적어주세요)"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
+              required
+            ></textarea>
+          </div>
+
+          {/* 희망 날짜 */}
+          <div className="space-y-3">
+            <label className="block text-sm font-medium text-gray-700">수거 희망일</label>
+            <input
+              type="date"
+              value={desiredDate}
+              onChange={(e) => setDesiredDate(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              required
+            />
+          </div>
+
+          {/* 제출 버튼 */}
+          <button
+            type="submit"
+            className="w-full py-4 text-lg font-bold text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+          >
+            신청 완료하기
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
