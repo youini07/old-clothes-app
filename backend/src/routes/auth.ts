@@ -79,7 +79,10 @@ router.get('/kakao/callback', async (req, res) => {
 
   } catch (error: any) {
     console.error('카카오 로그인 에러:', error.response?.data || error.message);
-    res.status(500).json({ error: '로그인 처리 중 오류가 발생했습니다.' });
+    res.status(500).json({ 
+      error: '로그인 처리 중 오류가 발생했습니다.', 
+      details: error.response?.data || error.message 
+    });
   }
 });
 
