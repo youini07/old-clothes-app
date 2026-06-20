@@ -25,6 +25,20 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
   }
 };
 
+export const optionalAuthenticate = (req: AuthRequest, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    const token = authHeader.split(' ')[1];
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { userId: string, role: string };
+      req.user = decoded;
+    } catch (error) {
+      // invalid token is ignored in optional auth
+    }
+  }
+  next();
+};
+
 // 특정 권한만 허용하는 미들웨어 (예: requireRole(['SUPER_ADMIN', 'PARTNER']))
 export const requireRole = (roles: string[]) => {
   return (req: AuthRequest, res: Response, next: NextFunction) => {

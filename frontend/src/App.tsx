@@ -5,6 +5,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import DriverDashboard from './pages/DriverDashboard';
 import LoginSuccess from './pages/LoginSuccess';
+import CustomerDashboard from './pages/CustomerDashboard';
 
 function Home() {
   return (
@@ -16,12 +17,12 @@ function Home() {
         </p>
         
         <div className="pt-8 space-y-4">
-          <Link to="/request" className="block w-full py-4 text-lg font-semibold text-white bg-primary-600 rounded-xl shadow-lg hover:bg-primary-700 hover:shadow-xl transition-all transform active:scale-95">
-            수거 신청하기
-          </Link>
           <a href={`${import.meta.env.VITE_API_URL}/auth/kakao`} className="block w-full py-4 text-lg font-bold text-yellow-900 bg-[#FEE500] rounded-xl shadow-md hover:bg-yellow-400 transition-all transform active:scale-95">
-            카카오로 시작하기 (고객용)
+            카카오로 3초만에 시작하기
           </a>
+          <p className="text-xs text-gray-500 font-medium pt-2">
+            * 카카오 로그인 시 수거 신청 및 실시간 내역 조회가 가능합니다.
+          </p>
         </div>
         
         <div className="pt-12">
@@ -43,7 +44,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<RequestForm />} />
           <Route path="/login-success" element={<LoginSuccess />} />
-          <Route path="/status" element={<div className="p-6">신청 내역 확인 화면 준비 중...</div>} />
+          <Route path="/status" element={<CustomerDashboard />} />
           <Route path="/super-admin" element={<SuperAdminDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/driver" element={<DriverDashboard />} />

@@ -2,12 +2,13 @@ import express from 'express';
 import { addRequestToSheet } from '../services/googleSheets';
 import { getCoordinates, getOptimalRoute } from '../services/kakaoRoute';
 import { PrismaClient } from '@prisma/client';
+import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/authMiddleware';
 
 const router = express.Router();
 const prisma = new PrismaClient();
 
 // 새로운 수거 신청 생성
-router.post('/', async (req, res) => {
+router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
   const requestData = req.body;
 
   try {
@@ -63,6 +64,7 @@ router.post('/', async (req, res) => {
         status: assignedPartnerId ? 'ASSIGNED' : 'PENDING',
         partnerId: assignedPartnerId,
         regionId: assignedRegionId,
+        customerId: req.user?.userId || null,
       }
     });
 
@@ -86,6 +88,25 @@ router.post('/', async (req, res) => {
   } catch (error) {
     console.error('수거 신청 접수 오류:', error);
     res.status(500).json({ error: '수거 신청을 처리하는 중 문제가 발생했습니다.' });
+  }
+});
+
+// 로그인한 고객의 신청 내역 조회
+router.get('/me', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const userId = req.user!.userId;
+    const requests = await prisma.request.findMany({
+      where: { customerId: userId },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        driver: { include: { user: true } },
+        partner: { select: { businessName: true, name: true, phone: true } }
+      }
+    });
+    res.json({ requests });
+  } catch (error) {
+    console.error('고객 신청 내역 조회 오류:', error);
+    res.status(500).json({ error: '신청 내역을 불러오는데 실패했습니다.' });
   }
 });
 

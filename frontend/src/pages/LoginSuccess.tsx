@@ -20,10 +20,10 @@ export default function LoginSuccess() {
         localStorage.setItem('user_info', JSON.stringify({ name, role }));
       }
 
-      // 1초 뒤에 신청 페이지로 이동 (UX를 위해 잠시 대기)
-      setTimeout(() => {
-        navigate('/request');
-      }, 1000);
+      // 2초 후 마이페이지(CustomerDashboard)로 이동
+      const timer = setTimeout(() => {
+        navigate('/status');
+      }, 2000);
     } else {
       alert('로그인 처리에 실패했습니다. 다시 시도해주세요.');
       navigate('/');

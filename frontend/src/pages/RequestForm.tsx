@@ -37,6 +37,7 @@ export default function RequestForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const token = localStorage.getItem('auth_token');
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/requests`, {
         userName,
         phone,
@@ -46,9 +47,11 @@ export default function RequestForm() {
         desiredDate,
         estimatedVolume,
         regionInfo
+      }, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
       });
       alert(response.data.message || '수거 신청이 완료되었습니다!');
-      // TODO: 신청 완료 후 내역 확인 페이지로 이동
+      window.location.href = '/status';
     } catch (error) {
       console.error(error);
       alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
