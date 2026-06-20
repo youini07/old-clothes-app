@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import DriverDashboard from './pages/DriverDashboard';
+import LoginSuccess from './pages/LoginSuccess';
 
 function Home() {
   return (
@@ -41,6 +42,7 @@ function App() {
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<RequestForm />} />
+          <Route path="/login-success" element={<LoginSuccess />} />
           <Route path="/status" element={<div className="p-6">신청 내역 확인 화면 준비 중...</div>} />
           <Route path="/super-admin" element={<SuperAdminDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />
