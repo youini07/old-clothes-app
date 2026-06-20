@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
 interface RegionBlockMapProps {
@@ -22,8 +22,8 @@ export default function RegionBlockMap({ selectedProvince, selectedCity, selecte
   
   const [loading, setLoading] = useState(false);
 
-  const [provCode, setProvCode] = useState<string>('');
-  const [cityCode, setCityCode] = useState<string>('');
+  const [, setProvCode] = useState<string>('');
+  const [, setCityCode] = useState<string>('');
 
   // 1. 시/도 목록 가져오기
   useEffect(() => {

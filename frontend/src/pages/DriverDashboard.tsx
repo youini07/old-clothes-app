@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface RequestItem {
@@ -105,7 +105,7 @@ export default function DriverDashboard() {
           alert('출발 처리 중 오류가 발생했습니다.');
         }
       },
-      (error) => {
+      (_error) => {
         alert('위치 정보를 가져올 수 없습니다. 권한을 확인해주세요.');
       }
     );
