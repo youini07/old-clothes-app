@@ -293,7 +293,7 @@ export default function SuperAdminDashboard() {
       {/* Partner Registration Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-lg w-full shadow-2xl relative">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button 
               onClick={() => setIsModalOpen(false)}
               className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
@@ -303,7 +303,7 @@ export default function SuperAdminDashboard() {
             <h2 className="text-2xl font-bold text-gray-900 mb-6">신규 파트너 등록</h2>
             
             <form onSubmit={handleRegisterPartner} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1">상호명</label>
                   <input required type="text" value={formData.businessName} onChange={e => setFormData({...formData, businessName: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="예: 강남 헌옷수거" />
@@ -364,7 +364,7 @@ export default function SuperAdminDashboard() {
       {/* Partner Region Management Modal */}
       {selectedPartnerForRegion && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
-          <div className="bg-white rounded-3xl p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
             <button 
               onClick={() => {
                 setSelectedPartnerForRegion(null);
