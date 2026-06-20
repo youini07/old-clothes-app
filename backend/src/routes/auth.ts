@@ -73,11 +73,9 @@ router.get('/kakao/callback', async (req, res) => {
     );
 
     // 5. 프론트엔드로 리다이렉트
-    const frontendUrl = process.env.NODE_ENV === 'production' 
-      ? 'https://your-domain.com/login-success' 
-      : 'http://localhost:5173/login-success';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://old-clothes-app.vercel.app';
       
-    res.redirect(`${frontendUrl}?token=${jwtToken}&name=${encodeURIComponent(user.name)}&role=${user.role}`);
+    res.redirect(`${frontendUrl}/login-success?token=${jwtToken}&name=${encodeURIComponent(user.name)}&role=${user.role}`);
 
   } catch (error: any) {
     console.error('카카오 로그인 에러:', error.response?.data || error.message);
