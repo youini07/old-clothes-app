@@ -34,7 +34,7 @@ function Home() {
       <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none">
         
         {/* 버튼 1: 카카오 로그인 (배경화면 텍스트의 '위쪽' 빈 공간) */}
-        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '65%' }}>
+        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '73%' }}>
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
@@ -50,7 +50,7 @@ function Home() {
         </div>
 
         {/* 버튼 2: 관리자 로그인 (배경화면 텍스트의 '아래쪽' 빈 공간) */}
-        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '86%' }}>
+        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '89%' }}>
           <Link
             to="/login"
             className="flex items-center justify-center gap-2 w-full py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
