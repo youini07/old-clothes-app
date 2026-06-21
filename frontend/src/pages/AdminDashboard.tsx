@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
+  const [activeView, setActiveView] = useState<'dispatch' | 'stats'>('dispatch');
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
@@ -31,13 +32,28 @@ export default function AdminDashboard() {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '' });
 
+  // 정산 통계
+  const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
+
   useEffect(() => {
     if (authToken) {
       fetchData();
+      fetchStats();
     } else {
       setLoading(false);
     }
   }, [authToken]);
+
+  const fetchStats = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/stats`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setStats(res.data);
+    } catch (error) {
+      console.error('통계 데이터 조회 실패:', error);
+    }
+  };
 
   const handleDemoLogin = async () => {
     try {
@@ -200,7 +216,79 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* 탭 전환 */}
+        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+          <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차 관리</button>
+          <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산/통계</button>
+        </div>
+
+        {/* 정산/통계 뷰 */}
+        {activeView === 'stats' && stats && (
+          <div className="space-y-6">
+            {/* 요약 카드 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">총 수거 건수</p>
+                <p className="text-3xl font-extrabold text-gray-900 mt-1">{stats.summary.totalRequests}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">완료 건수</p>
+                <p className="text-3xl font-extrabold text-green-600 mt-1">{stats.summary.completedCount}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">총 수거 무게</p>
+                <p className="text-3xl font-extrabold text-blue-600 mt-1">{stats.summary.totalWeight}<span className="text-lg">kg</span></p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">완료율</p>
+                <p className="text-3xl font-extrabold text-purple-600 mt-1">{stats.summary.completionRate}<span className="text-lg">%</span></p>
+              </div>
+            </div>
+
+            {/* 현재 상태 현황 */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">📍 현재 진행 상황</h3>
+              <div className="flex gap-4">
+                <div className="flex-1 bg-yellow-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-extrabold text-yellow-600">{stats.summary.pendingCount}</p>
+                  <p className="text-xs text-yellow-700 font-medium mt-1">대기 중</p>
+                </div>
+                <div className="flex-1 bg-blue-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-extrabold text-blue-600">{stats.summary.inProgressCount}</p>
+                  <p className="text-xs text-blue-700 font-medium mt-1">진행 중</p>
+                </div>
+                <div className="flex-1 bg-green-50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-extrabold text-green-600">{stats.summary.completedCount}</p>
+                  <p className="text-xs text-green-700 font-medium mt-1">완료</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 월별 수거량 차트 (CSS 바 차트) */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">📈 월별 수거 현황 (최근 6개월)</h3>
+              <div className="space-y-3">
+                {stats.monthlyStats.map((m: any) => {
+                  const maxCount = Math.max(...stats.monthlyStats.map((s: any) => s.count), 1);
+                  const barWidth = (m.count / maxCount) * 100;
+                  return (
+                    <div key={m.month} className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-gray-500 w-16 shrink-0">{m.month}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500 flex items-center" style={{ width: `${Math.max(barWidth, 2)}%` }}>
+                          {m.count > 0 && <span className="text-[10px] font-bold text-white ml-2 whitespace-nowrap">{m.count}건 / {m.weight}kg</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 배차 관리 뷰 */}
+        {activeView === 'dispatch' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column: Unassigned Requests */}
           <div 
@@ -317,7 +405,7 @@ export default function AdminDashboard() {
             })}
           </div>
 
-        </div>
+        </div>}
       </div>
 
       {/* 비밀번호 변경 모달 */}

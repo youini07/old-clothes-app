@@ -10,6 +10,7 @@ interface RequestItem {
   estimatedVolume: string;
   status: string;
   etaMinutes?: number;
+  actualWeight?: number;
 }
 
 export default function DriverDashboard() {
@@ -18,25 +19,26 @@ export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token'));
 
+  // 수거 완료 모달 상태
+  const [completeModal, setCompleteModal] = useState<{ open: boolean; requestId: string | null; step: number }>({ open: false, requestId: null, step: 1 });
+  const [actualWeight, setActualWeight] = useState('');
+  const [driverNote, setDriverNote] = useState('');
+  const [itemPhoto, setItemPhoto] = useState<string | null>(null);
+  const [scalePhoto, setScalePhoto] = useState<string | null>(null);
+  const [extraPhoto, setExtraPhoto] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
   useEffect(() => {
-    if (authToken) {
-      fetchDriverRequests();
-    } else {
-      setLoading(false);
-    }
+    if (authToken) { fetchDriverRequests(); } else { setLoading(false); }
   }, [authToken]);
 
   const handleDemoLogin = async () => {
     try {
       setLoading(true);
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role: 'DRIVER' });
-      const token = res.data.token;
-      localStorage.setItem('driver_token', token);
-      setAuthToken(token);
-    } catch (error) {
-      alert('데모 로그인 실패: 기사 계정이 없습니다. 파트너 로그인을 먼저 진행해주세요.');
-      setLoading(false);
-    }
+      localStorage.setItem('driver_token', res.data.token);
+      setAuthToken(res.data.token);
+    } catch { alert('데모 로그인 실패'); setLoading(false); }
   };
 
   const fetchDriverRequests = async () => {
@@ -46,73 +48,80 @@ export default function DriverDashboard() {
       });
       setRequests(res.data.requests || []);
     } catch (error) {
-      console.error('기사 배정 목록 조회 실패:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        setAuthToken(null);
-        localStorage.removeItem('driver_token');
+        setAuthToken(null); localStorage.removeItem('driver_token');
       }
       setRequests([]);
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
-  const completeRequest = async (id: string) => {
-    const confirm = window.confirm('수거 완료 처리하시겠습니까? (실제로는 여기서 사진 업로드 창이 뜹니다)');
-    if (!confirm) return;
+  // 사진을 base64로 변환
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string | null) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { alert('사진 크기는 5MB 이하만 가능합니다.'); return; }
+    const reader = new FileReader();
+    reader.onloadend = () => setter(reader.result as string);
+    reader.readAsDataURL(file);
+  };
 
+  const openCompleteModal = (id: string) => {
+    setCompleteModal({ open: true, requestId: id, step: 1 });
+    setActualWeight(''); setDriverNote(''); setItemPhoto(null); setScalePhoto(null); setExtraPhoto(null);
+  };
+
+  const closeModal = () => setCompleteModal({ open: false, requestId: null, step: 1 });
+
+  const submitComplete = async () => {
+    if (!completeModal.requestId || !actualWeight) { alert('실제 수거 무게를 입력해주세요.'); return; }
+    setSubmitting(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/driver/complete/${id}`, {
-        actualWeight: 15, // 임시 데이터
-        driverNote: "수거 완료",
-      }, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      alert('완료 처리되었습니다!');
+      await axios.post(`${import.meta.env.VITE_API_URL}/driver/complete/${completeModal.requestId}`, {
+        actualWeight: parseFloat(actualWeight),
+        driverNote: driverNote || '수거 완료',
+        itemPhotoUrl: itemPhoto || undefined,
+        scalePhotoUrl: scalePhoto || undefined,
+        extraPhotoUrl: extraPhoto || undefined,
+      }, { headers: { Authorization: `Bearer ${authToken}` } });
+      alert('수거 완료 처리되었습니다!');
+      closeModal();
       fetchDriverRequests();
-    } catch (error) {
-      alert('처리 중 오류가 발생했습니다.');
-    }
+    } catch { alert('처리 중 오류가 발생했습니다.'); }
+    finally { setSubmitting(false); }
   };
 
   const departRequest = async (id: string) => {
-    if (!navigator.geolocation) {
-      alert('이 브라우저에서는 위치 정보를 지원하지 않습니다.');
-      return;
-    }
-    
-    const confirm = window.confirm('해당 수거지로 출발하시겠습니까? (고객에게 예상 도착 시간이 전송됩니다)');
-    if (!confirm) return;
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const res = await axios.post(`${import.meta.env.VITE_API_URL}/driver/depart/${id}`, {
-            currentLat: position.coords.latitude,
-            currentLng: position.coords.longitude
-          }, {
-            headers: { Authorization: `Bearer ${authToken}` }
-          });
-          
-          const eta = res.data.request.etaMinutes;
-          if (eta) {
-            alert(`출발 처리 완료! (예상 소요 시간: ${eta}분)`);
-          } else {
-            alert('출발 처리 완료!');
-          }
-          fetchDriverRequests();
-        } catch (error) {
-          alert('출발 처리 중 오류가 발생했습니다.');
-        }
-      },
-      (_error) => {
-        alert('위치 정보를 가져올 수 없습니다. 권한을 확인해주세요.');
-      }
-    );
+    if (!navigator.geolocation) { alert('위치 정보를 지원하지 않는 브라우저입니다.'); return; }
+    if (!window.confirm('해당 수거지로 출발하시겠습니까?')) return;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await axios.post(`${import.meta.env.VITE_API_URL}/driver/depart/${id}`, {
+          currentLat: pos.coords.latitude, currentLng: pos.coords.longitude
+        }, { headers: { Authorization: `Bearer ${authToken}` } });
+        const eta = res.data.request.etaMinutes;
+        alert(eta ? `출발 완료! (예상 ${eta}분)` : '출발 완료!');
+        fetchDriverRequests();
+      } catch { alert('출발 처리 중 오류가 발생했습니다.'); }
+    }, () => alert('위치 정보를 가져올 수 없습니다.'));
   };
 
-  const filteredRequests = requests.filter(r => 
+  const filteredRequests = requests.filter(r =>
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
+  );
+
+  const PhotoUpload = ({ photo, setter, label, color }: { photo: string | null; setter: (v: string | null) => void; label: string; color: string }) => (
+    photo ? (
+      <div className="relative">
+        <img src={photo} alt={label} className={`w-full h-48 object-cover rounded-xl border-2 border-${color}-200`} />
+        <button type="button" onClick={() => setter(null)} className="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full text-xs font-bold">X</button>
+      </div>
+    ) : (
+      <label className={`block w-full py-12 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-${color}-400 hover:bg-${color}-50 transition-all`}>
+        <div className="text-3xl mb-2">{'📷'}</div>
+        <span className="text-sm font-bold text-gray-500">{label}</span>
+        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoChange(e, setter)} />
+      </label>
+    )
   );
 
   return (
@@ -120,42 +129,22 @@ export default function DriverDashboard() {
       {/* Header */}
       <div className="bg-white px-6 py-5 shadow-sm sticky top-0 z-10 flex justify-between items-center">
         <div>
-          <h1 className="text-xl font-extrabold text-gray-900">오늘의 수거 동선 🚚</h1>
+          <h1 className="text-xl font-extrabold text-gray-900">{'오늘의 수거 동선 🚚'}</h1>
           <p className="text-sm text-gray-500 mt-1">안전 운전하세요!</p>
         </div>
         <div className="flex gap-2">
-          {!authToken && (
-            <button onClick={handleDemoLogin} className="px-4 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs">
-              기사 로그인 (데모)
-            </button>
-          )}
-          <button 
-            onClick={() => {
-              localStorage.removeItem('driver_token');
-              window.location.href = '/login';
-            }}
-            className="flex items-center px-3 py-2 text-xs text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all"
-          >
+          {!authToken && <button onClick={handleDemoLogin} className="px-4 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs">기사 로그인 (데모)</button>}
+          <button onClick={() => { localStorage.removeItem('driver_token'); window.location.href = '/login'; }} className="flex items-center px-3 py-2 text-xs text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all">
             <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
             로그아웃
           </button>
         </div>
       </div>
 
-      {/* Tab Bar (Top) */}
+      {/* Tab Bar */}
       <div className="flex bg-white border-b border-gray-200 sticky top-[76px] z-10">
-        <button 
-          onClick={() => setActiveTab('pending')}
-          className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}
-        >
-          수거 대기
-        </button>
-        <button 
-          onClick={() => setActiveTab('completed')}
-          className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}
-        >
-          수거 완료
-        </button>
+        <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>
+        <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>수거 완료</button>
       </div>
 
       {/* Content */}
@@ -164,66 +153,41 @@ export default function DriverDashboard() {
           <div className="text-center py-10 text-gray-500">목록을 불러오는 중...</div>
         ) : filteredRequests.length === 0 ? (
           <div className="text-center py-10 bg-white rounded-2xl shadow-sm">
-            <div className="text-4xl mb-3">📭</div>
+            <div className="text-4xl mb-3">{'📭'}</div>
             <p className="text-gray-500 font-medium">해당하는 수거 건이 없습니다.</p>
           </div>
         ) : (
           filteredRequests.map((req, idx) => (
             <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
-              {activeTab === 'pending' && (
-                <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">
-                  {idx + 1}
-                </div>
-              )}
-              
+              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{idx + 1}</div>}
               <div className="ml-6">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
-                  <a href={`tel:${req.phone}`} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">
-                    📞 전화걸기
-                  </a>
+                  <a href={`tel:${req.phone}`} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">{'📞 전화걸기'}</a>
                 </div>
                 {req.status === 'IN_PROGRESS' && (
                   <div className="mb-2 inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-200 shadow-sm">
-                    🚚 이동 중 {req.etaMinutes ? `(도착 예상: ${req.etaMinutes}분)` : ''}
+                    {'🚚 이동 중'} {req.etaMinutes ? `(도착 예상: ${req.etaMinutes}분)` : ''}
                   </div>
                 )}
                 <p className="text-gray-600 text-sm">{req.address}</p>
                 <p className="text-gray-800 font-medium text-sm mt-1">{req.detailAddress}</p>
-                <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">
-                  예상 무게: {req.estimatedVolume}
-                </div>
+                <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">예상 무게: {req.estimatedVolume}</div>
+                {req.status === 'COMPLETED' && req.actualWeight && (
+                  <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
+                )}
               </div>
-
               {activeTab === 'pending' && (
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => {
-                      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                      if (isMobile) {
-                        window.location.href = `kakaomap://search?q=${encodeURIComponent(req.address)}`;
-                      } else {
-                        window.open(`https://map.kakao.com/link/search/${encodeURIComponent(req.address)}`, '_blank');
-                      }
-                    }}
-                    className="py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
-                  >
-                    카카오내비
-                  </button>
+                  <button onClick={() => {
+                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                    if (isMobile) { window.location.href = `kakaomap://search?q=${encodeURIComponent(req.address)}`; }
+                    else { window.open(`https://map.kakao.com/link/search/${encodeURIComponent(req.address)}`, '_blank'); }
+                  }} className="py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">카카오내비</button>
                   {req.status === 'IN_PROGRESS' ? (
-                    <button 
-                      onClick={() => completeRequest(req.id)}
-                      className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
-                    >
-                      수거 완료하기
-                    </button>
+                    <button onClick={() => openCompleteModal(req.id)} className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
                   ) : (
-                    <button 
-                      onClick={() => departRequest(req.id)}
-                      className="py-3 bg-green-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
-                    >
-                      출발하기
-                    </button>
+                    <button onClick={() => departRequest(req.id)} className="py-3 bg-green-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">출발하기</button>
                   )}
                 </div>
               )}
@@ -232,7 +196,89 @@ export default function DriverDashboard() {
         )}
       </div>
 
-      {/* Bottom Mobile Tab Bar (Navigation) */}
+      {/* 수거 완료 3단계 모달 */}
+      {completeModal.open && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative shadow-2xl">
+            <button type="button" onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold">X</button>
+            {/* 단계 인디케이터 */}
+            <div className="flex items-center justify-center gap-2 mb-6">
+              {[1, 2, 3].map(s => (
+                <div key={s} className={`w-3 h-3 rounded-full transition-all ${completeModal.step >= s ? 'bg-blue-600 scale-110' : 'bg-gray-200'}`} />
+              ))}
+            </div>
+
+            {/* Step 1: 물품 사진 */}
+            {completeModal.step === 1 && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'📦'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">1단계: 수거 물품 촬영</h3>
+                  <p className="text-sm text-gray-500 mt-1">수거할 물품의 전체 사진을 찍어주세요.</p>
+                </div>
+                <PhotoUpload photo={itemPhoto} setter={setItemPhoto} label="탭하여 사진 촬영/선택" color="blue" />
+                <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-transform">
+                  {itemPhoto ? '다음 단계' : '건너뛰기'}  {'>'}
+                </button>
+              </div>
+            )}
+
+            {/* Step 2: 저울 사진 + 무게 입력 */}
+            {completeModal.step === 2 && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'⚖️'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">2단계: 무게 측정</h3>
+                  <p className="text-sm text-gray-500 mt-1">저울 사진을 찍고 실제 무게를 입력해주세요.</p>
+                </div>
+                <PhotoUpload photo={scalePhoto} setter={setScalePhoto} label="저울 사진 촬영/선택" color="green" />
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">실제 수거 무게 (kg) *</label>
+                  <input type="number" step="0.1" value={actualWeight} onChange={(e) => setActualWeight(e.target.value)} placeholder="예: 15.5"
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none text-lg font-bold text-center" />
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 1 }))} className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">{'<'} 이전</button>
+                  <button type="button" onClick={() => { if (!actualWeight) { alert('무게를 입력해주세요.'); return; } setCompleteModal(m => ({ ...m, step: 3 })); }} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl">다음 {'>'}</button>
+                </div>
+              </div>
+            )}
+
+            {/* Step 3: 특이사항 + 완료 */}
+            {completeModal.step === 3 && (
+              <div className="space-y-4">
+                <div className="text-center">
+                  <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'📝'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">3단계: 특이사항</h3>
+                  <p className="text-sm text-gray-500 mt-1">추가 사진이나 메모를 남겨주세요. (선택)</p>
+                </div>
+                <PhotoUpload photo={extraPhoto} setter={setExtraPhoto} label="추가 사진 (선택)" color="purple" />
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">기사 메모</label>
+                  <textarea value={driverNote} onChange={(e) => setDriverNote(e.target.value)} placeholder="특이사항을 입력하세요"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none h-20" />
+                </div>
+                {/* 요약 */}
+                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                  <h4 className="text-sm font-bold text-gray-800">{'📋'} 수거 완료 요약</h4>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">실제 무게</span><span className="font-bold text-gray-900">{actualWeight} kg</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">물품 사진</span><span className={itemPhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{itemPhoto ? '첨부 완료' : '미첨부'}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">저울 사진</span><span className={scalePhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{scalePhoto ? '첨부 완료' : '미첨부'}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-gray-500">특이사항 사진</span><span className={extraPhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{extraPhoto ? '첨부 완료' : '미첨부'}</span></div>
+                </div>
+                <div className="flex gap-3">
+                  <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">{'<'} 이전</button>
+                  <button type="button" onClick={submitComplete} disabled={submitting} className={`flex-1 py-3 font-bold rounded-xl ${submitting ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white shadow-lg'}`}>
+                    {submitting ? '처리 중...' : '수거 완료!'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <div className="flex flex-col items-center text-blue-600">
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>

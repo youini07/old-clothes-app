@@ -328,4 +328,73 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
   }
 });
 
+// ==========================================
+// [PARTNER 전용] 정산 및 통계 기능
+// ==========================================
+router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+
+    // 파트너가 담당하는 권역 ID 목록
+    const coverages = await prisma.coverage.findMany({ where: { partnerId } });
+    const regionIds = coverages.map((c: any) => c.regionId);
+
+    // 해당 파트너에게 배정된 모든 수거 건 조회
+    const allRequests = await prisma.request.findMany({
+      where: {
+        OR: [
+          { regionId: { in: regionIds } },
+          { partnerId: partnerId }
+        ]
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // 전체 통계 계산
+    const totalRequests = allRequests.length;
+    const completedRequests = allRequests.filter((r: any) => r.status === 'COMPLETED');
+    const totalWeight = completedRequests.reduce((sum: number, r: any) => sum + (r.actualWeight || 0), 0);
+    const completionRate = totalRequests > 0 ? Math.round((completedRequests.length / totalRequests) * 100) : 0;
+
+    // 월별 통계 (최근 6개월)
+    const monthlyStats: { month: string; count: number; weight: number; completed: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date();
+      date.setMonth(date.getMonth() - i);
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const monthLabel = `${year}.${String(month + 1).padStart(2, '0')}`;
+
+      const monthRequests = allRequests.filter((r: any) => {
+        const d = new Date(r.createdAt);
+        return d.getFullYear() === year && d.getMonth() === month;
+      });
+      const monthCompleted = monthRequests.filter((r: any) => r.status === 'COMPLETED');
+      const monthWeight = monthCompleted.reduce((sum: number, r: any) => sum + (r.actualWeight || 0), 0);
+
+      monthlyStats.push({
+        month: monthLabel,
+        count: monthRequests.length,
+        weight: Math.round(monthWeight * 10) / 10,
+        completed: monthCompleted.length,
+      });
+    }
+
+    res.json({
+      summary: {
+        totalRequests,
+        completedCount: completedRequests.length,
+        totalWeight: Math.round(totalWeight * 10) / 10,
+        completionRate,
+        pendingCount: allRequests.filter((r: any) => r.status === 'PENDING').length,
+        inProgressCount: allRequests.filter((r: any) => r.status === 'IN_PROGRESS' || r.status === 'SCHEDULED').length,
+      },
+      monthlyStats,
+    });
+  } catch (error) {
+    console.error('통계 조회 에러:', error);
+    res.status(500).json({ error: '통계 데이터 조회 실패' });
+  }
+});
+
 export default router;
