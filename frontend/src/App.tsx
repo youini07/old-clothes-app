@@ -17,45 +17,43 @@ import ProtectedRoute from './components/ProtectedRoute';
  */
 function Home() {
   return (
-    <div className="min-h-screen flex justify-center bg-[#F0EDE6]">
-      {/* 모바일 화면 비율 컨테이너 (최대 너비 450px) */}
-      <div className="w-full max-w-[450px] bg-[#F0EDE6] flex flex-col h-[100dvh]">
-        
-        {/* 상단: 이미지 영역 (가장 아래 텍스트는 잘라냄) */}
-        {/* aspect-[4/4.8] 정도로 설정하면 하단 여백과 텍스트를 크롭하고 아이콘까지만 보여줍니다. */}
-        <div className="w-full relative overflow-hidden aspect-[4/4.8] flex-shrink-0">
-          <img 
-            src="/allclear-logo.png" 
-            alt="올클 ALL-CLEAR" 
-            className="absolute top-0 left-0 w-full h-auto"
-          />
-        </div>
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6]">
+      
+      {/* 1. 배경 화면 전체 채우기 */}
+      <div 
+        className="absolute inset-0 w-full h-full"
+        style={{
+          backgroundImage: 'url(/allclear-logo.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
 
-        {/* 하단: 버튼 및 텍스트 영역 (여유 공간에 flex로 배치) */}
-        <div className="flex-1 flex flex-col items-center justify-end px-6 pb-12 space-y-6">
-          
-          {/* 버튼 1: 카카오 로그인 */}
+      {/* 2. 플로팅 버튼 컨테이너 (모바일 사이즈 중앙 정렬) */}
+      <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none">
+        
+        {/* 버튼 1: 카카오 로그인 (배경화면 텍스트의 '위쪽' 빈 공간) */}
+        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '65%' }}>
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
             style={{ background: '#FEE500' }}
           >
+            {/* 카카오 말풍선 아이콘 */}
             <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
               <ellipse cx="11" cy="10" rx="9" ry="7.5" fill="#3C1E1E"/>
               <path d="M6 14l1.5-3.5" stroke="#FEE500" strokeWidth="1.2" strokeLinecap="round"/>
             </svg>
             카카오로 3초만에 시작하기
           </a>
+        </div>
 
-          {/* 슬로건 텍스트 (버튼 1과 2 사이) */}
-          <p className="text-center text-sm font-medium pt-2 pb-2" style={{ color: '#8D8F96' }}>
-            모두 비우고, 깨끗하게 (All clear, clean all)
-          </p>
-
-          {/* 버튼 2: 관리자 로그인 */}
+        {/* 버튼 2: 관리자 로그인 (배경화면 텍스트의 '아래쪽' 빈 공간) */}
+        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '86%' }}>
           <Link
             to="/login"
-            className="flex items-center justify-center gap-2 w-full py-4 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
+            className="flex items-center justify-center gap-2 w-full py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
             style={{
               background: 'rgba(255,255,255,0.55)',
               backdropFilter: 'blur(8px)',
@@ -69,8 +67,8 @@ function Home() {
               <path d="M5 3L9 7l-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </Link>
-
         </div>
+
       </div>
     </div>
   );
