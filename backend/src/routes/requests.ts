@@ -30,16 +30,25 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
       town = addressParts[2] || '';
     }
 
-    // 1순위: 읍/면/동(town) 단위 디테일 권역 매칭
+    // 1순위: 읍/면/동(town) 단위 정확한 권역 매칭
     let region = await prisma.region.findFirst({
       where: { province, city, town },
       include: { coverages: true }
     });
 
-    // 2순위: 읍/면/동 매칭 실패 시 시/군/구 전역(town: null) 권역 매칭
+    // 2순위: 시/군/구 전역(town: null) 권역 매칭
     if ((!region || region.coverages.length === 0) && city) {
       region = await prisma.region.findFirst({
         where: { province, city, town: null },
+        include: { coverages: true }
+      });
+    }
+
+    // 3순위: 같은 시/군/구에 등록된 아무 권역이라도 있으면 배정
+    // (예: DB에 '평택시 비전동'만 있고, 신청 주소가 '평택시 신장동'인 경우)
+    if ((!region || region.coverages.length === 0) && city) {
+      region = await prisma.region.findFirst({
+        where: { province, city },
         include: { coverages: true }
       });
     }

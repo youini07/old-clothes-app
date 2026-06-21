@@ -514,4 +514,65 @@ router.get('/debug/regions', async (req, res) => {
   }
 });
 
+// [DEBUG] 미배정 수거 신청을 재배정하는 엔드포인트
+router.post('/debug/reassign', async (req, res) => {
+  try {
+    // partnerId가 null인 미배정 요청들을 찾음
+    const unassigned = await prisma.request.findMany({
+      where: { partnerId: null }
+    });
+
+    let reassignedCount = 0;
+
+    for (const request of unassigned) {
+      const addressParts = (request.address || '').split(' ');
+      let province = addressParts[0] || '';
+      if (province === '경기') province = '경기도';
+      const city = addressParts[1] || '';
+      const town = addressParts[2] || '';
+
+      // 1순위: 정확한 town 매칭
+      let region = await prisma.region.findFirst({
+        where: { province, city, town },
+        include: { coverages: true }
+      });
+
+      // 2순위: city 전역 (town: null)
+      if ((!region || region.coverages.length === 0) && city) {
+        region = await prisma.region.findFirst({
+          where: { province, city, town: null },
+          include: { coverages: true }
+        });
+      }
+
+      // 3순위: 같은 city에 등록된 아무 region
+      if ((!region || region.coverages.length === 0) && city) {
+        region = await prisma.region.findFirst({
+          where: { province, city },
+          include: { coverages: true }
+        });
+      }
+
+      if (region && region.coverages.length > 0) {
+        await prisma.request.update({
+          where: { id: request.id },
+          data: {
+            partnerId: region.coverages[0].partnerId,
+            regionId: region.id,
+          }
+        });
+        reassignedCount++;
+      }
+    }
+
+    res.json({ 
+      message: `${reassignedCount}건 재배정 완료 (총 ${unassigned.length}건 미배정)`,
+      reassignedCount,
+      totalUnassigned: unassigned.length
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'reassign error', details: String(error) });
+  }
+});
+
 export default router;
