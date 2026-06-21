@@ -12,6 +12,13 @@ interface RequestItem {
   partnerId: string | null;
   driverId: string | null;
   etaMinutes?: number;
+  orderIndex?: number;
+  actualWeight?: number;
+  driverNote?: string | null;
+  itemPhotoUrl?: string | null;
+  scalePhotoUrl?: string | null;
+  extraPhotoUrl?: string | null;
+  completedDate?: string | Date | null;
 }
 
 interface Driver {
@@ -38,6 +45,15 @@ export default function AdminDashboard() {
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
+  const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
+
+  const allCompletedRequests = requests
+    .filter(r => r.status === 'COMPLETED')
+    .sort((a, b) => {
+      const dateA = a.completedDate ? new Date(a.completedDate).getTime() : 0;
+      const dateB = b.completedDate ? new Date(b.completedDate).getTime() : 0;
+      return dateB - dateA;
+    });
 
   useEffect(() => {
     if (authToken) {
@@ -260,41 +276,41 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto space-y-8">
         
         {/* Header Section */}
-        <div className="glass p-8 rounded-3xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="glass p-6 md:p-8 rounded-3xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold text-gray-900">
+            <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
               지역 파트너 <span className="text-gradient">배차 대시보드</span>
             </h1>
-            <p className="text-gray-500 mt-2 font-medium">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
+            <p className="text-gray-500 mt-2 font-medium text-sm md:text-base">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
           </div>
-          <div className="flex gap-3">
+          <div className="grid grid-cols-3 gap-2 w-full md:flex md:w-auto md:gap-3">
             <button 
               onClick={() => {
                 localStorage.removeItem('admin_token');
                 window.location.href = '/login';
               }}
-              className="flex items-center px-4 py-3 text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all"
+              className="flex items-center justify-center px-1.5 py-3 md:px-4 md:py-3 text-[10px] sm:text-xs md:text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all whitespace-nowrap"
             >
-              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+              <svg className="w-3.5 h-3.5 mr-0.5 sm:mr-1 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
               로그아웃
             </button>
             {!authToken ? (
-              <button onClick={handleDemoLogin} className="px-6 py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl shadow-md hover:bg-yellow-500 transition-all active:scale-95">
-                데모 로그인 (파트너)
+              <button onClick={handleDemoLogin} className="px-1.5 py-3 md:px-6 md:py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl shadow-md hover:bg-yellow-500 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap">
+                데모 로그인
               </button>
             ) : (
               <button 
                 onClick={() => setIsPasswordModalOpen(true)}
-                className="px-4 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-md hover:bg-gray-900 transition-all active:scale-95"
+                className="px-1.5 py-3 md:px-4 md:py-3 bg-gray-800 text-white font-bold rounded-xl shadow-md hover:bg-gray-900 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
               >
                 비밀번호 변경
               </button>
             )}
             <button 
               onClick={() => setIsDriverModalOpen(true)}
-              className="px-6 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-md hover:bg-primary-700 transition-all active:scale-95"
+              className="px-1.5 py-3 md:px-6 md:py-3 bg-primary-600 text-white font-bold rounded-xl shadow-md hover:bg-primary-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
             >
-              기사님 추가하기
+              기사님 추가
             </button>
           </div>
         </div>
@@ -366,6 +382,47 @@ export default function AdminDashboard() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* 완료된 수거 증빙 확인 섹션 */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">📸 완료된 수거 증빙 확인</h3>
+              {allCompletedRequests.length === 0 ? (
+                <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                  완료된 수거 건이 없습니다.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {allCompletedRequests.map(req => {
+                    const driverObj = drivers.find(d => d.id === req.driverId);
+                    const driverName = driverObj?.user?.name || driverObj?.name || '미지정';
+                    return (
+                      <div 
+                        key={req.id}
+                        onClick={() => setSelectedCompletedRequest(req)}
+                        className="p-4 bg-gray-50 hover:bg-primary-50/50 border border-gray-100 hover:border-primary-300 rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col justify-between gap-3"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-extrabold text-gray-900 text-base">{req.userName} <span className="text-xs font-normal text-gray-500">{req.phone}</span></h4>
+                            <p className="text-xs text-gray-500 mt-1 line-clamp-1">{req.address} {req.detailAddress}</p>
+                          </div>
+                          <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg shrink-0">
+                            {req.actualWeight}kg
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-200/50">
+                          <span>담당 기사: <strong className="text-gray-700">{driverName}</strong></span>
+                          <span>{req.completedDate ? new Date(req.completedDate).toLocaleDateString('ko-KR') : ''}</span>
+                        </div>
+                        <div className="flex items-center justify-center py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-primary-600 hover:bg-primary-50 transition-colors">
+                          📸 완료 증빙 사진 및 내역 보기
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -451,8 +508,12 @@ export default function AdminDashboard() {
           {/* Right Column: Drivers */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             {drivers.map(driver => {
-              const driverRequests = requests.filter(r => r.driverId === driver.id && r.status !== 'COMPLETED');
-              const completedRequests = requests.filter(r => r.driverId === driver.id && r.status === 'COMPLETED');
+              const allDriverRequests = requests
+                .filter(r => r.driverId === driver.id)
+                .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+              const driverRequests = allDriverRequests.filter(r => r.status !== 'COMPLETED');
+              const completedRequests = allDriverRequests.filter(r => r.status === 'COMPLETED');
 
               return (
                 <div 
@@ -472,7 +533,7 @@ export default function AdminDashboard() {
                         여기로 카드를 드래그하여 배정하세요
                       </div>
                     ) : (
-                      driverRequests.map((req, idx) => (
+                      driverRequests.map((req) => (
                         <div 
                           key={req.id} 
                           draggable
@@ -480,7 +541,7 @@ export default function AdminDashboard() {
                           className={`p-4 bg-white border rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all flex gap-3 ${req.status === 'IN_PROGRESS' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-primary-100 hover:border-primary-400'}`}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
-                            {idx + 1}
+                            {allDriverRequests.findIndex(item => item.id === req.id) + 1}
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
@@ -504,12 +565,21 @@ export default function AdminDashboard() {
                       <h3 className="text-sm font-bold text-gray-600 mb-3">✅ 완료된 수거 ({completedRequests.length}건)</h3>
                       <div className="space-y-2 opacity-70">
                         {completedRequests.map(req => (
-                          <div key={req.id} className="p-3 bg-gray-50 border border-gray-200 rounded-xl flex justify-between items-center">
-                            <div>
+                          <div 
+                            key={req.id} 
+                            onClick={() => setSelectedCompletedRequest(req)}
+                            className="p-3 bg-white border border-gray-100 hover:border-primary-400 hover:shadow-sm rounded-2xl flex justify-between items-center cursor-pointer transition-all"
+                          >
+                            <div className="min-w-0 flex-1 mr-2">
                               <p className="text-xs font-bold text-gray-800">{req.userName} <span className="font-normal text-gray-500">님</span></p>
-                              <p className="text-[10px] text-gray-500 truncate w-32">{req.address}</p>
+                              <p className="text-[10px] text-gray-500 truncate w-full">{req.address}</p>
                             </div>
-                            <span className="text-xs font-bold text-green-700 bg-green-100 px-2 py-1 rounded">수거완료</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full">
+                                {req.actualWeight}kg
+                              </span>
+                              <span className="text-[10px] font-bold text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">증빙 보기</span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -644,6 +714,83 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+      {/* 수거 완료 상세 증빙 모달 */}
+      {selectedCompletedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl relative max-h-[90vh] overflow-y-auto">
+            <button 
+              onClick={() => setSelectedCompletedRequest(null)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors text-xl font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">📸 수거 완료 증빙 상세</h2>
+            <p className="text-sm text-gray-500 mb-6">기사님이 현장에서 수거 시 등록한 실제 무게 및 증빙 사진 정보입니다.</p>
+
+            <div className="space-y-5">
+              {/* 정보 표 */}
+              <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                <div className="flex justify-between text-sm"><span className="text-gray-500">고객명</span><span className="font-bold text-gray-900">{selectedCompletedRequest.userName}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">연락처</span><span className="font-bold text-gray-900">{selectedCompletedRequest.phone}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">수거 주소</span><span className="font-bold text-gray-900 text-right max-w-[250px] break-all">{selectedCompletedRequest.address} {selectedCompletedRequest.detailAddress}</span></div>
+                <div className="flex justify-between text-sm border-t border-gray-200/50 pt-2"><span className="text-gray-500">실제 무게</span><span className="font-extrabold text-primary-600 text-lg">{selectedCompletedRequest.actualWeight} kg</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-500">수거 완료일시</span><span className="font-semibold text-gray-800">{selectedCompletedRequest.completedDate ? new Date(selectedCompletedRequest.completedDate).toLocaleString('ko-KR') : '-'}</span></div>
+                <div className="flex flex-col text-sm border-t border-gray-200/50 pt-2"><span className="text-gray-500">기사 메모</span><p className="font-medium text-gray-900 mt-1 bg-white p-3 rounded-lg border border-gray-100">{selectedCompletedRequest.driverNote || '특이사항 없음'}</p></div>
+              </div>
+
+              {/* 사진 리스트 */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-700 mb-3">📍 첨부 증빙 사진</h3>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* 1단계 물품 사진 */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                      {selectedCompletedRequest.itemPhotoUrl ? (
+                        <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-gray-400">미첨부</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-semibold">1단계: 물품</span>
+                  </div>
+
+                  {/* 2단계 저울 사진 */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                      {selectedCompletedRequest.scalePhotoUrl ? (
+                        <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-gray-400">미첨부</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-semibold">2단계: 저울</span>
+                  </div>
+
+                  {/* 3단계 특이사항 사진 */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                      {selectedCompletedRequest.extraPhotoUrl ? (
+                        <img src={selectedCompletedRequest.extraPhotoUrl} alt="특이사항 사진" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-xs text-gray-400">미첨부</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-500 font-semibold">3단계: 추가</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setSelectedCompletedRequest(null)}
+              className="mt-6 w-full py-4 text-white font-bold bg-primary-600 rounded-xl hover:bg-primary-700 transition-all shadow-md"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

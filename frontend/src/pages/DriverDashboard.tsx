@@ -230,9 +230,9 @@ export default function DriverDashboard() {
             <p className="text-gray-500 font-medium">해당하는 수거 건이 없습니다.</p>
           </div>
         ) : (
-          filteredRequests.map((req, idx) => (
+          filteredRequests.map((req) => (
             <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
-              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{idx + 1}</div>}
+              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{requests.findIndex(item => item.id === req.id) + 1}</div>}
               <div className="ml-6">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
