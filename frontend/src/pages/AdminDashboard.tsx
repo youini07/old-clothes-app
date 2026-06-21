@@ -204,6 +204,18 @@ export default function AdminDashboard() {
   // 기사별 수거 동선 최적화 요청
   const handleOptimizeRoute = async (driverId: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');
+
+    // 팝업 차단 우회: 비동기 호출 전에 빈 창을 사용자 제스처 동기 범위 내에서 미리 생성
+    const newWindow = window.open('', '_blank');
+    if (newWindow) {
+      newWindow.document.write(`
+        <div style="font-family: sans-serif; text-align: center; margin-top: 100px;">
+          <h2>📍 최적 동선 계산 중...</h2>
+          <p>카카오 경로 최적화 엔진을 통해 최단 경로를 계산하고 있습니다. 잠시만 기다려주세요.</p>
+        </div>
+      `);
+    }
+
     try {
       const res = await axios.post(
         `${import.meta.env.VITE_API_URL}/admin/drivers/${driverId}/optimize-route`,
@@ -230,16 +242,15 @@ export default function AdminDashboard() {
         // 네이버 지도 다중 경유지 자동차 길찾기 URL 생성
         const naverMapUrl = `https://map.naver.com/v5/directions/${pathSegments.join('/')}/-/car`;
         
-        const confirmView = window.confirm(
-          "동선 최적화가 완료되었습니다!\n\n네이버 지도로 최적 경로(경유지 포함 전체 루트)를 시각적으로 확인하시겠습니까?"
-        );
-        if (confirmView) {
-          window.open(naverMapUrl, '_blank');
+        if (newWindow) {
+          newWindow.location.href = naverMapUrl;
         }
       } else {
-        alert(res.data.message || '동선 최적화가 전송되었습니다.');
+        if (newWindow) newWindow.close();
+        alert(res.data.message || '동선 최적화가 완료되었습니다.');
       }
     } catch (error: any) {
+      if (newWindow) newWindow.close();
       alert(error.response?.data?.error || '동선 최적화 중 오류가 발생했습니다.');
     }
   };

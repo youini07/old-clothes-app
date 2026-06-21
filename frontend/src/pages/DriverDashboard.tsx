@@ -105,6 +105,31 @@ export default function DriverDashboard() {
     }, () => alert('위치 정보를 가져올 수 없습니다.'));
   };
 
+  // 모바일 기기별 네비게이션 앱 강제 실행 핸들러
+  const handleNaviClick = (address: string) => {
+    const encodedAddress = encodeURIComponent(address);
+    const userAgent = navigator.userAgent;
+    const isAndroid = /Android/i.test(userAgent);
+    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+
+    if (isAndroid) {
+      // 안드로이드 크롬은 브라우저 보안 정책 상 intent:// 스킴을 사용해 앱을 강제 실행해야 합니다.
+      const fallbackUrl = `https://map.kakao.com/link/search/${encodedAddress}`;
+      const intentUrl = `intent://search?q=${encodedAddress}#Intent;scheme=kakaomap;package=net.daum.android.map;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+      window.location.href = intentUrl;
+    } else if (isIOS) {
+      // iOS는 kakaomap:// 스킴을 사용하여 직접 호출합니다.
+      window.location.href = `kakaomap://search?q=${encodedAddress}`;
+      // 만약 앱이 설치되어 있지 않은 경우, 1.5초 후 카카오 웹지도로 유도하는 폴백
+      setTimeout(() => {
+        window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
+      }, 1500);
+    } else {
+      // PC 환경 등에서는 안전하게 카카오 웹 지도를 새 창으로 띄웁니다.
+      window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
+    }
+  };
+
   const filteredRequests = requests.filter(r =>
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
@@ -179,11 +204,12 @@ export default function DriverDashboard() {
               </div>
               {activeTab === 'pending' && (
                 <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button onClick={() => {
-                    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                    if (isMobile) { window.location.href = `kakaomap://search?q=${encodeURIComponent(req.address)}`; }
-                    else { window.open(`https://map.kakao.com/link/search/${encodeURIComponent(req.address)}`, '_blank'); }
-                  }} className="py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">카카오내비</button>
+                  <button 
+                    onClick={() => handleNaviClick(req.address)} 
+                    className="py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
+                  >
+                    카카오내비
+                  </button>
                   {req.status === 'IN_PROGRESS' ? (
                     <button onClick={() => openCompleteModal(req.id)} className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
                   ) : (
