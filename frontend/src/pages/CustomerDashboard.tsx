@@ -166,7 +166,7 @@ export default function CustomerDashboard() {
         </button>
         {/* 올클 로고 텍스트 */}
         <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.45)' }}>ALL-CLEARE</span>
+          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.45)' }}>ALL-CLEAR</span>
         </div>
         <h1 className="text-2xl font-bold">{userInfo?.name || '고객'}님의 대시보드</h1>
         <p className="mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>나의 수거 현황과 정보를 관리하세요.</p>

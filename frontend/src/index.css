@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* 올클(ALL-CLEARE) 브랜드 폰트 */
+  /* 올클(ALL-CLEAR) 브랜드 폰트 */
   --font-sans: "Pretendard", "Noto Sans KR", "Inter", sans-serif;
   
   /* 올클 메인 컬러: 따뜻한 크림/베이지 배경 기반 */

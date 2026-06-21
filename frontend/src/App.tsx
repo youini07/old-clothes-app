@@ -20,7 +20,7 @@ function Home() {
         <div className="mb-8">
           <img
             src="/allcleare-logo.png"
-            alt="올클 ALL-CLEARE 로고"
+            alt="올클 ALL-CLEAR 로고"
             className="w-64 h-auto mx-auto"
           />
         </div>
