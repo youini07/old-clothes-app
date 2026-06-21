@@ -27,13 +27,13 @@ function Home() {
         backgroundColor: '#F0EDE6', // 이미지 로드 전 fallback 배경
       }}
     >
-      {/* 버튼 2개를 하단에 고정 배치 */}
-      <div className="absolute bottom-0 left-0 right-0 px-8 pb-12 space-y-3">
+      {/* 버튼 2개를 하단에 고정 배치 (배경 이미지의 텍스트 위/아래로 위치) */}
+      <div className="absolute bottom-0 left-0 right-0 px-8 pb-10 flex flex-col justify-end">
 
-        {/* 버튼 1: 카카오 로그인 (이미지의 첫 번째 빨간 박스 위치) */}
+        {/* 버튼 1: 카카오 로그인 (배경 이미지 텍스트 위) */}
         <a
           href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
-          className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
+          className="flex items-center justify-center gap-2 w-full py-4 mb-16 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
           style={{ background: '#FEE500' }}
         >
           {/* 카카오 말풍선 아이콘 */}
@@ -44,12 +44,7 @@ function Home() {
           카카오로 3초만에 시작하기
         </a>
 
-        {/* 슬로건 */}
-        <p className="text-center text-xs font-medium" style={{ color: '#8D8F96' }}>
-          모두 비우고, 깨끗하게 (All clear, clean all)
-        </p>
-
-        {/* 버튼 2: 관리자 로그인 (이미지의 두 번째 빨간 박스 위치) */}
+        {/* 버튼 2: 관리자 로그인 (배경 이미지 텍스트 아래) */}
         <Link
           to="/login"
           className="flex items-center justify-center gap-2 w-full py-4 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
