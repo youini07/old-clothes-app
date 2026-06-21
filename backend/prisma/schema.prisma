@@ -109,6 +109,7 @@ model Request {
   // 수거 물품 데이터
   estimatedVolume String       // 고객이 적은 예상 수거량
   actualWeight    Float?       // 기사가 입력한 실제 수거 무게 (kg)
+  totalPrice      Float?       // 최종 정산 금액 (단가 * 무게)
   
   // 상태 추적 및 예상 소요 시간
   etaMinutes      Int?         // 기사가 출발 시 계산된 예상 도착 시간 (분)

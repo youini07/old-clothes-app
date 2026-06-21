@@ -4,6 +4,7 @@ import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
 import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
+import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
 
 const router = express.Router();
 
@@ -291,7 +292,6 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
       return res.status(409).json({ error: '이미 다른 업체에서 수락한 건입니다.' });
     }
 
-    // 수락 처리: partnerId 설정 + 상태를 ASSIGNED로 변경
     const updated = await prisma.request.update({
       where: { 
         id,
@@ -300,8 +300,19 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
       data: {
         partnerId,
         status: 'ASSIGNED'
-      }
+      },
+      include: { partner: true }
     });
+
+    // 업체 배정 안내 알림톡 발송 (비동기)
+    if (updated.partner && updated.partner.useBizMessage) {
+      sendAssignmentToCustomer(
+        updated.phone,
+        updated.userName,
+        updated.partner.businessName || updated.partner.name,
+        updated.partner.useBizMessage
+      ).catch(err => console.error('배정 안내 알림톡 전송 실패:', err));
+    }
 
     res.json({ 
       message: '수거 요청을 수락했습니다! 기사를 배정해주세요.',
@@ -393,8 +404,20 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
         driverId,
         status: getStatusForAction.onDriverAssigned(),
         confirmedDate: new Date(confirmedDate)
-      }
+      },
+      include: { partner: true }
     });
+
+    // 일정 확정 안내 알림톡 발송 (비동기)
+    if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
+      sendScheduleConfirmedToCustomer(
+        request.phone,
+        request.userName,
+        request.confirmedDate,
+        request.partner.useBizMessage
+      ).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+    }
+
     res.json({ message: '기사 배정이 완료되었습니다.', request });
   } catch (error) {
     res.status(500).json({ error: '기사 배정 실패' });

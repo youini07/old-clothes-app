@@ -1,0 +1,298 @@
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const axios_1 = __importDefault(require("axios"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
+const prisma_1 = require("../lib/prisma");
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const router = express_1.default.Router();
+// 카카오 로그인 요청 (프론트에서 이쪽으로 리다이렉트하거나 직접 카카오 인가코드 URL로 이동)
+router.get('/kakao', (req, res) => {
+    const kakaoAuthUrl = `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.KAKAO_CLIENT_ID}&redirect_uri=${process.env.KAKAO_REDIRECT_URI}&response_type=code`;
+    res.redirect(kakaoAuthUrl);
+});
+// 카카오 로그인 콜백 (카카오에서 이쪽으로 리다이렉트 해줌)
+router.get('/kakao/callback', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d;
+    const code = req.query.code;
+    if (!code) {
+        return res.status(400).json({ error: '인가 코드가 없습니다.' });
+    }
+    try {
+        // 1. 인가 코드로 액세스 토큰 요청
+        const tokenResponse = yield axios_1.default.post('https://kauth.kakao.com/oauth/token', null, {
+            params: {
+                grant_type: 'authorization_code',
+                client_id: process.env.KAKAO_CLIENT_ID,
+                redirect_uri: process.env.KAKAO_REDIRECT_URI,
+                code,
+            },
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        });
+        const accessToken = tokenResponse.data.access_token;
+        // 2. 액세스 토큰으로 카카오 사용자 정보 조회
+        const userResponse = yield axios_1.default.get('https://kapi.kakao.com/v2/user/me', {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+            },
+        });
+        const kakaoUser = userResponse.data;
+        const kakaoId = kakaoUser.id.toString();
+        const nickname = ((_a = kakaoUser.properties) === null || _a === void 0 ? void 0 : _a.nickname) || '고객';
+        const email = ((_b = kakaoUser.kakao_account) === null || _b === void 0 ? void 0 : _b.email) || null;
+        // 3. DB에 사용자 저장/업데이트
+        const user = yield prisma_1.prisma.user.upsert({
+            where: { kakaoId },
+            update: {
+                name: nickname,
+                email: email,
+            },
+            create: {
+                kakaoId,
+                name: nickname,
+                email: email,
+                role: 'CUSTOMER', // 기본 가입 시 고객으로 지정. 관리자가 나중에 DB에서 권한 변경
+            },
+        });
+        // 4. JWT 발급 (DB에 저장된 실제 role 포함)
+        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        // 5. 프론트엔드로 리다이렉트
+        const frontendUrl = process.env.FRONTEND_URL || 'https://all-cle.com';
+        res.redirect(`${frontendUrl}/login-success?token=${jwtToken}&name=${encodeURIComponent(user.name)}&role=${user.role}`);
+    }
+    catch (error) {
+        console.error('카카오 로그인 에러:', ((_c = error.response) === null || _c === void 0 ? void 0 : _c.data) || error.message);
+        res.status(500).json({
+            error: '로그인 처리 중 오류가 발생했습니다.',
+            details: ((_d = error.response) === null || _d === void 0 ? void 0 : _d.data) || error.message
+        });
+    }
+}));
+// 데모용 로그인 (테스트 용도)
+router.post('/demo', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { role } = req.body; // 'PARTNER' or 'DRIVER'
+    try {
+        let user;
+        if (role === 'PARTNER') {
+            // 데모 파트너 찾거나 생성
+            user = yield prisma_1.prisma.user.upsert({
+                where: { email: 'demo_partner@test.com' },
+                update: {},
+                create: {
+                    name: '데모 파트너(용인시)',
+                    email: 'demo_partner@test.com',
+                    role: 'PARTNER',
+                }
+            });
+            // 권역 추가 (용인시)
+            const region = yield prisma_1.prisma.region.upsert({
+                where: { id: 'demo-region-1' },
+                update: {},
+                create: {
+                    id: 'demo-region-1',
+                    province: '경기도',
+                    city: '용인시'
+                }
+            });
+            // Coverage 연결
+            const coverageExists = yield prisma_1.prisma.coverage.findFirst({
+                where: { partnerId: user.id, regionId: region.id }
+            });
+            if (!coverageExists) {
+                yield prisma_1.prisma.coverage.create({
+                    data: { partnerId: user.id, regionId: region.id }
+                });
+            }
+            // 파트너에 소속된 데모 기사 생성
+            const driverUser = yield prisma_1.prisma.user.upsert({
+                where: { email: 'demo_driver@test.com' },
+                update: {},
+                create: {
+                    name: '김기사 (데모)',
+                    email: 'demo_driver@test.com',
+                    role: 'DRIVER'
+                }
+            });
+            yield prisma_1.prisma.driverProfile.upsert({
+                where: { userId: driverUser.id },
+                update: {},
+                create: {
+                    userId: driverUser.id,
+                    partnerId: user.id,
+                    vehicleInfo: '1톤 트럭'
+                }
+            });
+        }
+        else if (role === 'DRIVER') {
+            user = yield prisma_1.prisma.user.findFirst({
+                where: { email: 'demo_driver@test.com' }
+            });
+            if (!user) {
+                return res.status(404).json({ error: '기사 계정이 없습니다. 파트너로 먼저 데모 로그인해주세요.' });
+            }
+        }
+        else if (role === 'SUPER_ADMIN') {
+            user = yield prisma_1.prisma.user.upsert({
+                where: { email: 'demo_superadmin@test.com' },
+                update: {},
+                create: {
+                    name: '슈퍼 관리자 (데모)',
+                    email: 'demo_superadmin@test.com',
+                    role: 'SUPER_ADMIN'
+                }
+            });
+        }
+        else {
+            // CUSTOMER
+            user = yield prisma_1.prisma.user.upsert({
+                where: { email: 'demo_customer@test.com' },
+                update: {},
+                create: {
+                    name: '데모 고객',
+                    email: 'demo_customer@test.com',
+                    role: 'CUSTOMER'
+                }
+            });
+        }
+        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role } });
+    }
+    catch (error) {
+        console.error('데모 로그인 에러:', error);
+        res.status(500).json({ error: '데모 로그인 실패' });
+    }
+}));
+// 이메일과 비밀번호 기반의 정식 로그인 API
+router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email, password } = req.body;
+    if (!email || !password) {
+        return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
+    }
+    try {
+        const user = yield prisma_1.prisma.user.findUnique({ where: { email } });
+        if (!user || !user.password) {
+            return res.status(401).json({ error: '등록되지 않은 이메일이거나 비밀번호가 설정되지 않은 계정입니다.' });
+        }
+        const isMatch = yield bcryptjs_1.default.compare(password, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
+        }
+        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role } });
+    }
+    catch (error) {
+        console.error('로그인 에러:', error);
+        res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.' });
+    }
+}));
+// 초기 슈퍼 관리자 생성 API (테스트/초기화 용도 - 실 서비스에서는 삭제 권장)
+router.post('/init-superadmin', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { email, password, name } = req.body;
+    if (!email || !password || !name) {
+        return res.status(400).json({ error: '이메일, 비밀번호, 이름을 모두 입력해주세요.' });
+    }
+    try {
+        const existing = yield prisma_1.prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
+        if (existing && existing.email !== email) {
+            return res.status(403).json({ error: `이미 다른 이메일(${existing.email})의 슈퍼 관리자 계정이 존재합니다.` });
+        }
+        const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
+        const user = yield prisma_1.prisma.user.upsert({
+            where: { email },
+            update: { password: hashedPassword, name, role: 'SUPER_ADMIN' },
+            create: {
+                email,
+                password: hashedPassword,
+                name,
+                role: 'SUPER_ADMIN'
+            }
+        });
+        res.json({ message: '슈퍼 관리자 계정이 생성/업데이트 되었습니다.', email: user.email });
+    }
+    catch (error) {
+        console.error('슈퍼관리자 생성 에러:', error);
+        res.status(500).json({ error: '슈퍼관리자 계정 생성 실패' });
+    }
+}));
+// 비밀번호 변경 API
+router.patch('/password', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.userId;
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: '현재 비밀번호와 새 비밀번호를 모두 입력해주세요.' });
+    }
+    try {
+        const user = yield prisma_1.prisma.user.findUnique({ where: { id: userId } });
+        if (!user || !user.password) {
+            return res.status(400).json({ error: '사용자를 찾을 수 없거나 비밀번호가 설정되지 않은 계정입니다.' });
+        }
+        const isMatch = yield bcryptjs_1.default.compare(currentPassword, user.password);
+        if (!isMatch) {
+            return res.status(401).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
+        }
+        const hashedPassword = yield bcryptjs_1.default.hash(newPassword, 10);
+        yield prisma_1.prisma.user.update({
+            where: { id: userId },
+            data: { password: hashedPassword }
+        });
+        res.json({ message: '비밀번호가 성공적으로 변경되었습니다.' });
+    }
+    catch (error) {
+        console.error('비밀번호 변경 에러:', error);
+        res.status(500).json({ error: '비밀번호 변경 중 오류가 발생했습니다.' });
+    }
+}));
+// 내 정보 조회
+router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.userId;
+        const user = yield prisma_1.prisma.user.findUnique({
+            where: { id: userId },
+            select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true, zipCode: true }
+        });
+        if (!user) {
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        }
+        res.json({ user });
+    }
+    catch (error) {
+        console.error('내 정보 조회 에러:', error);
+        res.status(500).json({ error: '내 정보를 불러오는데 실패했습니다.' });
+    }
+}));
+// 내 정보 수정
+router.patch('/profile', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.userId;
+        const { name, phone, address, detailAddress, zipCode } = req.body;
+        if (!name) {
+            return res.status(400).json({ error: '이름은 필수 항목입니다.' });
+        }
+        const updatedUser = yield prisma_1.prisma.user.update({
+            where: { id: userId },
+            data: { name, phone, address, detailAddress, zipCode },
+            select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true, zipCode: true }
+        });
+        res.json({ message: '정보가 성공적으로 업데이트 되었습니다.', user: updatedUser });
+    }
+    catch (error) {
+        console.error('내 정보 수정 에러:', error);
+        res.status(500).json({ error: '정보 수정에 실패했습니다.' });
+    }
+}));
+exports.default = router;

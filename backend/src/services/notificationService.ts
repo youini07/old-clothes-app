@@ -5,55 +5,45 @@ const ALIGO_API_KEY = process.env.ALIGO_API_KEY || 'your_aligo_api_key';
 const ALIGO_USER_ID = process.env.ALIGO_USER_ID || 'your_aligo_user_id';
 const SENDER_PHONE = process.env.SENDER_PHONE || '010-0000-0000';
 
-/**
- * 고객에게 알림톡 또는 문자를 발송하는 서비스
- * 파트너의 useBizMessage 설정에 따라 실제 과금 통신 여부가 결정됨
- */
+const sendMockBizMessage = (title: string, phone: string, message: string) => {
+  console.log(`\n=================================================`);
+  console.log(`[알림톡 발송 테스트 모드]`);
+  console.log(`- 제목: ${title}`);
+  console.log(`- 수신자: ${phone}`);
+  console.log(`- 내용:\n${message}`);
+  console.log(`=================================================\n`);
+  return true;
+};
+
 export const sendDepartureNotification = async (phone: string, userName: string, etaMinutes: number | null, useBizMessage: boolean) => {
+  if (!useBizMessage) return false;
   const message = etaMinutes 
-    ? `[헌옷수거 알림]\n${userName}님, 수거 기사님이 출발했습니다!\n예상 도착 시간은 약 ${etaMinutes}분 입니다.\n잠시만 기다려주세요.`
-    : `[헌옷수거 알림]\n${userName}님, 수거 기사님이 출발했습니다!\n잠시만 기다려주세요.`;
+    ? `[올클 알림톡]\n${userName}님, 수거 기사님이 출발했습니다!\n예상 도착 시간은 약 ${etaMinutes}분 입니다.\n잠시만 기다려주세요.`
+    : `[올클 알림톡]\n${userName}님, 수거 기사님이 출발했습니다!\n잠시만 기다려주세요.`;
+  return sendMockBizMessage('수거 출발 안내', phone, message);
+};
 
-  if (!useBizMessage) {
-    // 요금이 부과되지 않는 시뮬레이션 모드
-    console.log(`\n=================================================`);
-    console.log(`[알림톡 발송 차단됨 (요금 절약 모드)]`);
-    console.log(`- 수신자 번호: ${phone}`);
-    console.log(`- 메시지 내용:\n${message}`);
-    console.log(`=================================================\n`);
-    return true; // 성공한 것으로 간주
-  }
+export const sendNewRequestToPartner = async (partnerPhone: string, customerName: string, address: string, useBizMessage: boolean) => {
+  if (!useBizMessage) return false;
+  const message = `[올클 파트너 알림]\n새로운 수거 신청이 접수되었습니다!\n- 고객명: ${customerName}\n- 수거지: ${address}\n\n관리자 페이지에서 확인 후 업체를 배정해 주세요.`;
+  return sendMockBizMessage('신규 신청 접수', partnerPhone, message);
+};
 
-  try {
-    // 실제 알리고(Aligo) 알림톡 전송 API 호출 로직 (예시)
-    // 알리고 API 문서 기준 템플릿 기반 발송 로직 작성
-    /*
-    const response = await axios.post('https://kakaoapi.aligo.in/akv10/alimtalk/send/', null, {
-      params: {
-        apikey: ALIGO_API_KEY,
-        userid: ALIGO_USER_ID,
-        senderkey: process.env.ALIGO_SENDER_KEY,
-        tpl_code: 'DEPARTURE_TEMPLATE_01',
-        sender: SENDER_PHONE,
-        receiver_1: phone,
-        subject_1: '수거 출발 안내',
-        message_1: message,
-      }
-    });
+export const sendAssignmentToCustomer = async (phone: string, userName: string, partnerName: string, useBizMessage: boolean) => {
+  if (!useBizMessage) return false;
+  const message = `[올클 알림톡]\n${userName}님, 헌옷 수거 업체 배정이 완료되었습니다.\n- 담당 업체: ${partnerName}\n\n곧 담당 기사님이 수거 일정을 확정해 드릴 예정입니다. 조금만 기다려주세요!`;
+  return sendMockBizMessage('업체 배정 완료', phone, message);
+};
 
-    if (response.data.code !== 0) {
-      throw new Error(response.data.message);
-    }
-    */
-    
-    console.log(`[실제 발송 완료] ${phone} 번호로 알림톡을 발송했습니다.`);
-    return true;
-  } catch (error) {
-    console.error(`[알림톡 발송 실패] 번호: ${phone}`, error);
-    
-    // 알림톡 실패 시 Fallback으로 일반 SMS 전송 로직 (추후 구현)
-    // await sendFallbackSms(phone, message);
-    
-    return false;
-  }
+export const sendScheduleConfirmedToCustomer = async (phone: string, userName: string, confirmedDate: Date, useBizMessage: boolean) => {
+  if (!useBizMessage) return false;
+  const formattedDate = new Date(confirmedDate).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul', month: 'long', day: 'numeric', hour: 'numeric', minute: 'numeric' });
+  const message = `[올클 알림톡]\n${userName}님, 수거 일정이 확정되었습니다!\n- 방문 예정일: ${formattedDate}\n\n방문 전 기사님이 다시 한번 연락드릴 예정입니다. 감사합니다.`;
+  return sendMockBizMessage('수거 일정 확정', phone, message);
+};
+
+export const sendCompletionToCustomer = async (phone: string, userName: string, actualWeight: number, totalPrice: number, useBizMessage: boolean) => {
+  if (!useBizMessage) return false;
+  const message = `[올클 알림톡]\n${userName}님, 헌옷 수거가 완료되었습니다!\n\n[수거 내역]\n- 수거 무게: ${actualWeight}kg\n- 정산 금액: ${totalPrice.toLocaleString()}원\n\n이용해 주셔서 감사합니다. 올클과 함께 깨끗한 하루 보내세요!`;
+  return sendMockBizMessage('수거 완료 및 정산', phone, message);
 };

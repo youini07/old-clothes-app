@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/authMiddleware';
 import { validateRequest } from '../middleware/validateMiddleware';
 import { getStatusForAction } from '../services/statusService';
+import { sendNewRequestToPartner } from '../services/notificationService';
 
 const router = express.Router();
 
@@ -27,13 +28,20 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
       city = addressParts[1] || '';     
     }
 
-    // 통계용 regionId 조회 (시 단위로만 매칭)
+    // 통계용 regionId 조회 및 해당 권역 사장님 찾기
     let regionId = null;
+    let partnerToNotify = null;
     if (province && city) {
       const region = await prisma.region.findFirst({
-        where: { province, city }
+        where: { province, city },
+        include: { coverages: { include: { partner: true } } }
       });
-      if (region) regionId = region.id;
+      if (region) {
+        regionId = region.id;
+        if (region.coverages.length > 0) {
+          partnerToNotify = region.coverages[0].partner;
+        }
+      }
     }
 
     // 2. DB에 수거 신청 데이터 저장
@@ -65,6 +73,16 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
       estimatedVolume: newRequest.estimatedVolume,
       status: newRequest.status,
     }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
+
+    // 4. 파트너 사장님께 신규 신청 알림톡 발송 (비동기 처리)
+    if (partnerToNotify && partnerToNotify.phone) {
+      sendNewRequestToPartner(
+        partnerToNotify.phone,
+        newRequest.userName,
+        newRequest.address,
+        partnerToNotify.useBizMessage
+      ).catch(err => console.error('신규 신청 알림톡 전송 실패:', err));
+    }
 
     res.status(201).json({ 
       message: '수거 신청이 완료되었습니다.',

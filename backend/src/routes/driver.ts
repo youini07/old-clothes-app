@@ -2,7 +2,7 @@ import express from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { getSingleRouteETA } from '../services/kakaoRoute';
-import { sendDepartureNotification } from '../services/notificationService';
+import { sendDepartureNotification, sendCompletionToCustomer } from '../services/notificationService';
 import { updateRequestStatusInSheet } from '../services/googleSheets';
 import { getStatusForAction } from '../services/statusService';
 
@@ -64,18 +64,35 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER']), async (req: 
   const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body as any;
 
   try {
+    const PRICE_PER_KG = 300; // 1kg당 단가 (임시 설정)
+    const weight = parseFloat(actualWeight);
+    const totalPrice = weight * PRICE_PER_KG;
+
     const request = await prisma.request.update({
       where: { id },
       data: {
-        actualWeight: parseFloat(actualWeight),
+        actualWeight: weight,
+        totalPrice,
         driverNote,
         itemPhotoUrl,
         scalePhotoUrl,
         extraPhotoUrl,
         status: getStatusForAction.onCompleted(),
         completedDate: new Date()
-      }
+      },
+      include: { partner: true }
     });
+    
+    // 수거 완료 및 정산 알림톡 발송 (비동기)
+    if (request.partner && request.partner.useBizMessage) {
+      sendCompletionToCustomer(
+        request.phone,
+        request.userName,
+        weight,
+        totalPrice,
+        request.partner.useBizMessage
+      ).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
+    }
     
     // 구글 시트에 완료 상태 및 무게/메모 업데이트
     await updateRequestStatusInSheet(id as string, 'COMPLETED', parseFloat(actualWeight), driverNote as string);
