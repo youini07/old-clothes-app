@@ -143,7 +143,7 @@ router.get('/', authenticate, async (req: AuthRequest, res) => {
 
 // 관리자용 - 기사 배정 API (드래그 앤 드롭 연동용, 인증 필수)
 router.patch('/:id/assign', authenticate, async (req: AuthRequest, res) => {
-  const { id } = req.params;
+  const { id } = req.params as { id: string };
   const driverId = typeof req.body.driverId === 'string' ? req.body.driverId : undefined;
 
   try {
