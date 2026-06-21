@@ -55,14 +55,62 @@ export default function DriverDashboard() {
     } finally { setLoading(false); }
   };
 
-  // 사진을 base64로 변환
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string | null) => void) => {
+  // 이미지 압축 (Canvas를 활용해 1024px 해상도 제한 및 JPEG 70% 품질 압축)
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 1024; // 최대 크기 제한
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7); // 70% 품질로 압축
+            resolve(dataUrl);
+          } else {
+            reject(new Error('Canvas context is null'));
+          }
+        };
+        img.onerror = () => reject(new Error('이미지 로드 실패'));
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('파일 읽기 실패'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // 사진 입력 처리 및 압축 연동
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string | null) => void) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { alert('사진 크기는 5MB 이하만 가능합니다.'); return; }
-    const reader = new FileReader();
-    reader.onloadend = () => setter(reader.result as string);
-    reader.readAsDataURL(file);
+    
+    try {
+      const compressedBase64 = await compressImage(file);
+      setter(compressedBase64);
+    } catch (error) {
+      console.error('이미지 압축 실패:', error);
+      alert('이미지 처리 중 오류가 발생했습니다.');
+    }
   };
 
   const openCompleteModal = (id: string) => {
