@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <title>헌옷 수거 어플리케이션 영업 제안서</title>
+  <style>
+    @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+
+    :root {
+      --primary: #10B981;
+      /* 에메랄드 그린 */
+      --primary-dark: #059669;
+      --bg: #F3F4F6;
+      --text-main: #1F2937;
+      --text-muted: #6B7280;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Pretendard', sans-serif;
+    }
+
+    /* A4 사이즈 프린트 최적화 */
+    body {
+      background: #e0e0e0;
+      display: flex;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .a4-page {
+      width: 210mm;
+      height: 297mm;
+      background: white;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+      padding: 22mm 18mm 18mm 18mm;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+
+      .a4-page {
+        box-shadow: none;
+        width: 210mm;
+        height: 297mm;
+        padding: 18mm 18mm 15mm 18mm;
+        page-break-after: avoid;
+        page-break-inside: avoid;
+      }
+    }
+
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 29px;
+      color: var(--text-main);
+      margin-bottom: 8px;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+
+    .header p {
+      font-size: 16px;
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .intro {
+      background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);
+      padding: 18px 24px;
+      border-radius: 12px;
+      margin-bottom: 25px;
+      text-align: center;
+      color: var(--primary-dark);
+      font-size: 14px;
+      line-height: 1.6;
+      font-weight: 500;
+    }
+
+    .section {
+      margin-bottom: 25px;
+    }
+
+    .section h2 {
+      font-size: 19px;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 2px solid var(--primary);
+      padding-bottom: 8px;
+    }
+
+    .content-box {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .text-area {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .text-area ul {
+      list-style: none;
+    }
+
+    .text-area li {
+      margin-bottom: 10px;
+      font-size: 14.5px;
+      color: var(--text-main);
+      line-height: 1.5;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .text-area li:last-child {
+      margin-bottom: 0;
+    }
+
+    .text-area li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .text-area li strong {
+      color: var(--primary-dark);
+    }
+
+    /* 사진 삽입 영역 */
+    .image-area {
+      flex: 1;
+      background: #F9FAFB;
+      border: 2px dashed #D1D5DB;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      color: var(--text-muted);
+      height: 175px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .image-area img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+      z-index: 10;
+      opacity: 1;
+    }
+
+    .image-area .placeholder-text {
+      z-index: 5;
+      text-align: center;
+      padding: 10px;
+      font-size: 12px;
+    }
+
+    .image-area .placeholder-text code {
+      background: #E5E7EB;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      display: block;
+      margin-top: 6px;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-top: 1px solid #E5E7EB;
+      padding-top: 15px;
+    }
+
+    .footer strong {
+      color: var(--text-main);
+      font-size: 15px;
+      display: block;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- 1페이지 -->
+  <div class="a4-page">
+    <div class="header">
+      <h1>헌옷 수거 비즈니스의 새로운 패러다임</h1>
+      <p>"종이 영수증과 문자 접수는 이제 그만, 완벽하게 자동화된 수거 플랫폼"</p>
+    </div>
+
+    <div class="intro">
+      수많은 접수 전화, 복잡한 기사님 동선 관리, 수기로 작성하는 장부... <br> 아직도 아날로그 방식에 머물러 계신가요?<br>
+      본 어플리케이션은 <strong>고객 접수부터 기사님 배차, 사장님의 매출 관리까지</strong> <br> 모든 과정을 하나의 플랫폼으로 통합하여<br>운영 리소스는 절반으로 줄이고 비즈니스 효율은 200%
+      끌어올립니다. <br> 카카오톡 계정 연동으로 극강의 접근성과 편의기능을 제공가능 
+    </div>
+
+    <!-- 고객 페이지 -->
+    <div class="section">
+      <h2>📱 1. 고객(이용자) 페이지 : 터치 몇 번으로 끝나는 수거 요청</h2>
+      <div class="content-box">
+        <div class="text-area">
+          <ul>
+            <li><strong>간편 1분 접수 시스템</strong>: 복잡한 회원가입 없이 직관적인 UI로 언제 어디서나 쉽게 예약할 수 있습니다.</li>
+            <li><strong>실시간 진행상황 알림</strong>: [접수 대기] → [배차] → [수거 완료] 단계별 알림으로 고객 신뢰도를 극대화합니다.</li>
+            <li><strong>투명한 수거 내역 관리</strong>: 과거 내역과 정산 금액을 쉽게 확인할 수 있어 단골 고객 유치에 매우 유리합니다.</li>
+          </ul>
+        </div>
+        <div class="image-area">
+          <div class="placeholder-text">
+            📷 여기에 사진을 넣어주세요<br>
+            <code>&lt;img src="고객앱사진.png" /&gt;</code>
+          </div>
+          <!-- 수정할 부분: 아래 src 속성에 사진 파일 경로를 적어주세요. 예: src="./customer-app.png" -->
+          <img src="./customer_app.png" alt="고객앱사진" style="opacity: 1;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 기사님 페이지 -->
+    <div class="section">
+      <h2>🚚 2. 기사님 페이지 : 길에서 버리는 시간 없이 수거에만 집중</h2>
+      <div class="content-box" style="flex-direction: row-reverse;">
+        <div class="text-area">
+          <ul>
+            <li><strong>최적 동선 자동 안내</strong>: 배당된 예약들을 지도와 연동하여 가장 빠르고 효율적인 동선을 제시합니다.</li>
+            <li><strong>원터치 상태 변경 & 현장 입력</strong>: 터치 한 번으로 '이동 중', '수거 완료' 상태가 본사에 실시간 보고됩니다.</li>
+            <li><strong>스마트 현장 정산</strong>: 무게만 입력하면 매입 단가에 맞춰 즉시 정산 금액이 계산되어 업무가 혁신적으로 빨라집니다.</li>
+          </ul>
+        </div>
+        <div class="image-area">
+          <div class="placeholder-text">
+            📷 여기에 사진을 넣어주세요<br>
+            <code>&lt;img src="기사님앱사진.png" /&gt;</code>
+          </div>
+          <!-- 수정할 부분: 아래 src 속성에 사진 파일 경로를 적어주세요 -->
+          <img src="./driver_app.png" alt="기사님앱사진" style="opacity: 1;" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 사장님 페이지 -->
+    <div class="section">
+      <h2>👑 3. 사장님(관리자) 페이지 : 내 손 안의 완벽한 컨트롤 타워</h2>
+      <div class="content-box">
+        <div class="text-area">
+          <ul>
+            <li><strong>실시간 관제 대시보드</strong>: 오늘 예약 건수, 기사님 현재 위치 및 처리 현황을 외부에서도 즉시 파악합니다.</li>
+            <li><strong>스마트 배차 시스템</strong>: 클릭 한 번으로 가장 가까운 기사님에게 배차하여 누락 없이 모든 콜을 소화합니다.</li>
+            <li><strong>매출 및 데이터 통계</strong>: 기간별 수거량, 기사별 실적 등 깔끔한 그래프가 비즈니스 확장을 위한 강력한 무기가 됩니다.</li>
+          </ul>
+        </div>
+        <div class="image-area">
+          <div class="placeholder-text">
+            📷 여기에 사진을 넣어주세요<br>
+            <code>&lt;img src="사장님앱사진.png" /&gt;</code>
+          </div>
+          <!-- 수정할 부분: 아래 src 속성에 사진 파일 경로를 적어주세요 -->
+          <img src="./admin_dashboard.png" alt="사장님앱사진" style="opacity: 1;" />
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <strong>지금 바로 스마트 헌옷 수거 플랫폼을 경험하세요!</strong>
+      디지털 전환은 더 이상 선택이 아닌 필수입니다. 최고의 파트너가 되어 드리겠습니다.<br>
+      <span style="color:var(--primary); font-weight:bold; margin-top:10px; display:inline-block;">도입 문의: 010-2269-6064
+        | 드림스튜디오 빈티지</span>
+    </div>
+  </div>
+
+</body>
+
+</html>

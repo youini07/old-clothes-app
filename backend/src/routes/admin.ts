@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
 import { getStatusForAction } from '../services/statusService';
+import { getCoordinates } from '../services/kakaoRoute';
 
 const router = express.Router();
 
@@ -397,6 +398,121 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
     res.json({ message: '기사 배정이 완료되었습니다.', request });
   } catch (error) {
     res.status(500).json({ error: '기사 배정 실패' });
+  }
+});
+
+// 4. 기사별 동선 최적화 (카카오 좌표 API 기반 최단거리 정렬)
+router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  const { driverId } = req.params;
+  const partnerId = req.user!.userId;
+
+  try {
+    // 기사가 이 파트너 소속인지 확인
+    const driver = await prisma.driverProfile.findFirst({
+      where: { id: driverId, partnerId }
+    });
+    if (!driver) {
+      return res.status(404).json({ error: '소속 기사를 찾을 수 없습니다.' });
+    }
+
+    // 기사에게 배정된 미완료 수거 건 조회
+    const requests = await prisma.request.findMany({
+      where: { driverId, status: { not: 'COMPLETED' } }
+    });
+
+    if (requests.length <= 1) {
+      return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
+    }
+
+    // 파트너(본사) 주소 조회 (출발지)
+    const partner = await prisma.user.findUnique({ where: { id: partnerId } });
+    const originAddress = partner?.address || '경기 평택시 신장로 72-13'; // 기본값
+
+    // 출발지 좌표 변환
+    const originCoords = await getCoordinates(originAddress);
+    if (!originCoords) {
+      return res.status(400).json({ error: '출발지 주소의 좌표를 찾을 수 없습니다.' });
+    }
+
+    // 각 수거지의 좌표 변환
+    const destinations: any[] = [];
+    for (const r of requests) {
+      const coords = await getCoordinates(r.address);
+      if (coords) {
+        destinations.push({
+          request: r,
+          x: parseFloat(coords.x),
+          y: parseFloat(coords.y)
+        });
+      } else {
+        // 좌표 변환 실패 시 출발지 근처로 임시 매핑
+        destinations.push({
+          request: r,
+          x: parseFloat(originCoords.x),
+          y: parseFloat(originCoords.y)
+        });
+      }
+    }
+
+    // Nearest Neighbor 알고리즘을 이용한 최적 경로 탐색 (유클리드 거리 기반)
+    const optimizedList: any[] = [];
+    let currentX = parseFloat(originCoords.x);
+    let currentY = parseFloat(originCoords.y);
+    const unvisited = [...destinations];
+
+    while (unvisited.length > 0) {
+      let minDistance = Infinity;
+      let nextIndex = 0;
+
+      for (let i = 0; i < unvisited.length; i++) {
+        const dx = unvisited[i].x - currentX;
+        const dy = unvisited[i].y - currentY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < minDistance) {
+          minDistance = distance;
+          nextIndex = i;
+        }
+      }
+
+      const nextTarget = unvisited.splice(nextIndex, 1)[0];
+      optimizedList.push(nextTarget.request);
+      currentX = nextTarget.x;
+      currentY = nextTarget.y;
+    }
+
+    // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
+    await prisma.$transaction(
+      optimizedList.map((reqItem, idx) =>
+        prisma.request.update({
+          where: { id: reqItem.id },
+          data: { orderIndex: idx }
+        })
+      )
+    );
+
+    res.json({
+      message: '동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로가 반영됩니다.',
+      origin: {
+        address: originAddress,
+        x: originCoords.x,
+        y: originCoords.y
+      },
+      optimizedRequests: optimizedList.map((r, idx) => {
+        const dest = destinations.find(d => d.request.id === r.id);
+        return {
+          id: r.id,
+          userName: r.userName,
+          address: r.address,
+          orderIndex: idx,
+          x: dest ? dest.x.toString() : originCoords.x,
+          y: dest ? dest.y.toString() : originCoords.y
+        };
+      })
+    });
+  } catch (error) {
+    console.error('동선 최적화 에러:', error);
+    res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
   }
 });
 

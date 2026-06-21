@@ -201,6 +201,49 @@ export default function AdminDashboard() {
     }
   };
 
+  // 기사별 수거 동선 최적화 요청
+  const handleOptimizeRoute = async (driverId: string) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    try {
+      const res = await axios.post(
+        `${import.meta.env.VITE_API_URL}/admin/drivers/${driverId}/optimize-route`,
+        {},
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      
+      fetchData(); // 최적화된 동선 순서(orderIndex)로 대시보드 리로드
+
+      const origin = res.data.origin;
+      const optimized = res.data.optimizedRequests;
+
+      if (origin && optimized && optimized.length > 0) {
+        // 네이버 지도는 경도(x), 위도(y) 순으로 경로 파라미터를 구성합니다.
+        const startPath = `${origin.x},${origin.y},${encodeURIComponent("출발지(" + origin.address.split(" ")[1] + ")")}`;
+        const pathSegments = [startPath];
+
+        optimized.forEach((r: any) => {
+          if (r.x && r.y) {
+            pathSegments.push(`${r.x},${r.y},${encodeURIComponent(r.userName + "(" + r.address.split(" ")[1] + ")")}`);
+          }
+        });
+
+        // 네이버 지도 다중 경유지 자동차 길찾기 URL 생성
+        const naverMapUrl = `https://map.naver.com/v5/directions/${pathSegments.join('/')}/-/car`;
+        
+        const confirmView = window.confirm(
+          "동선 최적화가 완료되었습니다!\n\n네이버 지도로 최적 경로(경유지 포함 전체 루트)를 시각적으로 확인하시겠습니까?"
+        );
+        if (confirmView) {
+          window.open(naverMapUrl, '_blank');
+        }
+      } else {
+        alert(res.data.message || '동선 최적화가 전송되었습니다.');
+      }
+    } catch (error: any) {
+      alert(error.response?.data?.error || '동선 최적화 중 오류가 발생했습니다.');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -462,7 +505,10 @@ export default function AdminDashboard() {
                     </div>
                   )}
                   
-                  <button className="w-full mt-6 py-3 bg-white border-2 border-primary-600 text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-colors">
+                  <button 
+                    onClick={() => handleOptimizeRoute(driver.id)}
+                    className="w-full mt-6 py-3 bg-white border-2 border-primary-600 text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-colors"
+                  >
                     최적 동선 카카오내비 전송
                   </button>
                 </div>
