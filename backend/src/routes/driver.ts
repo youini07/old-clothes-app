@@ -1,12 +1,11 @@
 import express from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { getSingleRouteETA } from '../services/kakaoRoute';
 import { sendDepartureNotification } from '../services/notificationService';
 import { updateRequestStatusInSheet } from '../services/googleSheets';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // ==========================================
 // [DRIVER 전용] 수거 기사 앱 기능

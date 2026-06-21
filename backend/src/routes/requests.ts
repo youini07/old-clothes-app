@@ -1,11 +1,10 @@
 import express from 'express';
 import { addRequestToSheet } from '../services/googleSheets';
 import { getCoordinates, getOptimalRoute } from '../services/kakaoRoute';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/authMiddleware';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // 새로운 수거 신청 생성
 router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
@@ -68,8 +67,8 @@ router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
       }
     });
 
-    // 3. 구글 스프레드시트에 연동 (이중 백업)
-    await addRequestToSheet({
+    // 3. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
+    addRequestToSheet({
       id: newRequest.id,
       userName: newRequest.userName,
       phone: newRequest.phone,
@@ -78,7 +77,7 @@ router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
       desiredDate: newRequest.desiredDate.toISOString(),
       estimatedVolume: newRequest.estimatedVolume,
       status: newRequest.status,
-    });
+    }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
 
     res.status(201).json({ 
       message: '수거 신청이 완료되었습니다.',
@@ -111,8 +110,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
 });
 
 
-// 관리자용 - 모든 신청 내역 조회
-router.get('/', async (req, res) => {
+// 관리자용 - 모든 신청 내역 조회 (인증 필수)
+router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
     const requests = await prisma.request.findMany({ 
       orderBy: { createdAt: 'desc' } 
@@ -124,8 +123,8 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 관리자용 - 기사 배정 API (드래그 앤 드롭 연동용)
-router.patch('/:id/assign', async (req, res) => {
+// 관리자용 - 기사 배정 API (드래그 앤 드롭 연동용, 인증 필수)
+router.patch('/:id/assign', authenticate, async (req: AuthRequest, res) => {
   const { id } = req.params;
   const { driverId } = req.body;
 

@@ -1,12 +1,11 @@
 import express from 'express';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import { authenticate } from '../middleware/authMiddleware';
 
 const router = express.Router();
-const prisma = new PrismaClient();
 
 // 카카오 로그인 요청 (프론트에서 이쪽으로 리다이렉트하거나 직접 카카오 인가코드 URL로 이동)
 router.get('/kakao', (req, res) => {

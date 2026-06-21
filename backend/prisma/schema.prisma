@@ -28,6 +28,9 @@ model User {
   // 고객일 경우
   customerRequests Request[] @relation("CustomerRequests")
   
+  // 파트너가 배정받은 수거 신청건
+  partnerRequests  Request[] @relation("PartnerRequests")
+  
   // 기사일 경우
   driverProfile   DriverProfile? @relation("UserToDriver")
 }
@@ -82,6 +85,7 @@ model Request {
   regionId       String?
   region         Region?       @relation(fields: [regionId], references: [id])
   partnerId      String?       // 배정된 업체 사장님 ID
+  partner        User?         @relation("PartnerRequests", fields: [partnerId], references: [id])
   
   driverId       String?
   driver         DriverProfile? @relation("AssignedDriver", fields: [driverId], references: [id])
