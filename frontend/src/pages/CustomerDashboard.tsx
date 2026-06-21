@@ -144,21 +144,32 @@ export default function CustomerDashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-primary-600 text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-md">
+    <div className="min-h-screen pb-20" style={{ background: '#F0EDE6' }}>
+      {/* 올클 헤더 */}
+      <div
+        className="text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-md"
+        style={{ background: 'linear-gradient(145deg, #3A3C41 0%, #1E2024 100%)' }}
+      >
         <button
           onClick={() => {
             localStorage.removeItem('auth_token');
             localStorage.removeItem('user_info');
             navigate('/');
           }}
-          className="flex items-center text-sm text-white/70 hover:text-white transition-colors mb-3"
+          className="flex items-center text-sm mb-3 transition-colors"
+          style={{ color: 'rgba(255,255,255,0.55)' }}
+          onMouseOver={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.9)')}
+          onMouseOut={e => (e.currentTarget.style.color = 'rgba(255,255,255,0.55)')}
         >
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
           로그아웃
         </button>
+        {/* 올클 로고 텍스트 */}
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xs font-bold tracking-widest uppercase" style={{ color: 'rgba(255,255,255,0.45)' }}>ALL-CLEARE</span>
+        </div>
         <h1 className="text-2xl font-bold">{userInfo?.name || '고객'}님의 대시보드</h1>
-        <p className="opacity-80 mt-1">나의 수거 현황과 정보를 관리하세요.</p>
+        <p className="mt-1" style={{ color: 'rgba(255,255,255,0.6)' }}>나의 수거 현황과 정보를 관리하세요.</p>
       </div>
 
       <div className="p-4 max-w-lg mx-auto">

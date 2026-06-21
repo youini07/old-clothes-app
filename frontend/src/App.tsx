@@ -10,36 +10,77 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-6 bg-gradient-to-b from-primary-50 to-white">
-      <div className="w-full max-w-md space-y-8 text-center">
-        <h1 className="text-4xl font-extrabold text-primary-900 tracking-tight">헌옷수거<br/>쉽고 빠르게!</h1>
-        <p className="text-gray-600 font-medium">
-          집에서 편하게 신청하고, <br/>원하는 시간에 기사님이 방문합니다.
+    <div
+      className="flex flex-col items-center justify-center min-h-screen p-6"
+      style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #EAE5DC 100%)' }}
+    >
+      <div className="w-full max-w-sm space-y-0 text-center flex flex-col items-center">
+
+        {/* 올클 로고 이미지 */}
+        <div className="mb-8">
+          <img
+            src="/allcleare-logo.png"
+            alt="올클 ALL-CLEARE 로고"
+            className="w-64 h-auto mx-auto"
+          />
+        </div>
+
+        {/* 서비스 소개 문구 */}
+        <p
+          className="text-sm font-medium mb-10 leading-relaxed"
+          style={{ color: '#8D8F96' }}
+        >
+          집에서 편하게 신청하고,<br />
+          원하는 시간에 기사님이 방문합니다.
         </p>
-        
-        <div className="pt-8 space-y-4">
-          <a href={`${import.meta.env.VITE_API_URL}/auth/kakao`} className="block w-full py-4 text-lg font-bold text-yellow-900 bg-[#FEE500] rounded-xl shadow-md hover:bg-yellow-400 transition-all transform active:scale-95">
+
+        {/* 카카오 로그인 버튼 */}
+        <div className="w-full space-y-3">
+          <a
+            href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
+            className="flex items-center justify-center gap-3 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-md hover:brightness-95 transition-all active:scale-95"
+            style={{ background: '#FEE500' }}
+          >
+            {/* 카카오 아이콘 */}
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2C5.58 2 2 4.86 2 8.4c0 2.22 1.48 4.17 3.72 5.3l-.95 3.55 4.17-2.74c.34.05.69.07 1.06.07 4.42 0 8-2.86 8-6.4S14.42 2 10 2z" fill="#3C1E1E"/>
+            </svg>
             카카오로 3초만에 시작하기
           </a>
-          <p className="text-xs text-gray-500 font-medium pt-2">
-            * 카카오 로그인 시 수거 신청 및 실시간 내역 조회가 가능합니다.
+
+          <p className="text-xs" style={{ color: '#AEAFB4' }}>
+            로그인 시 수거 신청 및 실시간 내역 조회가 가능합니다.
           </p>
         </div>
-        
-        <div className="pt-12">
-          <Link to="/login" className="inline-block px-6 py-2 text-sm font-bold text-gray-500 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors">
-            슈퍼관리자 / 사장님 / 기사님 로그인 👉
+
+        {/* 관리자 로그인 링크 */}
+        <div className="pt-10">
+          <Link
+            to="/login"
+            className="inline-flex items-center gap-1 px-5 py-2 text-xs font-bold rounded-full transition-all"
+            style={{ background: '#E0D8CC', color: '#5A5C63' }}
+          >
+            슈퍼관리자 · 사장님 · 기사님 로그인
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M4.5 2.5L8 6l-3.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </Link>
         </div>
+
+        {/* 하단 슬로건 */}
+        <p className="pt-8 text-xs" style={{ color: '#C8C9CD' }}>
+          모두 비우고, 깨끗하게
+        </p>
       </div>
     </div>
   );
 }
 
+
 function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-primary-100">
+      <div className="min-h-screen font-sans selection:bg-gray-200" style={{ background: '#F0EDE6', color: '#1E2024' }}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
