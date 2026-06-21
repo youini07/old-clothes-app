@@ -62,7 +62,7 @@ function Home() {
               color: '#5A5C63',
             }}
           >
-            슈퍼관리자 · 사장님 · 기사님 로그인
+            모두 비우고, 깨끗하게 (All clear, All clean)
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
               <path d="M5 3L9 7l-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
