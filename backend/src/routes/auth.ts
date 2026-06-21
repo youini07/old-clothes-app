@@ -230,7 +230,7 @@ router.post('/init-superadmin', async (req, res) => {
   try {
     const existing = await prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
     if (existing && existing.email !== email) {
-      return res.status(403).json({ error: '이미 다른 이메일의 슈퍼 관리자 계정이 존재합니다.' });
+      return res.status(403).json({ error: `이미 다른 이메일(${existing.email})의 슈퍼 관리자 계정이 존재합니다.` });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
