@@ -792,4 +792,50 @@ router.post('/debug/migrate-regions', async (req, res) => {
   }
 });
 
+// ==========================================
+// [PARTNER 전용] 환경 설정 (단가, 알림톡 설정)
+// ==========================================
+
+// 파트너 본인의 설정 정보 조회
+router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const partner = await prisma.user.findUnique({
+      where: { id: partnerId },
+      select: { pricePerKg: true, useBizMessage: true }
+    });
+    
+    if (!partner) {
+      return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
+    }
+    
+    res.json({ settings: partner });
+  } catch (error) {
+    console.error('환경 설정 조회 에러:', error);
+    res.status(500).json({ error: '환경 설정 조회에 실패했습니다.' });
+  }
+});
+
+// 파트너 본인의 설정 정보 업데이트
+router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const partnerId = req.user!.userId;
+  const { pricePerKg, useBizMessage } = req.body;
+  
+  try {
+    const updatedPartner = await prisma.user.update({
+      where: { id: partnerId },
+      data: { 
+        pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
+        useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined
+      },
+      select: { pricePerKg: true, useBizMessage: true }
+    });
+    
+    res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
+  } catch (error) {
+    console.error('환경 설정 업데이트 에러:', error);
+    res.status(500).json({ error: '환경 설정 업데이트에 실패했습니다.' });
+  }
+});
+
 export default router;

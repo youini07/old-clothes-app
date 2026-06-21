@@ -34,7 +34,9 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'dispatch' | 'stats'>('dispatch');
+  const [activeView, setActiveView] = useState<'dispatch' | 'stats' | 'settings'>('dispatch');
+  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean } | null>(null);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
@@ -61,6 +63,7 @@ export default function AdminDashboard() {
     if (authToken) {
       fetchData();
       fetchStats();
+      fetchSettings();
     } else {
       setLoading(false);
     }
@@ -74,6 +77,37 @@ export default function AdminDashboard() {
       setStats(res.data);
     } catch (error) {
       console.error('통계 데이터 조회 실패:', error);
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/settings`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setSettings(res.data.settings);
+    } catch (error) {
+      console.error('환경 설정 조회 실패:', error);
+    }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settings) return;
+    setIsSavingSettings(true);
+    try {
+      const res = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/settings`, {
+        pricePerKg: settings.pricePerKg,
+        useBizMessage: settings.useBizMessage
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setSettings(res.data.settings);
+      alert('설정이 성공적으로 저장되었습니다.');
+    } catch (error: any) {
+      alert(error.response?.data?.error || '설정 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingSettings(false);
     }
   };
 
@@ -321,7 +355,87 @@ export default function AdminDashboard() {
         <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
           <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차 관리</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산/통계</button>
+          <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 환경 설정</button>
         </div>
+
+        {/* 환경 설정 뷰 */}
+        {activeView === 'settings' && settings && (
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">⚙️ 환경 설정</h2>
+              <p className="text-gray-500 mb-8">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
+
+              <form onSubmit={handleSaveSettings} className="space-y-8">
+                {/* 단가 설정 */}
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                  <div className="flex justify-between items-start mb-2">
+                    <label className="block text-lg font-bold text-gray-900">💰 1kg당 수거 단가 설정</label>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다.</p>
+                  
+                  <div className="relative max-w-xs">
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="10"
+                      value={settings.pricePerKg} 
+                      onChange={(e) => setSettings({...settings, pricePerKg: Number(e.target.value)})}
+                      className="w-full text-right px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 font-bold text-xl text-primary-700"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold ml-2 pl-2 border-l border-gray-200">원</span>
+                  </div>
+                </div>
+
+                {/* 알림톡 설정 */}
+                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="block text-lg font-bold text-gray-900">💬 카카오 알림톡 자동 발송</label>
+                    
+                    {/* Toggle Button */}
+                    <button 
+                      type="button"
+                      onClick={() => setSettings({...settings, useBizMessage: !settings.useBizMessage})}
+                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${settings.useBizMessage ? 'bg-primary-500' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${settings.useBizMessage ? 'translate-x-8' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                    활성화 시 배정, 일정 확정, 수거 완료(영수증) 단계마다 <strong>고객의 개인 카카오톡</strong>으로 공식 알림톡이 자동 발송됩니다.
+                  </p>
+                  
+                  {settings.useBizMessage ? (
+                    <div className="bg-primary-50 text-primary-800 p-4 rounded-xl text-sm font-medium border border-primary-100 flex gap-3 items-start">
+                      <span className="text-xl">✅</span>
+                      <div>
+                        <strong>현재 알림톡 발송 기능이 활성화되어 있습니다.</strong><br/>
+                        수거 단계마다 자동으로 시스템 알림이 전송됩니다.
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-gray-100 text-gray-600 p-4 rounded-xl text-sm font-medium flex gap-3 items-start">
+                      <span className="text-xl">⏸️</span>
+                      <div>
+                        <strong>알림톡 발송 기능이 꺼져 있습니다.</strong><br/>
+                        고객에게 수거 안내 카카오톡이 발송되지 않습니다.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-4 flex justify-end">
+                  <button 
+                    type="submit" 
+                    disabled={isSavingSettings}
+                    className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg active:scale-95 flex items-center gap-2"
+                  >
+                    {isSavingSettings ? '저장 중...' : '변경사항 저장하기'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* 정산/통계 뷰 */}
         {activeView === 'stats' && stats && (

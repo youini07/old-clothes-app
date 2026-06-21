@@ -64,10 +64,22 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER']), async (req: 
   const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body as any;
 
   try {
-    const PRICE_PER_KG = 300; // 1kg당 단가 (임시 설정)
+    // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회
+    const existingRequest = await prisma.request.findUnique({
+      where: { id },
+      include: { partner: true }
+    });
+    
+    if (!existingRequest) {
+      return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
+    }
+
+    // 2. 단가(pricePerKg) 적용: 파트너 설정값이 없으면 기본값 300원 사용
+    const PRICE_PER_KG = existingRequest.partner?.pricePerKg ?? 300;
     const weight = parseFloat(actualWeight);
     const totalPrice = weight * PRICE_PER_KG;
 
+    // 3. 수거 완료 처리 및 무게/금액 업데이트
     const request = await prisma.request.update({
       where: { id },
       data: {

@@ -27,6 +27,7 @@ model User {
   coverageRegions Coverage[]
   drivers         DriverProfile[] // 사장님이 고용한 기사들
   useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
+  pricePerKg      Int      @default(300) // 1kg당 수거 단가 (사장님이 설정 가능)
   
   // 고객일 경우
   customerRequests Request[] @relation("CustomerRequests")

@@ -63,12 +63,23 @@ router.put('/reorder', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
 // 3. 수거 완료 처리 (다단계 사진 및 무게 입력)
 // 향후 multer & aws-sdk 를 이용한 R2 업로드 연동 필요
 router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
     const { id } = req.params;
     const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body;
     try {
-        const PRICE_PER_KG = 300; // 1kg당 단가 (임시 설정)
+        // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회
+        const existingRequest = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            include: { partner: true }
+        });
+        if (!existingRequest) {
+            return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
+        }
+        // 2. 단가(pricePerKg) 적용: 파트너 설정값이 없으면 기본값 300원 사용
+        const PRICE_PER_KG = (_b = (_a = existingRequest.partner) === null || _a === void 0 ? void 0 : _a.pricePerKg) !== null && _b !== void 0 ? _b : 300;
         const weight = parseFloat(actualWeight);
         const totalPrice = weight * PRICE_PER_KG;
+        // 3. 수거 완료 처리 및 무게/금액 업데이트
         const request = yield prisma_1.prisma.request.update({
             where: { id },
             data: {
