@@ -397,4 +397,100 @@ router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), asyn
   }
 });
 
+// ==========================================
+// [SUPER_ADMIN 전용] 전국 통합 모니터링
+// ==========================================
+router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    // 1. 전체 수거 건 통계
+    const allRequests = await prisma.request.findMany({
+      include: { partner: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = allRequests.length;
+    const completed = allRequests.filter((r: any) => r.status === 'COMPLETED');
+    const totalWeight = completed.reduce((s: number, r: any) => s + (r.actualWeight || 0), 0);
+
+    // 2. 파트너별 성과 (수거 건수, 완료율, 총 무게)
+    const partners = await prisma.user.findMany({
+      where: { role: 'PARTNER' },
+      select: { id: true, name: true, businessName: true }
+    });
+
+    const partnerStats = partners.map((p: any) => {
+      const pRequests = allRequests.filter((r: any) => r.partnerId === p.id);
+      const pCompleted = pRequests.filter((r: any) => r.status === 'COMPLETED');
+      const pWeight = pCompleted.reduce((s: number, r: any) => s + (r.actualWeight || 0), 0);
+      return {
+        id: p.id,
+        name: p.businessName || p.name,
+        totalRequests: pRequests.length,
+        completedCount: pCompleted.length,
+        completionRate: pRequests.length > 0 ? Math.round((pCompleted.length / pRequests.length) * 100) : 0,
+        totalWeight: Math.round(pWeight * 10) / 10,
+      };
+    }).sort((a: any, b: any) => b.totalRequests - a.totalRequests);
+
+    // 3. 권역별 현황
+    const regions = await prisma.region.findMany({
+      include: { coverages: { include: { partner: true } } }
+    });
+
+    const regionStats = regions.map((r: any) => {
+      const rRequests = allRequests.filter((req: any) => req.regionId === r.id);
+      return {
+        id: r.id,
+        name: `${r.province} ${r.city}${r.town ? ' ' + r.town : ''}`,
+        partner: r.coverages[0]?.partner?.businessName || r.coverages[0]?.partner?.name || '미배정',
+        requestCount: rRequests.length,
+        completedCount: rRequests.filter((req: any) => req.status === 'COMPLETED').length,
+      };
+    });
+
+    // 4. 오늘/이번주/이번달 현황
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const weekStart = new Date(todayStart); weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const todayRequests = allRequests.filter((r: any) => new Date(r.createdAt) >= todayStart);
+    const weekRequests = allRequests.filter((r: any) => new Date(r.createdAt) >= weekStart);
+    const monthRequests = allRequests.filter((r: any) => new Date(r.createdAt) >= monthStart);
+
+    // 5. 월별 트렌드 (최근 6개월)
+    const monthlyTrend: { month: string; count: number; weight: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(); d.setMonth(d.getMonth() - i);
+      const yr = d.getFullYear(), mo = d.getMonth();
+      const mReqs = allRequests.filter((r: any) => { const c = new Date(r.createdAt); return c.getFullYear() === yr && c.getMonth() === mo; });
+      const mWeight = mReqs.filter((r: any) => r.status === 'COMPLETED').reduce((s: number, r: any) => s + (r.actualWeight || 0), 0);
+      monthlyTrend.push({ month: `${yr}.${String(mo + 1).padStart(2, '0')}`, count: mReqs.length, weight: Math.round(mWeight * 10) / 10 });
+    }
+
+    res.json({
+      overview: {
+        totalRequests: total,
+        completedCount: completed.length,
+        totalWeight: Math.round(totalWeight * 10) / 10,
+        completionRate: total > 0 ? Math.round((completed.length / total) * 100) : 0,
+        pendingCount: allRequests.filter((r: any) => r.status === 'PENDING').length,
+        inProgressCount: allRequests.filter((r: any) => ['ASSIGNED', 'SCHEDULED', 'IN_PROGRESS'].includes(r.status)).length,
+        partnerCount: partners.length,
+      },
+      period: {
+        today: todayRequests.length,
+        thisWeek: weekRequests.length,
+        thisMonth: monthRequests.length,
+      },
+      partnerStats,
+      regionStats,
+      monthlyTrend,
+    });
+  } catch (error) {
+    console.error('모니터링 데이터 조회 에러:', error);
+    res.status(500).json({ error: '모니터링 데이터 조회 실패' });
+  }
+});
+
 export default router;

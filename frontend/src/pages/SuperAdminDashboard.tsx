@@ -33,13 +33,29 @@ export default function SuperAdminDashboard() {
   const [selectedPartnerForRegion, setSelectedPartnerForRegion] = useState<Partner | null>(null);
   const [newRegionData, setNewRegionData] = useState({ province: '', city: '', dong: '' });
 
+  // 모니터링 탭 상태
+  const [activeView, setActiveView] = useState<'partners' | 'monitoring'>('partners');
+  const [monitoring, setMonitoring] = useState<any>(null);
+
   useEffect(() => {
     if (authToken) {
       fetchPartners();
+      fetchMonitoring();
     } else {
       setLoading(false);
     }
   }, [authToken]);
+
+  const fetchMonitoring = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/monitoring`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setMonitoring(res.data);
+    } catch (error) {
+      console.error('모니터링 데이터 조회 실패:', error);
+    }
+  };
 
   const handleDemoLogin = async () => {
     try {
@@ -220,7 +236,112 @@ export default function SuperAdminDashboard() {
             </div>
           </div>
         </div>
+        {/* 탭 전환 */}
+        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+          <button onClick={() => setActiveView('partners')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'partners' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCB'} 파트너 관리</button>
+          <button onClick={() => setActiveView('monitoring')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'monitoring' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCA'} 통합 모니터링</button>
+        </div>
 
+        {/* 모니터링 뷰 */}
+        {activeView === 'monitoring' && monitoring && (
+          <div className="space-y-6">
+            {/* 기간별 현황 */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-5 text-white">
+                <p className="text-sm opacity-80 font-medium">오늘</p>
+                <p className="text-3xl font-extrabold mt-1">{monitoring.period.today}<span className="text-lg">건</span></p>
+              </div>
+              <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-5 text-white">
+                <p className="text-sm opacity-80 font-medium">이번 주</p>
+                <p className="text-3xl font-extrabold mt-1">{monitoring.period.thisWeek}<span className="text-lg">건</span></p>
+              </div>
+              <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-2xl p-5 text-white">
+                <p className="text-sm opacity-80 font-medium">이번 달</p>
+                <p className="text-3xl font-extrabold mt-1">{monitoring.period.thisMonth}<span className="text-lg">건</span></p>
+              </div>
+            </div>
+
+            {/* 전국 요약 */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">전체 수거 건수</p>
+                <p className="text-3xl font-extrabold text-gray-900 mt-1">{monitoring.overview.totalRequests}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">완료 건수</p>
+                <p className="text-3xl font-extrabold text-green-600 mt-1">{monitoring.overview.completedCount}</p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">총 수거량</p>
+                <p className="text-3xl font-extrabold text-blue-600 mt-1">{monitoring.overview.totalWeight}<span className="text-lg">kg</span></p>
+              </div>
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                <p className="text-sm text-gray-500 font-medium">파트너 수</p>
+                <p className="text-3xl font-extrabold text-purple-600 mt-1">{monitoring.overview.partnerCount}<span className="text-lg">개</span></p>
+              </div>
+            </div>
+
+            {/* 파트너별 성과 테이블 */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+                <h3 className="text-lg font-bold text-gray-900">파트너별 성과 현황</h3>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-5 py-3 text-left text-xs font-bold text-gray-500">파트너</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">접수</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">완료</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">완료율</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">무게(kg)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {monitoring.partnerStats.map((p: any) => (
+                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-5 py-4 text-sm font-bold text-gray-900">{p.name}</td>
+                        <td className="px-5 py-4 text-sm text-center text-gray-600">{p.totalRequests}</td>
+                        <td className="px-5 py-4 text-sm text-center font-bold text-green-600">{p.completedCount}</td>
+                        <td className="px-5 py-4 text-center">
+                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${p.completionRate >= 80 ? 'bg-green-100 text-green-700' : p.completionRate >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{p.completionRate}%</span>
+                        </td>
+                        <td className="px-5 py-4 text-sm text-center font-bold text-blue-600">{p.totalWeight}</td>
+                      </tr>
+                    ))}
+                    {monitoring.partnerStats.length === 0 && (
+                      <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">등록된 파트너가 없습니다.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* 월별 트렌드 차트 */}
+            <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">월별 수거 트렌드 (최근 6개월)</h3>
+              <div className="space-y-3">
+                {monitoring.monthlyTrend.map((m: any) => {
+                  const maxCount = Math.max(...monitoring.monthlyTrend.map((s: any) => s.count), 1);
+                  const barWidth = (m.count / maxCount) * 100;
+                  return (
+                    <div key={m.month} className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-gray-500 w-16 shrink-0">{m.month}</span>
+                      <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                        <div className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all duration-500 flex items-center" style={{ width: `${Math.max(barWidth, 2)}%` }}>
+                          {m.count > 0 && <span className="text-[10px] font-bold text-white ml-2 whitespace-nowrap">{m.count}건 / {m.weight}kg</span>}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 파트너 관리 뷰 */}
+        {activeView === 'partners' && <>
         {/* Partners List */}
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="p-6 border-b border-gray-100 bg-gray-50/50">
@@ -297,6 +418,7 @@ export default function SuperAdminDashboard() {
             </div>
           )}
         </div>
+      </>}
 
       </div>
 
