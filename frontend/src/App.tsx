@@ -49,25 +49,6 @@ function Home() {
           </a>
         </div>
 
-        {/* 버튼 2: 관리자 로그인 (배경화면 텍스트의 '아래쪽' 빈 공간) */}
-        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '89%' }}>
-          <Link
-            to="/login"
-            className="flex items-center justify-center gap-2 w-full py-3.5 text-sm font-bold rounded-2xl transition-all active:scale-[0.98]"
-            style={{
-              background: 'rgba(255,255,255,0.55)',
-              backdropFilter: 'blur(8px)',
-              WebkitBackdropFilter: 'blur(8px)',
-              border: '1.5px solid rgba(90,92,99,0.2)',
-              color: '#5A5C63',
-            }}
-          >
-            모두 비우고, 깨끗하게 (All clear, All clean)
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M5 3L9 7l-4 4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </Link>
-        </div>
 
       </div>
     </div>
@@ -80,13 +61,13 @@ function App() {
       <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-primary-100">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/staff-login" element={<Login />} />
           <Route path="/request" element={<RequestForm />} />
           <Route path="/login-success" element={<LoginSuccess />} />
           <Route path="/status" element={<ProtectedRoute allowedRoles={['CUSTOMER']}><CustomerDashboard /></ProtectedRoute>} />
-          <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} redirectTo="/login"><SuperAdminDashboard /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute allowedRoles={['PARTNER']} redirectTo="/login"><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/driver" element={<ProtectedRoute allowedRoles={['DRIVER']} redirectTo="/login"><DriverDashboard /></ProtectedRoute>} />
+          <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} redirectTo="/staff-login"><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['PARTNER']} redirectTo="/staff-login"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/driver" element={<ProtectedRoute allowedRoles={['DRIVER']} redirectTo="/staff-login"><DriverDashboard /></ProtectedRoute>} />
         </Routes>
       </div>
     </Router>

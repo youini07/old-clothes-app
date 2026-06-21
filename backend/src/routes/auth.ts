@@ -72,7 +72,7 @@ router.get('/kakao/callback', async (req, res) => {
     );
 
     // 5. 프론트엔드로 리다이렉트
-    const frontendUrl = process.env.FRONTEND_URL || 'https://old-clothes-app.vercel.app';
+    const frontendUrl = process.env.FRONTEND_URL || 'https://all-cle.com';
       
     res.redirect(`${frontendUrl}/login-success?token=${jwtToken}&name=${encodeURIComponent(user.name)}&role=${user.role}`);
 
