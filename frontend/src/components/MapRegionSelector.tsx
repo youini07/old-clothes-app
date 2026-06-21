@@ -4,9 +4,32 @@ interface MapRegionSelectorProps {
   onRegionSelect?: (regionInfo: { province: string; city: string; town: string }) => void;
 }
 
+// 클릭으로 받아온 주소 정보
+interface ClickedRegion {
+  province: string;
+  city: string;
+  town: string;
+}
+
 export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
-  const [selectedAddress, setSelectedAddress] = useState<string>('');
+  // 지도 클릭으로 읽어온 원본 주소 (시, 동 포함 전체)
+  const [clickedRegion, setClickedRegion] = useState<ClickedRegion | null>(null);
+  // 사용자가 선택한 범위: 'city' = 시 전체, 'town' = 해당 동만
+  const [scopeMode, setScopeMode] = useState<'city' | 'town'>('town');
+
+  // 클릭된 지역 또는 범위 모드가 바뀌면 상위에 알려줌
+  useEffect(() => {
+    if (!clickedRegion || !onRegionSelect) return;
+
+    if (scopeMode === 'city') {
+      // 시 전체 할당: town을 '전체'로 보냄 (백엔드에서 null로 처리)
+      onRegionSelect({ province: clickedRegion.province, city: clickedRegion.city, town: '전체' });
+    } else {
+      // 해당 동만 할당
+      onRegionSelect({ province: clickedRegion.province, city: clickedRegion.city, town: clickedRegion.town });
+    }
+  }, [clickedRegion, scopeMode]);
 
   useEffect(() => {
     let checkInterval: any;
@@ -38,24 +61,22 @@ export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorP
         
         // 시각적 효과를 위한 파란색 반투명 원 생성 (반경 1.5km)
         const circle = new kakao.maps.Circle({
-          center: new kakao.maps.LatLng(37.2636, 127.0286), // 초기화용 (나중에 클릭 지점으로 변경됨)
-          radius: 1500, // 미터 단위 (1.5km)
+          center: new kakao.maps.LatLng(37.2636, 127.0286),
+          radius: 1500,
           strokeWeight: 2,
-          strokeColor: '#2563EB', // Tailwind blue-600
+          strokeColor: '#2563EB',
           strokeOpacity: 0.8,
           strokeStyle: 'solid',
-          fillColor: '#3B82F6', // Tailwind blue-500
+          fillColor: '#3B82F6',
           fillOpacity: 0.25 
         });
 
         kakao.maps.event.addListener(map, 'click', (mouseEvent: any) => {
           const latlng = mouseEvent.latLng;
           
-          // 마커 위치 이동
           marker.setPosition(latlng);
           marker.setMap(map);
 
-          // 파란색 원 위치 이동
           circle.setPosition(latlng);
           circle.setMap(map);
 
@@ -67,12 +88,8 @@ export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorP
                 const city = regionData.region_2depth_name;
                 const town = regionData.region_3depth_name;
 
-                const addressText = `${province} ${city} ${town}`.trim();
-                setSelectedAddress(addressText);
-
-                if (onRegionSelect) {
-                  onRegionSelect({ province, city, town });
-                }
+                // 클릭된 지역 정보를 상태에 저장 (UI 토글이 결정하여 onRegionSelect로 전달)
+                setClickedRegion({ province, city, town });
               }
             }
           });
@@ -80,22 +97,28 @@ export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorP
       });
     };
 
-    // 0.2초마다 카카오맵 로드 여부 체크 (최대 5초)
     checkInterval = setInterval(initMap, 200);
-    initMap(); // 최초 1회 즉시 실행
+    initMap();
 
     return () => {
       if (checkInterval) clearInterval(checkInterval);
     };
-  }, [onRegionSelect]);
+  }, []);
+
+  // 현재 선택된 지역 요약 텍스트
+  const selectedSummary = clickedRegion
+    ? scopeMode === 'city'
+      ? `${clickedRegion.province} ${clickedRegion.city} 전체`
+      : `${clickedRegion.province} ${clickedRegion.city} ${clickedRegion.town}`
+    : null;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-bold text-gray-800">권역(지도) 선택</h3>
-        {selectedAddress && (
+        {selectedSummary && (
           <span className="px-3 py-1 text-sm font-medium text-blue-800 bg-blue-100 rounded-full">
-            선택됨: {selectedAddress}
+            선택됨: {selectedSummary}
           </span>
         )}
       </div>
@@ -109,9 +132,64 @@ export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorP
           지도를 불러오는 중... (API 키 필요)
         </div>
       </div>
+
+      {/* 지도 클릭 후 범위 선택 UI */}
+      {clickedRegion && (
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
+          <p className="text-sm font-semibold text-gray-700">
+            📍 클릭한 위치: <span className="text-gray-900">{clickedRegion.province} {clickedRegion.city} {clickedRegion.town}</span>
+          </p>
+          <div>
+            <p className="text-xs font-bold text-gray-500 mb-2 uppercase tracking-wide">할당 범위 선택</p>
+            <div className="flex gap-2">
+              {/* 해당 동만 */}
+              <button
+                type="button"
+                onClick={() => setScopeMode('town')}
+                className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                  scopeMode === 'town'
+                    ? 'border-blue-600 bg-blue-600 text-white shadow-md'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-blue-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-lg">📌</span>
+                  <span>{clickedRegion.town} 만</span>
+                  <span className="text-xs opacity-75 font-normal">동 단위</span>
+                </div>
+              </button>
+
+              {/* 시 전체 */}
+              <button
+                type="button"
+                onClick={() => setScopeMode('city')}
+                className={`flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all border-2 ${
+                  scopeMode === 'city'
+                    ? 'border-green-600 bg-green-600 text-white shadow-md'
+                    : 'border-gray-200 bg-white text-gray-600 hover:border-green-300'
+                }`}
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-lg">🗺️</span>
+                  <span>{clickedRegion.city} 전체</span>
+                  <span className="text-xs opacity-75 font-normal">시·군 단위</span>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div className={`p-3 rounded-lg text-sm font-semibold ${
+            scopeMode === 'city' ? 'bg-green-50 text-green-800' : 'bg-blue-50 text-blue-800'
+          }`}>
+            {scopeMode === 'city'
+              ? `✅ ${clickedRegion.city} 전역의 모든 수거 신청을 담당합니다.`
+              : `✅ ${clickedRegion.town} 지역의 수거 신청만 담당합니다.`
+            }
+          </div>
+        </div>
+      )}
       
       <p className="text-sm text-gray-500">
-        * 지도를 클릭하면 해당 위치의 행정구역(동 단위)을 서비스 권역으로 선택할 수 있습니다.
+        * 지도를 클릭한 후, <strong>동 단위</strong> 또는 <strong>시 전체</strong> 중 할당 범위를 선택하세요.
       </p>
     </div>
   );

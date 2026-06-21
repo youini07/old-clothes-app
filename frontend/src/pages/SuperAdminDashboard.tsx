@@ -90,8 +90,8 @@ export default function SuperAdminDashboard() {
 
   const handleAddRegion = async () => {
     if (!authToken || !selectedPartnerForRegion) return;
-    if (!newRegionData.province || !newRegionData.city || !newRegionData.dong) {
-      return alert('추가할 권역을 모두 선택해주세요.');
+    if (!newRegionData.province || !newRegionData.city) {
+      return alert('추가할 권역을 선택해주세요.');
     }
 
     try {
@@ -478,9 +478,9 @@ export default function SuperAdminDashboard() {
               <div className="pt-6">
                 <button 
                   type="submit" 
-                  disabled={!formData.province || !formData.city || !formData.dong}
+                  disabled={!formData.province || !formData.city}
                   className={`w-full py-4 font-bold rounded-xl shadow-lg transition-colors
-                    ${(!formData.province || !formData.city || !formData.dong) 
+                    ${(!formData.province || !formData.city) 
                       ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' 
                       : 'bg-primary-600 text-white hover:bg-primary-700 shadow-primary-500/30'
                     }
@@ -546,9 +546,9 @@ export default function SuperAdminDashboard() {
                   </span>
                   <button 
                     onClick={handleAddRegion}
-                    disabled={!newRegionData.province || !newRegionData.city || !newRegionData.dong}
+                    disabled={!newRegionData.province || !newRegionData.city}
                     className={`px-4 py-2 font-bold rounded-lg transition-colors
-                      ${(!newRegionData.province || !newRegionData.city || !newRegionData.dong) 
+                      ${(!newRegionData.province || !newRegionData.city) 
                         ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
                         : 'bg-primary-600 text-white hover:bg-primary-700 shadow-md'
                       }
