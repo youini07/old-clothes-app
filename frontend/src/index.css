@@ -1,103 +1,38 @@
 @import "tailwindcss";
 
 @theme {
-  /* 올클(ALL-CLEAR) 브랜드 폰트 */
-  --font-sans: "Pretendard", "Noto Sans KR", "Inter", sans-serif;
+  --font-sans: "Inter", "Outfit", sans-serif;
   
-  /* 올클 메인 컬러: 따뜻한 크림/베이지 배경 기반 */
-  --color-cream-50: #FAF8F4;
-  --color-cream-100: #F5F1EB;
-  --color-cream-200: #EDE7DC;
-  --color-cream-300: #E0D8CC;
-
-  /* 브랜드 포인트: 슬레이트 그레이 */
-  --color-brand-100: #E8E8EA;
-  --color-brand-200: #C8C9CD;
-  --color-brand-400: #8D8F96;
-  --color-brand-600: #5A5C63;
-  --color-brand-800: #3A3C41;
-  --color-brand-900: #1E2024;
-
-  /* 기존 primary (파란색 계열 → 차콜 그레이로 변경) */
-  --color-primary-50: #F5F1EB;
-  --color-primary-100: #EDE7DC;
-  --color-primary-500: #6B6D74;
-  --color-primary-600: #4A4C52;
-  --color-primary-900: #1E2024;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-900: #1e3a8a;
   
-  /* 액센트: 부드러운 골드 (카카오 버튼 등) */
   --color-accent-400: #fbbf24;
   --color-accent-500: #f59e0b;
 }
 
 @layer base {
   body {
-    /* 올클 기본 배경: 따뜻한 크림 */
-    background-color: #F5F1EB;
-    color: #1E2024;
-    font-family: "Pretendard", "Noto Sans KR", "Inter", sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    @apply bg-gray-50 text-gray-900 antialiased selection:bg-primary-100 selection:text-primary-900;
   }
 }
 
 @layer utilities {
-  /* 올클 카드 스타일 */
-  .allclear-card {
-    background: #FFFFFF;
-    border: 1px solid #E0D8CC;
-    border-radius: 20px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-  }
-
-  /* 유리 효과 */
   .glass {
-    background: rgba(255, 255, 255, 0.75);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+    @apply bg-white/70 backdrop-blur-md border border-white/20 shadow-xl;
   }
   .glass-dark {
-    background: rgba(30, 32, 36, 0.85);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    @apply bg-gray-900/80 backdrop-blur-lg border border-gray-700/50 shadow-2xl;
   }
-
-  /* 올클 그레이디언트 텍스트 */
   .text-gradient {
-    background-clip: text;
-    -webkit-background-clip: text;
-    color: transparent;
-    background-image: linear-gradient(135deg, #5A5C63 0%, #1E2024 100%);
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-600 to-indigo-600;
   }
-
-  /* 카드 호버 효과 */
   .card-hover {
-    transition: all 0.25s ease;
+    @apply transition-all duration-300 hover:shadow-lg hover:-translate-y-1;
   }
-  .card-hover:hover {
-    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-    transform: translateY(-2px);
-  }
-
-  /* 올클 배지 */
-  .allclear-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
-    background: #EDE7DC;
-    color: #5A5C63;
-  }
-
-  /* custom scrollbar */
   .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-  .custom-scrollbar::-webkit-scrollbar-track { background: #F5F1EB; }
-  .custom-scrollbar::-webkit-scrollbar-thumb { background: #C8C9CD; border-radius: 99px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 }

@@ -8,30 +8,53 @@ import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+// 올클(ALL-CLEAR) 홈 화면
+// 크림/베이지 배경 + 올클 텍스트 로고 + 카카오 버튼
 function Home() {
   return (
     <div
       className="flex flex-col items-center justify-center min-h-screen p-6"
       style={{ background: 'linear-gradient(180deg, #F0EDE6 0%, #EAE5DC 100%)' }}
     >
-      <div className="w-full max-w-sm space-y-0 text-center flex flex-col items-center">
+      <div className="w-full max-w-sm text-center flex flex-col items-center">
 
-        {/* 올클 로고 이미지 */}
-        <div className="mb-8">
-          <img
-            src="/allcleare-logo.png"
-            alt="올클 ALL-CLEAR 로고"
-            className="w-64 h-auto mx-auto"
-          />
+        {/* 올클 텍스트 로고 영역 */}
+        <div className="mb-10 space-y-3">
+          {/* 옷걸이 아이콘 (SVG) */}
+          <div className="flex justify-center mb-4">
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+              <path d="M32 10C28 10 25 13 25 16.5C25 17.3 25.7 18 26.5 18S28 17.3 28 16.5C28 14.6 29.8 13 32 13C34.2 13 36 14.6 36 16.5C36 18 35.1 19.2 33.8 19.8L12 32H52L32 20.2C33.1 19.5 34 18.2 34 16.5C34 13 31.3 10 32 10Z" fill="#8D8F96"/>
+              <path d="M10 32L8 36H56L54 32H10Z" fill="#6B6D74"/>
+              <path d="M32 14V20" stroke="#8D8F96" strokeWidth="2" strokeLinecap="round"/>
+              <circle cx="32" cy="11" r="2.5" fill="#8D8F96"/>
+            </svg>
+          </div>
+
+          {/* ALL-CLEAR 텍스트 */}
+          <div
+            className="inline-block px-6 py-1.5 text-2xl font-black tracking-widest"
+            style={{ background: '#8D8F96', color: '#FFFFFF', borderRadius: '4px', letterSpacing: '0.12em' }}
+          >
+            ALL-CLEAR
+          </div>
+
+          {/* 올클 한글 */}
+          <div className="text-5xl font-black" style={{ color: '#3A3C41', letterSpacing: '-0.02em' }}>
+            올클
+          </div>
+
+          {/* 헌옷 → 돈 일러스트 텍스트 */}
+          <div className="flex items-center justify-center gap-3 py-3 text-2xl">
+            <span>👕</span>
+            <span style={{ color: '#C8C9CD' }}>- - →</span>
+            <span>💰</span>
+          </div>
         </div>
 
-        {/* 서비스 소개 문구 */}
-        <p
-          className="text-sm font-medium mb-10 leading-relaxed"
-          style={{ color: '#8D8F96' }}
-        >
-          집에서 편하게 신청하고,<br />
-          원하는 시간에 기사님이 방문합니다.
+        {/* 슬로건 */}
+        <p className="text-sm font-medium mb-10 leading-relaxed" style={{ color: '#8D8F96' }}>
+          모두 비우고, 깨끗하게<br />
+          <span className="text-xs" style={{ color: '#AEAFB4' }}>(All clear, clean all)</span>
         </p>
 
         {/* 카카오 로그인 버튼 */}
@@ -47,7 +70,6 @@ function Home() {
             </svg>
             카카오로 3초만에 시작하기
           </a>
-
           <p className="text-xs" style={{ color: '#AEAFB4' }}>
             로그인 시 수거 신청 및 실시간 내역 조회가 가능합니다.
           </p>
@@ -66,21 +88,16 @@ function Home() {
             </svg>
           </Link>
         </div>
-
-        {/* 하단 슬로건 */}
-        <p className="pt-8 text-xs" style={{ color: '#C8C9CD' }}>
-          모두 비우고, 깨끗하게
-        </p>
       </div>
     </div>
   );
 }
 
-
 function App() {
   return (
     <Router>
-      <div className="min-h-screen font-sans selection:bg-gray-200" style={{ background: '#F0EDE6', color: '#1E2024' }}>
+      {/* 다른 페이지는 원래 gray-50 배경 유지, Home만 크림 배경 */}
+      <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-primary-100">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
