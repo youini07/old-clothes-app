@@ -25,6 +25,7 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
     } else {
       const addressParts = (requestData.address || '').split(' ');
       province = addressParts[0] || ''; 
+      if (province === '경기') province = '경기도'; // DB 포맷 일치
       city = addressParts[1] || '';     
       town = addressParts[2] || '';
     }
