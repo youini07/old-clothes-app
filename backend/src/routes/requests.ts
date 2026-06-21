@@ -13,72 +13,31 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
   const requestData = req.body;
 
   try {
-    // 1. 주소 기반 파트너 자동 배정 (디테일한 권역 지도 매칭)
+    // 1. 주소에서 시/도, 시/군/구 파싱 (통계용 regionId 기록)
     let province = '';
     let city = '';
-    let town = '';
     
     if (requestData.regionInfo && requestData.regionInfo.province) {
       province = requestData.regionInfo.province;
       city = requestData.regionInfo.city;
-      town = requestData.regionInfo.town;
     } else {
       const addressParts = (requestData.address || '').split(' ');
       province = addressParts[0] || ''; 
       if (province === '경기') province = '경기도'; // DB 포맷 일치
       city = addressParts[1] || '';     
-      town = addressParts[2] || '';
     }
 
-    // 1순위: 읍/면/동(town) 단위 정확한 권역 매칭
-    let region = await prisma.region.findFirst({
-      where: { province, city, town },
-      include: { coverages: true }
-    });
-
-    // 2순위: 시/군/구 전역(town: null) 권역 매칭
-    if ((!region || region.coverages.length === 0) && city) {
-      region = await prisma.region.findFirst({
-        where: { province, city, town: null },
-        include: { coverages: true }
+    // 통계용 regionId 조회 (시 단위로만 매칭)
+    let regionId = null;
+    if (province && city) {
+      const region = await prisma.region.findFirst({
+        where: { province, city }
       });
-    }
-
-    // 3순위: 같은 시/군/구에 등록된 아무 권역이라도 있으면 배정
-    // (예: DB에 '평택시 비전동'만 있고, 신청 주소가 '평택시 신장동'인 경우)
-    if ((!region || region.coverages.length === 0) && city) {
-      region = await prisma.region.findFirst({
-        where: { province, city },
-        include: { coverages: true }
-      });
-    }
-
-    let assignedPartnerId = null;
-    let assignedRegionId = null;
-
-    if (region && region.coverages.length > 0) {
-      if (region.coverages.length === 1) {
-        // 파트너가 1명이면 바로 배정
-        assignedPartnerId = region.coverages[0].partnerId;
-      } else {
-        // 파트너가 여러 명이면 현재 진행 중인 건수가 가장 적은 파트너에게 배정 (로드밸런싱)
-        const partnerIds = region.coverages.map((c: any) => c.partnerId);
-        const activeCounts = await Promise.all(
-          partnerIds.map(async (pid: string) => {
-            const count = await prisma.request.count({
-              where: { partnerId: pid, status: { notIn: ['COMPLETED'] } }
-            });
-            return { partnerId: pid, activeCount: count };
-          })
-        );
-        // 진행 중인 건수가 가장 적은 파트너 선택
-        activeCounts.sort((a, b) => a.activeCount - b.activeCount);
-        assignedPartnerId = activeCounts[0].partnerId;
-      }
-      assignedRegionId = region.id;
+      if (region) regionId = region.id;
     }
 
     // 2. DB에 수거 신청 데이터 저장
+    // 파트너 자동 배정하지 않음 — 사장님이 직접 수락하는 선착순 방식
     const newRequest = await prisma.request.create({
       data: {
         userName: requestData.userName || '비회원',
@@ -88,9 +47,9 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
         zipCode: requestData.zipCode,
         desiredDate: new Date(requestData.desiredDate),
         estimatedVolume: requestData.estimatedVolume,
-        status: getStatusForAction.onRequestCreated(!!assignedPartnerId),
-        partnerId: assignedPartnerId,
-        regionId: assignedRegionId,
+        status: 'PENDING', // 항상 미배정(PENDING)으로 시작
+        partnerId: null,   // 사장님이 수락할 때까지 null
+        regionId,
         customerId: req.user?.userId || null,
       }
     });
@@ -109,7 +68,7 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
 
     res.status(201).json({ 
       message: '수거 신청이 완료되었습니다.',
-      assignedPartner: assignedPartnerId ? '해당 지역 사장님께 배정되었습니다.' : '배정 대기중입니다.',
+      assignedPartner: '주변 업체 사장님들에게 알림을 보냈습니다. 곧 수락될 예정입니다.',
       request: newRequest
     });
   } catch (error) {

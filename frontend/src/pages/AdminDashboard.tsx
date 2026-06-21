@@ -9,6 +9,7 @@ interface RequestItem {
   detailAddress: string;
   estimatedVolume: string;
   status: string;
+  partnerId: string | null;
   driverId: string | null;
   etaMinutes?: number;
 }
@@ -170,7 +171,27 @@ export default function AdminDashboard() {
     e.preventDefault(); // 드롭 허용
   };
 
-  const unassignedRequests = requests.filter(r => !r.driverId);
+  // 수락 대기 중인 요청 (아직 아무 사장님도 수락하지 않은 건)
+  const pendingRequests = requests.filter(r => r.status === 'PENDING' && !r.partnerId);
+  // 수락 완료 + 기사 미배정 건 (사장님이 수락했지만 기사 미배정)
+  const acceptedUnassigned = requests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
+  // 기존 unassignedRequests는 기사 미배정 건 전체 (드래그 앤 드롭 대상)
+  const unassignedRequests = acceptedUnassigned;
+
+  // 수거 요청 수락 핸들러 (선착순)
+  const handleClaim = async (requestId: string) => {
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/claim`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('수거 요청을 수락했습니다! 기사를 배정해주세요.');
+      fetchData(); // 목록 새로고침
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '수락에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
@@ -290,22 +311,57 @@ export default function AdminDashboard() {
         {/* 배차 관리 뷰 */}
         {activeView === 'dispatch' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
-          {/* Left Column: Unassigned Requests */}
+          {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
             className="lg:col-span-1 glass-dark rounded-3xl p-6 min-h-[500px] border-gray-200 bg-white shadow-sm"
             onDrop={(e) => handleDrop(e, null)}
             onDragOver={handleDragOver}
           >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-xl font-bold text-gray-800">미배정 수거 요청</h2>
+            {/* 수락 대기 섹션 */}
+            {pendingRequests.length > 0 && (
+              <div className="mb-8">
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청</h2>
+                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold animate-pulse">{pendingRequests.length}건</span>
+                </div>
+                <div className="space-y-4">
+                  {pendingRequests.map(req => (
+                    <div 
+                      key={req.id} 
+                      className="p-5 bg-orange-50 border-2 border-orange-200 rounded-2xl shadow-sm"
+                    >
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
+                      <div className="flex justify-between items-center mt-3">
+                        <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                          {req.estimatedVolume}
+                        </span>
+                        <button
+                          onClick={() => handleClaim(req.id)}
+                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                        >
+                          ✋ 수락하기
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* 기사 미배정 섹션 (수락 완료, 기사 배정 필요) */}
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-800">기사 미배정</h2>
               <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold">{unassignedRequests.length}건</span>
             </div>
             
             {loading ? (
               <div className="text-center py-10 text-gray-400">로딩 중...</div>
             ) : unassignedRequests.length === 0 ? (
-              <div className="text-center py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
-                미배정 건이 없습니다.
+              <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl">
+                {pendingRequests.length === 0 ? '수거 요청이 없습니다.' : '수락한 건을 기사에게 배정해주세요.'}
               </div>
             ) : (
               <div className="space-y-4">

@@ -44,29 +44,31 @@ router.get('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: 
   }
 });
 
-// 파트너 권역 추가 (새로운 라우트)
+// 파트너 권역 추가 (시 단위로 통일 — 동(dong) 값은 무시)
 router.post('/partners/:id/coverage', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   const { id } = req.params;
-  const { province, city, dong } = req.body;
-  const town = dong && dong !== '전체' ? dong : null;
+  const { province, city } = req.body;
+  // 동(dong) 값은 무시하고 항상 시(city) 단위로 저장
+  const town = null;
 
   try {
-    const regionIdStr = town ? `region-${province}-${city}-${town}` : `region-${province}-${city}`;
-    const region = await prisma.region.upsert({
-      where: { id: regionIdStr },
-      update: {},
-      create: { province, city, town }
-    }).catch(async () => {
-      let existingRegion = await prisma.region.findFirst({
-        where: { province, city, town }
-      });
-      if (!existingRegion) {
-        existingRegion = await prisma.region.create({
-          data: { province, city, town }
-        });
-      }
-      return existingRegion;
+    // 같은 province+city 조합이 이미 있으면 재사용, 없으면 생성
+    let region = await prisma.region.findFirst({
+      where: { province, city, town: null }
     });
+    if (!region) {
+      region = await prisma.region.create({
+        data: { province, city, town: null }
+      });
+    }
+
+    // 이미 동일한 권역이 할당되어 있는지 확인
+    const existingCoverage = await prisma.coverage.findFirst({
+      where: { partnerId: id, regionId: region.id }
+    });
+    if (existingCoverage) {
+      return res.json({ message: '이미 해당 권역이 설정되어 있습니다.', coverage: existingCoverage });
+    }
 
     const coverage = await prisma.coverage.create({
       data: {
@@ -75,7 +77,7 @@ router.post('/partners/:id/coverage', authenticate, requireRole(['SUPER_ADMIN'])
       }
     });
 
-    res.json({ message: '권역이 성공적으로 추가되었습니다.', coverage });
+    res.json({ message: `${city} 전역이 권역으로 추가되었습니다.`, coverage });
   } catch (error) {
     console.error('권역 추가 에러:', error);
     res.status(500).json({ error: '권역 추가 중 오류가 발생했습니다.' });
@@ -107,8 +109,9 @@ import bcrypt from 'bcryptjs';
 
 // 파트너 사장님 수동 등록 (입력값 검증 포함)
 router.post('/partners', validatePartner, authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
-  const { name, phone, email, businessName, province, city, dong } = req.body;
-  const town = dong && dong !== '전체' ? dong : null;
+  const { name, phone, email, businessName, province, city } = req.body;
+  // 동(dong) 값은 무시하고 항상 시(city) 단위로 저장
+  const town = null;
 
   try {
     // 1. 파트너 계정 찾거나 생성 (초기 비밀번호는 연락처로 설정 후 암호화)
@@ -137,30 +140,15 @@ router.post('/partners', validatePartner, authenticate, requireRole(['SUPER_ADMI
       }
     });
 
-    // 2. 권역 찾기 또는 생성
-    const regionIdStr = town ? `region-${province}-${city}-${town}` : `region-${province}-${city}`;
-    const region = await prisma.region.upsert({
-      where: {
-        id: regionIdStr
-      },
-      update: {},
-      create: {
-        province,
-        city,
-        town
-      }
-    }).catch(async () => {
-      // upsert가 실패하는 경우, 수동 조회 후 생성
-      let existingRegion = await prisma.region.findFirst({
-        where: { province, city, town }
-      });
-      if (!existingRegion) {
-        existingRegion = await prisma.region.create({
-          data: { province, city, town }
-        });
-      }
-      return existingRegion;
+    // 2. 권역 찾기 또는 생성 (시 단위로 통일)
+    let region = await prisma.region.findFirst({
+      where: { province, city, town: null }
     });
+    if (!region) {
+      region = await prisma.region.create({
+        data: { province, city, town: null }
+      });
+    }
 
     // 3. 파트너에게 권역 할당
     await prisma.coverage.create({
@@ -214,33 +202,117 @@ router.patch('/partners/:id/biz-message', authenticate, requireRole(['SUPER_ADMI
 // ==========================================
 
 // 1. 본인 권역에 들어온 수거 신청 목록 조회
+// - 권역 미설정 사장님 → 전체 미배정 요청 노출
+// - 권역 설정된 사장님 → 해당 시(city) 주소의 미배정 요청 노출
 router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
     const partnerId = req.user!.userId;
     
-    // 파트너가 담당하는 권역 ID 목록 가져오기
+    // 파트너가 담당하는 권역 정보 가져오기
     const coverages = await prisma.coverage.findMany({
-      where: { partnerId }
+      where: { partnerId },
+      include: { region: true }
     });
-    const regionIds = coverages.map((c: any) => c.regionId);
 
-    // 해당 권역에 속하거나, 직접 파트너에게 할당된 신청건 조회
-    const requests = await prisma.request.findMany({
-      where: {
-        OR: [
-          { regionId: { in: regionIds } },
-          { partnerId: partnerId }
-        ]
-      },
-      include: {
-        driver: { include: { user: true } }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    let requests;
+
+    if (coverages.length === 0) {
+      // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
+      requests = await prisma.request.findMany({
+        where: {
+          OR: [
+            { partnerId: null, status: 'PENDING' },   // 아직 아무도 수락하지 않은 건
+            { partnerId: partnerId }                    // 이미 본인이 수락한 건
+          ]
+        },
+        include: {
+          driver: { include: { user: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } else {
+      // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 본인 배정 건
+      // 권역에서 city 목록 추출 (예: ['평택시', '안성시'])
+      const cities = coverages.map((c: any) => c.region.city);
+      
+      // 모든 미배정 요청을 가져온 후, 주소에 해당 city가 포함된 것만 필터링
+      const allPending = await prisma.request.findMany({
+        where: { partnerId: null, status: 'PENDING' },
+        include: { driver: { include: { user: true } } },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      // 주소에서 시(city) 매칭 필터링
+      const matchedPending = allPending.filter((r: any) => {
+        return cities.some((city: string) => r.address.includes(city));
+      });
+
+      // 본인에게 이미 배정된 건도 포함
+      const myRequests = await prisma.request.findMany({
+        where: { partnerId: partnerId },
+        include: { driver: { include: { user: true } } },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      // 중복 제거 후 합치기
+      const requestMap = new Map();
+      [...matchedPending, ...myRequests].forEach((r: any) => requestMap.set(r.id, r));
+      requests = Array.from(requestMap.values()).sort(
+        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    }
     
     res.json({ requests });
   } catch (error) {
+    console.error('수거 신청 목록 조회 실패:', error);
     res.status(500).json({ error: '수거 신청 목록 조회 실패' });
+  }
+});
+
+// 수거 요청 수락 (선착순 방식 — 먼저 수락한 사장님에게 배정)
+router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  const partnerId = req.user!.userId;
+
+  try {
+    // 해당 요청의 현재 상태 확인
+    const request = await prisma.request.findUnique({ where: { id } });
+    
+    if (!request) {
+      return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
+    }
+
+    // 이미 다른 사장님이 수락한 건인지 확인 (동시성 제어)
+    if (request.partnerId !== null) {
+      if (request.partnerId === partnerId) {
+        return res.status(400).json({ error: '이미 본인이 수락한 건입니다.' });
+      }
+      return res.status(409).json({ error: '이미 다른 업체에서 수락한 건입니다.' });
+    }
+
+    // 수락 처리: partnerId 설정 + 상태를 ASSIGNED로 변경
+    const updated = await prisma.request.update({
+      where: { 
+        id,
+        partnerId: null  // 동시성 방어: null인 경우에만 업데이트
+      },
+      data: {
+        partnerId,
+        status: 'ASSIGNED'
+      }
+    });
+
+    res.json({ 
+      message: '수거 요청을 수락했습니다! 기사를 배정해주세요.',
+      request: updated 
+    });
+  } catch (error: any) {
+    // Prisma P2025: Record not found (다른 사장님이 이미 수락)
+    if (error?.code === 'P2025') {
+      return res.status(409).json({ error: '이미 다른 업체에서 수락한 건입니다.' });
+    }
+    console.error('수거 요청 수락 오류:', error);
+    res.status(500).json({ error: '수거 요청 수락 중 오류가 발생했습니다.' });
   }
 });
 
@@ -514,64 +586,70 @@ router.get('/debug/regions', async (req, res) => {
   }
 });
 
-// [DEBUG] 미배정 수거 신청을 재배정하는 엔드포인트
-router.post('/debug/reassign', async (req, res) => {
+// [DEBUG] 동(town) 단위 Region을 시(city) 단위로 통합 마이그레이션
+router.post('/debug/migrate-regions', async (req, res) => {
   try {
-    // partnerId가 null인 미배정 요청들을 찾음
-    const unassigned = await prisma.request.findMany({
-      where: { partnerId: null }
+    // 1. town이 null이 아닌 (동 단위) Region 목록 조회
+    const townRegions = await prisma.region.findMany({
+      where: { town: { not: null } },
+      include: { coverages: true }
     });
 
-    let reassignedCount = 0;
+    let migratedCount = 0;
 
-    for (const request of unassigned) {
-      const addressParts = (request.address || '').split(' ');
-      let province = addressParts[0] || '';
-      if (province === '경기') province = '경기도';
-      const city = addressParts[1] || '';
-      const town = addressParts[2] || '';
-
-      // 1순위: 정확한 town 매칭
-      let region = await prisma.region.findFirst({
-        where: { province, city, town },
-        include: { coverages: true }
+    for (const oldRegion of townRegions) {
+      // 2. 해당 시(city) 단위 Region이 이미 있는지 확인
+      let cityRegion = await prisma.region.findFirst({
+        where: { province: oldRegion.province, city: oldRegion.city, town: null }
       });
 
-      // 2순위: city 전역 (town: null)
-      if ((!region || region.coverages.length === 0) && city) {
-        region = await prisma.region.findFirst({
-          where: { province, city, town: null },
-          include: { coverages: true }
+      // 없으면 생성
+      if (!cityRegion) {
+        cityRegion = await prisma.region.create({
+          data: { province: oldRegion.province, city: oldRegion.city, town: null }
         });
       }
 
-      // 3순위: 같은 city에 등록된 아무 region
-      if ((!region || region.coverages.length === 0) && city) {
-        region = await prisma.region.findFirst({
-          where: { province, city },
-          include: { coverages: true }
+      // 3. 기존 Coverage를 새 시 단위 Region으로 이전
+      for (const coverage of oldRegion.coverages) {
+        // 이미 동일한 Coverage가 있는지 확인
+        const existing = await prisma.coverage.findFirst({
+          where: { partnerId: coverage.partnerId, regionId: cityRegion.id }
         });
+        if (!existing) {
+          await prisma.coverage.create({
+            data: { partnerId: coverage.partnerId, regionId: cityRegion.id }
+          });
+        }
+        // 기존 동 단위 Coverage 삭제
+        await prisma.coverage.delete({ where: { id: coverage.id } });
       }
 
-      if (region && region.coverages.length > 0) {
-        await prisma.request.update({
-          where: { id: request.id },
-          data: {
-            partnerId: region.coverages[0].partnerId,
-            regionId: region.id,
-          }
-        });
-        reassignedCount++;
-      }
+      // 4. 기존 Request의 regionId도 시 단위로 업데이트
+      await prisma.request.updateMany({
+        where: { regionId: oldRegion.id },
+        data: { regionId: cityRegion.id }
+      });
+
+      // 5. 기존 동 단위 Region 삭제
+      await prisma.region.delete({ where: { id: oldRegion.id } });
+      migratedCount++;
     }
 
+    // 6. 기존 미배정 요청을 PENDING 상태로 리셋 (새 선착순 시스템에 맞게)
+    const resetResult = await prisma.request.updateMany({
+      where: { partnerId: null, status: { not: 'COMPLETED' } },
+      data: { status: 'PENDING' }
+    });
+
     res.json({ 
-      message: `${reassignedCount}건 재배정 완료 (총 ${unassigned.length}건 미배정)`,
-      reassignedCount,
-      totalUnassigned: unassigned.length
+      message: `${migratedCount}개 동 단위 권역을 시 단위로 통합 완료. ${resetResult.count}건 미배정 요청 PENDING 초기화.`,
+      migratedRegions: migratedCount,
+      resetRequests: resetResult.count
     });
   } catch (error) {
-    res.status(500).json({ error: 'reassign error', details: String(error) });
+    console.error('마이그레이션 오류:', error);
+    res.status(500).json({ error: 'migration error', details: String(error) });
   }
 });
 
