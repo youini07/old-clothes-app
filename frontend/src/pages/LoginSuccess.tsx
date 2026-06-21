@@ -21,7 +21,7 @@ export default function LoginSuccess() {
       }
 
       // 2초 후 마이페이지(CustomerDashboard)로 이동
-      const timer = setTimeout(() => {
+      setTimeout(() => {
         navigate('/status');
       }, 2000);
     } else {
