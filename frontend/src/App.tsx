@@ -6,6 +6,7 @@ import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import DriverDashboard from './pages/DriverDashboard';
 import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
+import ProtectedRoute from './components/ProtectedRoute';
 
 function Home() {
   return (
@@ -44,10 +45,10 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/request" element={<RequestForm />} />
           <Route path="/login-success" element={<LoginSuccess />} />
-          <Route path="/status" element={<CustomerDashboard />} />
-          <Route path="/super-admin" element={<SuperAdminDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-          <Route path="/driver" element={<DriverDashboard />} />
+          <Route path="/status" element={<ProtectedRoute allowedRoles={['CUSTOMER']}><CustomerDashboard /></ProtectedRoute>} />
+          <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} redirectTo="/login"><SuperAdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['PARTNER']} redirectTo="/login"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/driver" element={<ProtectedRoute allowedRoles={['DRIVER']} redirectTo="/login"><DriverDashboard /></ProtectedRoute>} />
         </Routes>
       </div>
     </Router>

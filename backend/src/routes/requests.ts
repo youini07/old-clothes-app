@@ -3,11 +3,13 @@ import { addRequestToSheet } from '../services/googleSheets';
 import { getCoordinates, getOptimalRoute } from '../services/kakaoRoute';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/authMiddleware';
+import { validateRequest } from '../middleware/validateMiddleware';
+import { getStatusForAction } from '../services/statusService';
 
 const router = express.Router();
 
-// 새로운 수거 신청 생성
-router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
+// 새로운 수거 신청 생성 (입력값 검증 포함)
+router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest, res) => {
   const requestData = req.body;
 
   try {
@@ -60,7 +62,7 @@ router.post('/', optionalAuthenticate, async (req: AuthRequest, res) => {
         zipCode: requestData.zipCode,
         desiredDate: new Date(requestData.desiredDate),
         estimatedVolume: requestData.estimatedVolume,
-        status: assignedPartnerId ? 'ASSIGNED' : 'PENDING',
+        status: getStatusForAction.onRequestCreated(!!assignedPartnerId),
         partnerId: assignedPartnerId,
         regionId: assignedRegionId,
         customerId: req.user?.userId || null,

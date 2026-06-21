@@ -5,6 +5,7 @@ import authRouter from './routes/auth';
 import requestsRouter from './routes/requests';
 import adminRouter from './routes/admin';
 import driverRouter from './routes/driver';
+import { globalErrorHandler } from './middleware/errorHandler';
 
 dotenv.config();
 
@@ -23,6 +24,9 @@ app.use('/api/driver', driverRouter);
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running!' });
 });
+
+// 글로벌 에러 핸들러 (반드시 모든 라우트 아래에 위치)
+app.use(globalErrorHandler);
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

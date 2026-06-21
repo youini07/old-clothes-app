@@ -1,6 +1,8 @@
 import express from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
+import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
+import { getStatusForAction } from '../services/statusService';
 
 const router = express.Router();
 
@@ -103,8 +105,8 @@ router.delete('/partners/:id/coverage/:regionId', authenticate, requireRole(['SU
 
 import bcrypt from 'bcryptjs';
 
-// 파트너 사장님 수동 등록 (새로운 라우트)
-router.post('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+// 파트너 사장님 수동 등록 (입력값 검증 포함)
+router.post('/partners', validatePartner, authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   const { name, phone, email, businessName, province, city, dong } = req.body;
   const town = dong && dong !== '전체' ? dong : null;
 
@@ -256,8 +258,8 @@ router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, 
   }
 });
 
-// 기사(Driver) 신규 등록
-router.post('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+// 기사(Driver) 신규 등록 (입력값 검증 포함)
+router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
     const partnerId = req.user!.userId;
     const { name, phone, email, vehicleInfo } = req.body;
@@ -316,7 +318,7 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
       where: { id: requestId },
       data: {
         driverId,
-        status: 'SCHEDULED',
+        status: getStatusForAction.onDriverAssigned(),
         confirmedDate: new Date(confirmedDate)
       }
     });

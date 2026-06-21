@@ -4,6 +4,7 @@ import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { getSingleRouteETA } from '../services/kakaoRoute';
 import { sendDepartureNotification } from '../services/notificationService';
 import { updateRequestStatusInSheet } from '../services/googleSheets';
+import { getStatusForAction } from '../services/statusService';
 
 const router = express.Router();
 
@@ -71,7 +72,7 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER']), async (req: 
         itemPhotoUrl,
         scalePhotoUrl,
         extraPhotoUrl,
-        status: 'COMPLETED',
+        status: getStatusForAction.onCompleted(),
         completedDate: new Date()
       }
     });
@@ -113,7 +114,7 @@ router.post('/depart/:id', authenticate, requireRole(['DRIVER']), async (req: an
     const updatedRequest = await prisma.request.update({
       where: { id: id as string },
       data: {
-        status: 'IN_PROGRESS',
+        status: getStatusForAction.onDriverDeparted(),
         etaMinutes
       }
     });
