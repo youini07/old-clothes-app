@@ -14,6 +14,8 @@ export default function CustomerDashboard() {
   // Profile State
   const [profileName, setProfileName] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
+  const [profileAddress, setProfileAddress] = useState('');
+  const [profileDetailAddress, setProfileDetailAddress] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -55,6 +57,8 @@ export default function CustomerDashboard() {
       });
       setProfileName(res.data.user.name || '');
       setProfilePhone(res.data.user.phone || '');
+      setProfileAddress(res.data.user.address || '');
+      setProfileDetailAddress(res.data.user.detailAddress || '');
     } catch (error) {
       console.error('내 정보 조회 에러:', error);
     }
@@ -67,7 +71,9 @@ export default function CustomerDashboard() {
       const token = localStorage.getItem('auth_token');
       const res = await axios.patch(`${import.meta.env.VITE_API_URL}/auth/profile`, {
         name: profileName,
-        phone: profilePhone
+        phone: profilePhone,
+        address: profileAddress,
+        detailAddress: profileDetailAddress
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -272,6 +278,29 @@ export default function CustomerDashboard() {
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
                 />
                 <p className="text-xs text-gray-500 mt-1">연락처를 저장해두면 수거 신청 시 자동으로 입력됩니다.</p>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">주소</label>
+                <input
+                  type="text"
+                  value={profileAddress}
+                  onChange={(e) => setProfileAddress(e.target.value)}
+                  placeholder="주소를 입력하세요 (예: 서울특별시 강남구 테헤란로 123)"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700">상세 주소</label>
+                <input
+                  type="text"
+                  value={profileDetailAddress}
+                  onChange={(e) => setProfileDetailAddress(e.target.value)}
+                  placeholder="상세 주소를 입력하세요 (예: 101동 202호)"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">주소를 저장해두면 다음 수거 신청 시 편리합니다.</p>
               </div>
               
               <div className="pt-4">

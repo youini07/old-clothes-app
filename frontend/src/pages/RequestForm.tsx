@@ -22,6 +22,8 @@ export default function RequestForm() {
       .then(res => {
         if (res.data.user.name) setUserName(res.data.user.name);
         if (res.data.user.phone) setPhone(res.data.user.phone);
+        if (res.data.user.address) setAddress(res.data.user.address);
+        if (res.data.user.detailAddress) setDetailAddress(res.data.user.detailAddress);
       })
       .catch(err => console.error('사용자 정보 불러오기 실패:', err));
     }
