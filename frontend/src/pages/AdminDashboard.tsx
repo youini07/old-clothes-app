@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
   const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   const allCompletedRequests = requests
     .filter(r => r.status === 'COMPLETED')
@@ -380,9 +381,9 @@ export default function AdminDashboard() {
                       step="10"
                       value={settings.pricePerKg} 
                       onChange={(e) => setSettings({...settings, pricePerKg: Number(e.target.value)})}
-                      className="w-full text-right px-4 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 font-bold text-xl text-primary-700"
+                      className="w-full text-right pl-4 pr-16 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 font-bold text-xl text-primary-700"
                     />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold ml-2 pl-2 border-l border-gray-200">원</span>
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold ml-2 pl-2 border-l border-gray-200 bg-white">원</span>
                   </div>
                 </div>
 
@@ -858,7 +859,15 @@ export default function AdminDashboard() {
                 <div className="flex justify-between text-sm"><span className="text-gray-500">고객명</span><span className="font-bold text-gray-900">{selectedCompletedRequest.userName}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-500">연락처</span><span className="font-bold text-gray-900">{selectedCompletedRequest.phone}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-500">수거 주소</span><span className="font-bold text-gray-900 text-right max-w-[250px] break-all">{selectedCompletedRequest.address} {selectedCompletedRequest.detailAddress}</span></div>
-                <div className="flex justify-between text-sm border-t border-gray-200/50 pt-2"><span className="text-gray-500">실제 무게</span><span className="font-extrabold text-primary-600 text-lg">{selectedCompletedRequest.actualWeight} kg</span></div>
+                <div className="flex justify-between text-sm border-t border-gray-200/50 pt-2">
+                  <span className="text-gray-500">실제 무게</span>
+                  <span className="font-extrabold text-primary-600 text-lg">
+                    {selectedCompletedRequest.actualWeight} kg 
+                    <span className="text-sm font-medium text-gray-500 ml-1">
+                      ({((selectedCompletedRequest.actualWeight || 0) * (settings?.pricePerKg || 0)).toLocaleString()}원)
+                    </span>
+                  </span>
+                </div>
                 <div className="flex justify-between text-sm"><span className="text-gray-500">수거 완료일시</span><span className="font-semibold text-gray-800">{selectedCompletedRequest.completedDate ? new Date(selectedCompletedRequest.completedDate).toLocaleString('ko-KR') : '-'}</span></div>
                 <div className="flex flex-col text-sm border-t border-gray-200/50 pt-2"><span className="text-gray-500">기사 메모</span><p className="font-medium text-gray-900 mt-1 bg-white p-3 rounded-lg border border-gray-100">{selectedCompletedRequest.driverNote || '특이사항 없음'}</p></div>
               </div>
@@ -871,7 +880,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col items-center gap-1.5">
                     <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
                       {selectedCompletedRequest.itemPhotoUrl ? (
-                        <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover" />
+                        <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.itemPhotoUrl!)} />
                       ) : (
                         <span className="text-xs text-gray-400">미첨부</span>
                       )}
@@ -883,7 +892,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col items-center gap-1.5">
                     <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
                       {selectedCompletedRequest.scalePhotoUrl ? (
-                        <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover" />
+                        <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.scalePhotoUrl!)} />
                       ) : (
                         <span className="text-xs text-gray-400">미첨부</span>
                       )}
@@ -895,7 +904,7 @@ export default function AdminDashboard() {
                   <div className="flex flex-col items-center gap-1.5">
                     <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
                       {selectedCompletedRequest.extraPhotoUrl ? (
-                        <img src={selectedCompletedRequest.extraPhotoUrl} alt="특이사항 사진" className="w-full h-full object-cover" />
+                        <img src={selectedCompletedRequest.extraPhotoUrl} alt="특이사항 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.extraPhotoUrl!)} />
                       ) : (
                         <span className="text-xs text-gray-400">미첨부</span>
                       )}
@@ -912,6 +921,21 @@ export default function AdminDashboard() {
             >
               닫기
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 이미지 확대 팝업 */}
+      {enlargedImage && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setEnlargedImage(null)}>
+          <div className="relative max-w-4xl w-full flex justify-center items-center">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setEnlargedImage(null); }}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors text-3xl font-bold"
+            >
+              ✕
+            </button>
+            <img src={enlargedImage} alt="확대된 증빙 사진" className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
           </div>
         </div>
       )}
