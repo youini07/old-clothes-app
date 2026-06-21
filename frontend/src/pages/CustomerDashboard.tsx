@@ -64,6 +64,20 @@ export default function CustomerDashboard() {
     }
   };
 
+  const handleAddressSearch = () => {
+    new (window as any).daum.Postcode({
+      oncomplete: function(data: any) {
+        if (!data.address.startsWith('경기')) {
+          alert('현재는 경기도 지역만 수거 서비스를 제공하고 있습니다.');
+          return;
+        }
+        setProfileAddress(data.address);
+        // 상세 주소 초기화
+        setProfileDetailAddress('');
+      }
+    }).open();
+  };
+
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSavingProfile(true);
@@ -282,13 +296,23 @@ export default function CustomerDashboard() {
 
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">주소</label>
-                <input
-                  type="text"
-                  value={profileAddress}
-                  onChange={(e) => setProfileAddress(e.target.value)}
-                  placeholder="주소를 입력하세요 (예: 서울특별시 강남구 테헤란로 123)"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={profileAddress}
+                    readOnly
+                    onClick={handleAddressSearch}
+                    placeholder="주소 검색을 눌러주세요"
+                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none cursor-pointer text-gray-700"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddressSearch}
+                    className="px-6 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors whitespace-nowrap"
+                  >
+                    주소 검색
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
