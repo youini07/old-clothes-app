@@ -178,7 +178,23 @@ export default function DriverDashboard() {
     }
   };
 
-  const filteredRequests = requests.filter(r =>
+  };
+
+  // 기사앱 원본 리스트(백엔드에서는 orderIndex 순으로 반환함)
+  // 번호 표시는 생성시간(createdAt) 기준으로 고정하여 매김
+  const requestsWithDisplayId = React.useMemo(() => {
+    const sortedForId = [...requests].sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA === timeB) return a.id.localeCompare(b.id);
+      return timeA - timeB;
+    });
+    const idMap = new Map();
+    sortedForId.forEach((req, index) => idMap.set(req.id, index + 1));
+    return requests.map(req => ({ ...req, displayId: idMap.get(req.id) }));
+  }, [requests]);
+
+  const filteredRequests = requestsWithDisplayId.filter(r =>
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
 
@@ -232,7 +248,7 @@ export default function DriverDashboard() {
         ) : (
           filteredRequests.map((req) => (
             <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
-              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{requests.findIndex(item => item.id === req.id) + 1}</div>}
+              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{req.displayId}</div>}
               <div className="ml-6">
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>

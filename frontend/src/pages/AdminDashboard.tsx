@@ -19,6 +19,8 @@ interface RequestItem {
   scalePhotoUrl?: string | null;
   extraPhotoUrl?: string | null;
   completedDate?: string | Date | null;
+  createdAt?: string | Date;
+  displayId?: number;
 }
 
 interface Driver {
@@ -508,9 +510,17 @@ export default function AdminDashboard() {
           {/* Right Column: Drivers */}
           <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
             {drivers.map(driver => {
-              const allDriverRequests = requests
-                .filter(r => r.driverId === driver.id)
-                .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+              const rawDriverRequests = requests.filter(r => r.driverId === driver.id);
+              // createdAt(접수시간) 오름차순으로 고유 순번(displayId) 부여
+              const driverRequestsWithId = [...rawDriverRequests].sort((a, b) => {
+                const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                if (timeA === timeB) return a.id.localeCompare(b.id);
+                return timeA - timeB;
+              }).map((req, index) => ({ ...req, displayId: index + 1 }));
+
+              // 화면 표시를 위해 배차 순서(orderIndex)로 재정렬
+              const allDriverRequests = [...driverRequestsWithId].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
               const driverRequests = allDriverRequests.filter(r => r.status !== 'COMPLETED');
               const completedRequests = allDriverRequests.filter(r => r.status === 'COMPLETED');
@@ -541,7 +551,7 @@ export default function AdminDashboard() {
                           className={`p-4 bg-white border rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all flex gap-3 ${req.status === 'IN_PROGRESS' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-primary-100 hover:border-primary-400'}`}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
-                            {allDriverRequests.findIndex(item => item.id === req.id) + 1}
+                            {req.displayId}
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
