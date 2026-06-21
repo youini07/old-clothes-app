@@ -47,8 +47,24 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
     let assignedRegionId = null;
 
     if (region && region.coverages.length > 0) {
-      // 해당 지역을 담당하는 첫 번째 파트너에게 배정 (나중에는 로드밸런싱 가능)
-      assignedPartnerId = region.coverages[0].partnerId;
+      if (region.coverages.length === 1) {
+        // 파트너가 1명이면 바로 배정
+        assignedPartnerId = region.coverages[0].partnerId;
+      } else {
+        // 파트너가 여러 명이면 현재 진행 중인 건수가 가장 적은 파트너에게 배정 (로드밸런싱)
+        const partnerIds = region.coverages.map((c: any) => c.partnerId);
+        const activeCounts = await Promise.all(
+          partnerIds.map(async (pid: string) => {
+            const count = await prisma.request.count({
+              where: { partnerId: pid, status: { notIn: ['COMPLETED'] } }
+            });
+            return { partnerId: pid, activeCount: count };
+          })
+        );
+        // 진행 중인 건수가 가장 적은 파트너 선택
+        activeCounts.sort((a, b) => a.activeCount - b.activeCount);
+        assignedPartnerId = activeCounts[0].partnerId;
+      }
       assignedRegionId = region.id;
     }
 
