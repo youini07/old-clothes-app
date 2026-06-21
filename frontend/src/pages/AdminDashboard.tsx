@@ -33,6 +33,9 @@ export default function AdminDashboard() {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '' });
 
+  // 모바일/클릭 배정용 상태
+  const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
+
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
 
@@ -127,26 +130,18 @@ export default function AdminDashboard() {
     }
   };
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, requestId: string) => {
-    e.dataTransfer.setData('requestId', requestId);
-  };
-
-  const handleDrop = async (e: React.DragEvent, targetDriverId: string | null) => {
-    e.preventDefault();
+  // 공통 기사 배정 함수 (드래그앤드롭 & 모바일 클릭 모두 사용)
+  const assignDriver = async (requestId: string, targetDriverId: string | null) => {
     if (!authToken) return alert('로그인이 필요합니다.');
 
-    const requestId = e.dataTransfer.getData('requestId');
-    
     // UI 즉시 업데이트 (Optimistic Update)
     setRequests(prev => prev.map(req => {
       if (req.id === requestId) {
-        return { ...req, driverId: targetDriverId, status: targetDriverId ? 'SCHEDULED' : 'PENDING' };
+        return { ...req, driverId: targetDriverId, status: targetDriverId ? 'SCHEDULED' : 'ASSIGNED' };
       }
       return req;
     }));
 
-    // 서버로 API 전송 (기사 배정은 /admin/assign-driver 사용)
     try {
       if (targetDriverId) {
         await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
@@ -155,7 +150,7 @@ export default function AdminDashboard() {
           confirmedDate: new Date()
         }, { headers: { Authorization: `Bearer ${authToken}` } });
       } else {
-        // 배정 해제 (미지원 시 기존 patch api 사용)
+        // 배정 해제
         await axios.patch(`${import.meta.env.VITE_API_URL}/requests/${requestId}/assign`, {
           driverId: null
         }, { headers: { Authorization: `Bearer ${authToken}` } });
@@ -164,6 +159,19 @@ export default function AdminDashboard() {
       console.error('배정 실패, 롤백');
       alert('기사 배정에 실패했습니다.');
       fetchData(); // 롤백
+    }
+  };
+
+  // Drag and Drop Handlers
+  const handleDragStart = (e: React.DragEvent, requestId: string) => {
+    e.dataTransfer.setData('requestId', requestId);
+  };
+
+  const handleDrop = async (e: React.DragEvent, targetDriverId: string | null) => {
+    e.preventDefault();
+    const requestId = e.dataTransfer.getData('requestId');
+    if (requestId) {
+      await assignDriver(requestId, targetDriverId);
     }
   };
 
@@ -370,7 +378,8 @@ export default function AdminDashboard() {
                     key={req.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, req.id)}
-                    className="p-5 bg-white border border-gray-200 rounded-2xl shadow-sm cursor-grab active:cursor-grabbing hover:border-primary-400 transition-all"
+                    onClick={() => setSelectedRequestIdForAssign(req.id)}
+                    className="p-5 bg-white border border-gray-200 rounded-2xl shadow-sm cursor-pointer lg:cursor-grab active:cursor-grabbing hover:border-primary-400 transition-all"
                   >
                     <div className="flex justify-between items-start">
                       <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
@@ -546,6 +555,39 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+        {/* 모바일 기사 배정 모달 */}
+        {selectedRequestIdForAssign && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">어느 기사님에게 배정할까요?</h3>
+              
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {drivers.map(driver => (
+                  <button
+                    key={driver.id}
+                    onClick={() => {
+                      assignDriver(selectedRequestIdForAssign, driver.id);
+                      setSelectedRequestIdForAssign(null);
+                    }}
+                    className="w-full text-left p-4 bg-gray-50 hover:bg-primary-50 rounded-2xl border border-gray-100 hover:border-primary-200 transition-all"
+                  >
+                    <div className="font-bold text-gray-900 text-lg">
+                      {driver.user?.name || driver.name} 기사님
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              <button 
+                onClick={() => setSelectedRequestIdForAssign(null)}
+                className="mt-6 w-full py-4 text-gray-500 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+              >
+                취소
+              </button>
+            </div>
+          </div>
+        )}
+
     </div>
   );
 }
