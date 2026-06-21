@@ -493,4 +493,25 @@ router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req
   }
 });
 
+// ==========================================
+// [DEBUG] 권역 매칭 디버그 엔드포인트 (임시)
+// ==========================================
+router.get('/debug/regions', async (req, res) => {
+  try {
+    const regions = await prisma.region.findMany({
+      include: { coverages: { include: { partner: { select: { id: true, name: true, businessName: true } } } } }
+    });
+    
+    const recentRequests = await prisma.request.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, address: true, partnerId: true, regionId: true, status: true, createdAt: true }
+    });
+
+    res.json({ regions, recentRequests });
+  } catch (error) {
+    res.status(500).json({ error: 'debug error', details: String(error) });
+  }
+});
+
 export default router;
