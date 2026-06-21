@@ -189,6 +189,16 @@ export default function SuperAdminDashboard() {
             <p className="text-gray-500 mt-2 font-medium">전국 가맹점(파트너) 승인 및 권역 할당 현황을 관리합니다.</p>
           </div>
           <div className="flex space-x-4 items-center">
+            <button 
+              onClick={() => {
+                localStorage.removeItem('superadmin_token');
+                window.location.href = '/login';
+              }}
+              className="flex items-center px-4 py-2 text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+              로그아웃
+            </button>
             {authToken && (
               <button 
                 onClick={() => setIsModalOpen(true)}

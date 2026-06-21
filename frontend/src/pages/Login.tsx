@@ -55,6 +55,13 @@ export default function Login() {
         <div className="bg-primary-600 p-8 text-center relative overflow-hidden">
           <div className="absolute top-0 right-0 -mr-8 -mt-8 w-32 h-32 rounded-full bg-white opacity-10"></div>
           <div className="absolute bottom-0 left-0 -ml-8 -mb-8 w-24 h-24 rounded-full bg-white opacity-10"></div>
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center text-sm text-white/70 hover:text-white transition-colors mb-4"
+          >
+            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+            홈으로 돌아가기
+          </button>
           <h1 className="text-3xl font-extrabold text-white relative z-10 tracking-tight">
             헌옷수거 통합 로그인
           </h1>

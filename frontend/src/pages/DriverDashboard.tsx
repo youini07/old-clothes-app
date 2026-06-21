@@ -123,11 +123,23 @@ export default function DriverDashboard() {
           <h1 className="text-xl font-extrabold text-gray-900">오늘의 수거 동선 🚚</h1>
           <p className="text-sm text-gray-500 mt-1">안전 운전하세요!</p>
         </div>
-        {!authToken && (
-          <button onClick={handleDemoLogin} className="px-4 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs">
-            기사 로그인 (데모)
+        <div className="flex gap-2">
+          {!authToken && (
+            <button onClick={handleDemoLogin} className="px-4 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs">
+              기사 로그인 (데모)
+            </button>
+          )}
+          <button 
+            onClick={() => {
+              localStorage.removeItem('driver_token');
+              window.location.href = '/login';
+            }}
+            className="flex items-center px-3 py-2 text-xs text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all"
+          >
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+            로그아웃
           </button>
-        )}
+        </div>
       </div>
 
       {/* Tab Bar (Top) */}

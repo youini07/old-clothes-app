@@ -169,6 +169,16 @@ export default function AdminDashboard() {
             <p className="text-gray-500 mt-2 font-medium">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
           </div>
           <div className="flex gap-3">
+            <button 
+              onClick={() => {
+                localStorage.removeItem('admin_token');
+                window.location.href = '/login';
+              }}
+              className="flex items-center px-4 py-3 text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+              로그아웃
+            </button>
             {!authToken ? (
               <button onClick={handleDemoLogin} className="px-6 py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl shadow-md hover:bg-yellow-500 transition-all active:scale-95">
                 데모 로그인 (파트너)

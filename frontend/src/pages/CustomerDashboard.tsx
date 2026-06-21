@@ -122,6 +122,17 @@ export default function CustomerDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-primary-600 text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-md">
+        <button
+          onClick={() => {
+            localStorage.removeItem('auth_token');
+            localStorage.removeItem('user_info');
+            navigate('/');
+          }}
+          className="flex items-center text-sm text-white/70 hover:text-white transition-colors mb-3"
+        >
+          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
+          로그아웃
+        </button>
         <h1 className="text-2xl font-bold">{userInfo?.name || '고객'}님의 대시보드</h1>
         <p className="opacity-80 mt-1">나의 수거 현황과 정보를 관리하세요.</p>
       </div>
