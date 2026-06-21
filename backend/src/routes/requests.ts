@@ -150,7 +150,7 @@ router.patch('/:id/assign', authenticate, async (req: AuthRequest, res) => {
     const updatedRequest = await prisma.request.update({
       where: { id },
       data: {
-        driverId: driverId,
+        driverId: driverId || null ,
         status: driverId ? 'ASSIGNED' : 'PENDING'
       }
     });
