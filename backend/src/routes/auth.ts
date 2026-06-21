@@ -291,7 +291,7 @@ router.get('/me', authenticate, async (req: any, res: any) => {
     const userId = req.user.userId;
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true }
+      select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true, zipCode: true }
     });
     if (!user) {
       return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
@@ -307,7 +307,7 @@ router.get('/me', authenticate, async (req: any, res: any) => {
 router.patch('/profile', authenticate, async (req: any, res: any) => {
   try {
     const userId = req.user.userId;
-    const { name, phone, address, detailAddress } = req.body;
+    const { name, phone, address, detailAddress, zipCode } = req.body;
     
     if (!name) {
       return res.status(400).json({ error: '이름은 필수 항목입니다.' });
@@ -315,8 +315,8 @@ router.patch('/profile', authenticate, async (req: any, res: any) => {
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: { name, phone, address, detailAddress },
-      select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true }
+      data: { name, phone, address, detailAddress, zipCode },
+      select: { name: true, phone: true, email: true, role: true, address: true, detailAddress: true, zipCode: true }
     });
 
     res.json({ message: '정보가 성공적으로 업데이트 되었습니다.', user: updatedUser });

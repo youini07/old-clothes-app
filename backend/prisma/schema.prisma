@@ -18,6 +18,7 @@ model User {
   role      String   @default("CUSTOMER")
   address   String?  // 고객 주소
   detailAddress String? // 고객 상세 주소
+  zipCode   String?  // 우편번호
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

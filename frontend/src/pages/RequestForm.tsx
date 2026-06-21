@@ -24,6 +24,7 @@ export default function RequestForm() {
         if (res.data.user.phone) setPhone(res.data.user.phone);
         if (res.data.user.address) setAddress(res.data.user.address);
         if (res.data.user.detailAddress) setDetailAddress(res.data.user.detailAddress);
+        if (res.data.user.zipCode) setZipCode(res.data.user.zipCode);
       })
       .catch(err => console.error('사용자 정보 불러오기 실패:', err));
     }
@@ -61,7 +62,7 @@ export default function RequestForm() {
         phone,
         address,
         detailAddress,
-        zipCode,
+        zipCode: zipCode || '00000',
         desiredDate,
         estimatedVolume,
         regionInfo

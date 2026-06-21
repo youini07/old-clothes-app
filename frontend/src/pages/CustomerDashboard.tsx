@@ -16,6 +16,7 @@ export default function CustomerDashboard() {
   const [profilePhone, setProfilePhone] = useState('');
   const [profileAddress, setProfileAddress] = useState('');
   const [profileDetailAddress, setProfileDetailAddress] = useState('');
+  const [profileZipCode, setProfileZipCode] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ export default function CustomerDashboard() {
       setProfilePhone(res.data.user.phone || '');
       setProfileAddress(res.data.user.address || '');
       setProfileDetailAddress(res.data.user.detailAddress || '');
+      setProfileZipCode(res.data.user.zipCode || '');
     } catch (error) {
       console.error('내 정보 조회 에러:', error);
     }
@@ -72,6 +74,7 @@ export default function CustomerDashboard() {
           return;
         }
         setProfileAddress(data.address);
+        setProfileZipCode(data.zonecode);
         // 상세 주소 초기화
         setProfileDetailAddress('');
       }
@@ -87,7 +90,8 @@ export default function CustomerDashboard() {
         name: profileName,
         phone: profilePhone,
         address: profileAddress,
-        detailAddress: profileDetailAddress
+        detailAddress: profileDetailAddress,
+        zipCode: profileZipCode
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
