@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
 export default function RequestForm() {
@@ -10,6 +10,20 @@ export default function RequestForm() {
   const [estimatedVolume, setEstimatedVolume] = useState('');
   const [desiredDate, setDesiredDate] = useState('');
   const [regionInfo, setRegionInfo] = useState({ province: '', city: '', town: '' });
+
+  useEffect(() => {
+    const token = localStorage.getItem('auth_token');
+    if (token) {
+      axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+      .then(res => {
+        if (res.data.user.name) setUserName(res.data.user.name);
+        if (res.data.user.phone) setPhone(res.data.user.phone);
+      })
+      .catch(err => console.error('사용자 정보 불러오기 실패:', err));
+    }
+  }, []);
 
   const handleAddressSearch = () => {
     new (window as any).daum.Postcode({

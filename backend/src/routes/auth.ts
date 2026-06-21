@@ -286,4 +286,45 @@ router.patch('/password', authenticate, async (req: any, res: any) => {
   }
 });
 
+// 내 정보 조회
+router.get('/me', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, phone: true, email: true, role: true }
+    });
+    if (!user) {
+      return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+    }
+    res.json({ user });
+  } catch (error) {
+    console.error('내 정보 조회 에러:', error);
+    res.status(500).json({ error: '내 정보를 불러오는데 실패했습니다.' });
+  }
+});
+
+// 내 정보 수정
+router.patch('/profile', authenticate, async (req: any, res: any) => {
+  try {
+    const userId = req.user.userId;
+    const { name, phone } = req.body;
+    
+    if (!name) {
+      return res.status(400).json({ error: '이름은 필수 항목입니다.' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { name, phone },
+      select: { name: true, phone: true, email: true, role: true }
+    });
+
+    res.json({ message: '정보가 성공적으로 업데이트 되었습니다.', user: updatedUser });
+  } catch (error) {
+    console.error('내 정보 수정 에러:', error);
+    res.status(500).json({ error: '정보 수정에 실패했습니다.' });
+  }
+});
+
 export default router;
