@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 interface RequestItem {
@@ -11,6 +11,7 @@ interface RequestItem {
   status: string;
   etaMinutes?: number;
   actualWeight?: number;
+  createdAt?: string | Date;
 }
 
 export default function DriverDashboard() {
@@ -176,8 +177,6 @@ export default function DriverDashboard() {
       // PC 환경 등에서는 안전하게 카카오 웹 지도를 새 창으로 띄웁니다.
       window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
     }
-  };
-
   };
 
   // 기사앱 원본 리스트(백엔드에서는 orderIndex 순으로 반환함)
