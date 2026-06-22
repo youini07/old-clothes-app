@@ -257,17 +257,7 @@ export default function AdminDashboard() {
   // 기사별 수거 동선 최적화 요청
   const handleOptimizeRoute = async (driverId: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');
-
-    // 팝업 차단 우회: 비동기 호출 전에 빈 창을 사용자 제스처 동기 범위 내에서 미리 생성
-    const newWindow = window.open('', '_blank');
-    if (newWindow) {
-      newWindow.document.write(`
-        <div style="font-family: sans-serif; text-align: center; margin-top: 100px;">
-          <h2>📍 최적 동선 계산 중...</h2>
-          <p>카카오 경로 최적화 엔진을 통해 최단 경로를 계산하고 있습니다. 잠시만 기다려주세요.</p>
-        </div>
-      `);
-    }
+    if (!window.confirm('기사님의 동선을 최적화하시겠습니까? (자동으로 가장 효율적인 순서로 재배치됩니다)')) return;
 
     try {
       const res = await axios.post(
@@ -282,28 +272,11 @@ export default function AdminDashboard() {
       const optimized = res.data.optimizedRequests;
 
       if (origin && optimized && optimized.length > 0) {
-        // 네이버 지도는 경도(x), 위도(y) 순으로 경로 파라미터를 구성합니다.
-        const startPath = `${origin.x},${origin.y},${encodeURIComponent("출발지(" + origin.address.split(" ")[1] + ")")}`;
-        const pathSegments = [startPath];
-
-        optimized.forEach((r: any) => {
-          if (r.x && r.y) {
-            pathSegments.push(`${r.x},${r.y},${encodeURIComponent(r.userName + "(" + r.address.split(" ")[1] + ")")}`);
-          }
-        });
-
-        // 네이버 지도 다중 경유지 자동차 길찾기 URL 생성
-        const naverMapUrl = `https://map.naver.com/v5/directions/${pathSegments.join('/')}/-/car`;
-        
-        if (newWindow) {
-          newWindow.location.href = naverMapUrl;
-        }
+        alert('동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로 순서가 즉시 반영됩니다.');
       } else {
-        if (newWindow) newWindow.close();
         alert(res.data.message || '동선 최적화가 완료되었습니다.');
       }
     } catch (error: any) {
-      if (newWindow) newWindow.close();
       alert(error.response?.data?.error || '동선 최적화 중 오류가 발생했습니다.');
     }
   };

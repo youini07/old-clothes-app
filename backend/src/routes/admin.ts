@@ -410,11 +410,20 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
 
     // 일정 확정 안내 알림톡 발송 (비동기)
     if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
+      let driverPhone = undefined;
+      if (request.driverId) {
+        const driverProfile = await prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true }});
+        if (driverProfile && driverProfile.user.phone) {
+          driverPhone = driverProfile.user.phone;
+        }
+      }
+
       sendScheduleConfirmedToCustomer(
         request.phone,
         request.userName,
         request.confirmedDate,
-        request.partner.useBizMessage
+        request.partner.useBizMessage,
+        driverPhone
       ).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
     }
 
@@ -477,31 +486,99 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
       }
     }
 
-    // Nearest Neighbor 알고리즘을 이용한 최적 경로 탐색 (유클리드 거리 기반)
-    const optimizedList: any[] = [];
-    let currentX = parseFloat(originCoords.x);
-    let currentY = parseFloat(originCoords.y);
-    const unvisited = [...destinations];
+    // T맵 API 키 확인
+    const tmapAppKey = process.env.TMAP_APP_KEY;
+    let optimizedList: any[] = [];
 
-    while (unvisited.length > 0) {
-      let minDistance = Infinity;
-      let nextIndex = 0;
+    if (tmapAppKey && tmapAppKey.length > 0 && destinations.length <= 20) {
+      // T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
+      try {
+        const payload = {
+          reqCoordType: "WGS84GEO",
+          resCoordType: "WGS84GEO",
+          startName: "출발지",
+          startX: originCoords.x.toString(),
+          startY: originCoords.y.toString(),
+          startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12), // YYYYMMDDHHMM
+          endName: "도착지(복귀)",
+          endX: originCoords.x.toString(), // 출발지로 복귀
+          endY: originCoords.y.toString(),
+          searchOption: "0", // 0: 추천 (가장 빠른 길)
+          viaPoints: destinations.map((d, i) => ({
+            viaPointId: d.request.id,
+            viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
+            viaX: d.x.toString(),
+            viaY: d.y.toString()
+          }))
+        };
 
-      for (let i = 0; i < unvisited.length; i++) {
-        const dx = unvisited[i].x - currentX;
-        const dy = unvisited[i].y - currentY;
-        const distance = Math.sqrt(dx * dx + dy * dy);
+        const tmapRes = await axios.post(
+          'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
+          payload,
+          {
+            headers: {
+              appKey: tmapAppKey,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
 
-        if (distance < minDistance) {
-          minDistance = distance;
-          nextIndex = i;
+        if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
+          // features 안에서 Point 타입 중 경유지(viaPoint)인 것들의 순서를 파악
+          // properties.viaPointId 에 원래 request.id 가 있음
+          const features = tmapRes.data.features;
+          const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
+          
+          // 순서대로 정렬
+          for (const via of orderedVias) {
+            const dest = destinations.find(d => d.request.id === via.properties.viaPointId);
+            if (dest) {
+              optimizedList.push(dest.request);
+            }
+          }
+          
+          // 혹시 누락된 경유지가 있다면 뒤에 추가
+          for (const dest of destinations) {
+            if (!optimizedList.find(r => r.id === dest.request.id)) {
+              optimizedList.push(dest.request);
+            }
+          }
+        } else {
+          throw new Error('T맵 응답 형식 오류');
         }
+      } catch (tmapError: any) {
+        console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.response?.data || tmapError.message);
+        // 오류 발생 시 아래 유클리드 로직으로 폴백하기 위해 optimizedList 초기화
+        optimizedList = [];
       }
+    }
 
-      const nextTarget = unvisited.splice(nextIndex, 1)[0];
-      optimizedList.push(nextTarget.request);
-      currentX = nextTarget.x;
-      currentY = nextTarget.y;
+    // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor 폴백
+    if (optimizedList.length === 0) {
+      let currentX = parseFloat(originCoords.x);
+      let currentY = parseFloat(originCoords.y);
+      const unvisited = [...destinations];
+
+      while (unvisited.length > 0) {
+        let minDistance = Infinity;
+        let nextIndex = 0;
+
+        for (let i = 0; i < unvisited.length; i++) {
+          const dx = unvisited[i].x - currentX;
+          const dy = unvisited[i].y - currentY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nextIndex = i;
+          }
+        }
+
+        const nextTarget = unvisited.splice(nextIndex, 1)[0];
+        optimizedList.push(nextTarget.request);
+        currentX = nextTarget.x;
+        currentY = nextTarget.y;
+      }
     }
 
     // 데이터베이스에 정렬된 orderIndex 일괄 업데이트

@@ -11,13 +11,64 @@ interface RequestItem {
   status: string;
   etaMinutes?: number;
   actualWeight?: number;
+  totalPrice?: number;
   createdAt?: string | Date;
 }
+
+const DriverProfileForm = ({ authToken }: { authToken: string }) => {
+  const [profile, setProfile] = useState({ name: '', phone: '', vehicleInfo: '' });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { fetchProfile(); }, []);
+
+  const fetchProfile = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/me`, { headers: { Authorization: `Bearer ${authToken}` } });
+      setProfile({
+        name: res.data.name || '',
+        phone: res.data.phone || '',
+        vehicleInfo: res.data.vehicleInfo || '',
+      });
+    } catch { alert('프로필을 불러올 수 없습니다.'); }
+    finally { setLoading(false); }
+  };
+
+  const handleSave = async () => {
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/driver/me`, profile, { headers: { Authorization: `Bearer ${authToken}` } });
+      alert('프로필이 성공적으로 업데이트되었습니다.');
+    } catch { alert('프로필 수정 중 오류가 발생했습니다.'); }
+  };
+
+  if (loading) return <div className="text-center py-10 text-gray-500">불러오는 중...</div>;
+
+  return (
+    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+      <h2 className="text-xl font-bold text-gray-900 mb-4">내 정보 수정</h2>
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">이름</label>
+        <input type="text" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+      </div>
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">핸드폰 번호 (고객에게 발송됩니다)</label>
+        <input type="tel" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="010-0000-0000" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+      </div>
+      <div>
+        <label className="block text-sm font-bold text-gray-700 mb-2">차량 정보</label>
+        <input type="text" value={profile.vehicleInfo} onChange={e => setProfile({ ...profile, vehicleInfo: e.target.value })} placeholder="예: 1톤 탑차 (12가 3456)" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+      </div>
+      <button onClick={handleSave} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl mt-4 active:scale-95 transition-transform shadow-md">
+        저장하기
+      </button>
+    </div>
+  );
+};
 
 export default function DriverDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
+  const [activeMainTab, setActiveMainTab] = useState<'route' | 'profile'>('route');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token'));
 
   // 수거 완료 모달 상태
@@ -154,7 +205,7 @@ export default function DriverDashboard() {
     }, () => alert('위치 정보를 가져올 수 없습니다.'));
   };
 
-  // 모바일 기기별 네비게이션 앱 강제 실행 핸들러
+  // 모바일 기기별 네비게이션 앱 강제 실행 핸들러 (T맵)
   const handleNaviClick = (address: string) => {
     const encodedAddress = encodeURIComponent(address);
     const userAgent = navigator.userAgent;
@@ -162,20 +213,20 @@ export default function DriverDashboard() {
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
 
     if (isAndroid) {
-      // 안드로이드 크롬은 브라우저 보안 정책 상 intent:// 스킴을 사용해 앱을 강제 실행해야 합니다.
-      const fallbackUrl = `https://map.kakao.com/link/search/${encodedAddress}`;
-      const intentUrl = `intent://search?q=${encodedAddress}#Intent;scheme=kakaomap;package=net.daum.android.map;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+      // 안드로이드 크롬: T맵 앱 강제 실행
+      const fallbackUrl = `https://play.google.com/store/apps/details?id=com.skt.tmap`;
+      const intentUrl = `intent://search?name=${encodedAddress}#Intent;scheme=tmap;package=com.skt.tmap;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
       window.location.href = intentUrl;
     } else if (isIOS) {
-      // iOS는 kakaomap:// 스킴을 사용하여 직접 호출합니다.
-      window.location.href = `kakaomap://search?q=${encodedAddress}`;
-      // 만약 앱이 설치되어 있지 않은 경우, 1.5초 후 카카오 웹지도로 유도하는 폴백
+      // iOS: T맵 스킴 호출
+      window.location.href = `tmap://search?name=${encodedAddress}`;
+      // 앱이 없는 경우 앱스토어로 유도
       setTimeout(() => {
-        window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
+        window.open(`https://apps.apple.com/kr/app/id431589174`, '_blank');
       }, 1500);
     } else {
-      // PC 환경 등에서는 안전하게 카카오 웹 지도를 새 창으로 띄웁니다.
-      window.open(`https://map.kakao.com/link/search/${encodedAddress}`, '_blank');
+      // PC 환경 등에서는 안전하게 네이버/카카오 웹 지도를 띄우거나 안내 메시지
+      alert('T맵 길안내는 모바일 기기에서만 지원됩니다.');
     }
   };
 
@@ -196,6 +247,19 @@ export default function DriverDashboard() {
   const filteredRequests = requestsWithDisplayId.filter(r =>
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
+
+  const getSmsText = (req: RequestItem) => {
+    if (req.status === 'COMPLETED') {
+      const weight = req.actualWeight || 0;
+      const price = req.totalPrice || 0;
+      return `[올클] 수거완료! ${weight}kg, 총 ${price.toLocaleString()}원 정산. 감사합니다.`;
+    }
+    if (req.status === 'IN_PROGRESS') {
+      const eta = req.etaMinutes ? `${req.etaMinutes}분 후` : '곧';
+      return `[올클] 수거 기사 출발! 약 ${eta} 도착 예정입니다. 잠시만 기다려주세요.`;
+    }
+    return `[올클] 안녕하세요! 헌옷 수거 기사입니다. 조만간 방문 예정입니다.`;
+  };
 
   const PhotoUpload = ({ photo, setter, label, color }: { photo: string | null; setter: (v: string | null) => void; label: string; color: string }) => (
     photo ? (
@@ -229,61 +293,72 @@ export default function DriverDashboard() {
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex bg-white border-b border-gray-200 sticky top-[76px] z-10">
-        <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>
-        <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>수거 완료</button>
-      </div>
-
-      {/* Content */}
-      <div className="p-4 space-y-4">
-        {loading ? (
-          <div className="text-center py-10 text-gray-500">목록을 불러오는 중...</div>
-        ) : filteredRequests.length === 0 ? (
-          <div className="text-center py-10 bg-white rounded-2xl shadow-sm">
-            <div className="text-4xl mb-3">{'📭'}</div>
-            <p className="text-gray-500 font-medium">해당하는 수거 건이 없습니다.</p>
+      {activeMainTab === 'route' ? (
+        <>
+          {/* Tab Bar */}
+          <div className="flex bg-white border-b border-gray-200 sticky top-[76px] z-10">
+            <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>
+            <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>수거 완료</button>
           </div>
-        ) : (
-          filteredRequests.map((req) => (
-            <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
-              {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{req.displayId}</div>}
-              <div className="ml-6">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
-                  <a href={`tel:${req.phone}`} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">{'📞 전화걸기'}</a>
-                </div>
-                {req.status === 'IN_PROGRESS' && (
-                  <div className="mb-2 inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-200 shadow-sm">
-                    {'🚚 이동 중'} {req.etaMinutes ? `(도착 예상: ${req.etaMinutes}분)` : ''}
-                  </div>
-                )}
-                <p className="text-gray-600 text-sm">{req.address}</p>
-                <p className="text-gray-800 font-medium text-sm mt-1">{req.detailAddress}</p>
-                <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">예상 무게: {req.estimatedVolume}</div>
-                {req.status === 'COMPLETED' && req.actualWeight && (
-                  <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
-                )}
+
+          {/* Content */}
+          <div className="p-4 space-y-4">
+            {loading ? (
+              <div className="text-center py-10 text-gray-500">목록을 불러오는 중...</div>
+            ) : filteredRequests.length === 0 ? (
+              <div className="text-center py-10 bg-white rounded-2xl shadow-sm">
+                <div className="text-4xl mb-3">{'📭'}</div>
+                <p className="text-gray-500 font-medium">해당하는 수거 건이 없습니다.</p>
               </div>
-              {activeTab === 'pending' && (
-                <div className="mt-5 grid grid-cols-2 gap-3">
-                  <button 
-                    onClick={() => handleNaviClick(req.address)} 
-                    className="py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
-                  >
-                    카카오내비
-                  </button>
-                  {req.status === 'IN_PROGRESS' ? (
-                    <button onClick={() => openCompleteModal(req.id)} className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
-                  ) : (
-                    <button onClick={() => departRequest(req.id)} className="py-3 bg-green-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">출발하기</button>
+            ) : (
+              filteredRequests.map((req) => (
+                <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
+                  {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{req.displayId}</div>}
+                  <div className="ml-6">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
+                      <div className="flex gap-2">
+                        <a href={`tel:${req.phone}`} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">{'📞 전화'}</a>
+                        <a href={`sms:${req.phone}?body=${encodeURIComponent(getSmsText(req))}`} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">{'💬 문자'}</a>
+                      </div>
+                    </div>
+                    {req.status === 'IN_PROGRESS' && (
+                      <div className="mb-2 inline-block px-2 py-1 bg-blue-50 text-blue-700 rounded text-xs font-bold border border-blue-200 shadow-sm">
+                        {'🚚 이동 중'} {req.etaMinutes ? `(도착 예상: ${req.etaMinutes}분)` : ''}
+                      </div>
+                    )}
+                    <p className="text-gray-600 text-sm">{req.address}</p>
+                    <p className="text-gray-800 font-medium text-sm mt-1">{req.detailAddress}</p>
+                    <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">예상 무게: {req.estimatedVolume}</div>
+                    {req.status === 'COMPLETED' && req.actualWeight && (
+                      <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
+                    )}
+                  </div>
+                  {activeTab === 'pending' && (
+                    <div className="mt-5 grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => handleNaviClick(req.address)} 
+                        className="py-3 bg-teal-500 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
+                      >
+                        T맵 안내
+                      </button>
+                      {req.status === 'IN_PROGRESS' ? (
+                        <button onClick={() => openCompleteModal(req.id)} className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
+                      ) : (
+                        <button onClick={() => departRequest(req.id)} className="py-3 bg-green-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">출발하기</button>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-          ))
-        )}
-      </div>
+              ))
+            )}
+          </div>
+        </>
+      ) : (
+        <div className="p-4">
+          {authToken ? <DriverProfileForm authToken={authToken} /> : <div className="text-center py-10">로그인이 필요합니다.</div>}
+        </div>
+      )}
 
       {/* 수거 완료 3단계 모달 */}
       {completeModal.open && (
@@ -369,14 +444,14 @@ export default function DriverDashboard() {
 
       {/* Bottom Tab Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <div className="flex flex-col items-center text-blue-600">
+        <button onClick={() => setActiveMainTab('route')} className={`flex flex-col items-center transition-colors ${activeMainTab === 'route' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
           <span className="text-[10px] font-bold">동선</span>
-        </div>
-        <div className="flex flex-col items-center text-gray-400 hover:text-gray-600 transition-colors">
+        </button>
+        <button onClick={() => setActiveMainTab('profile')} className={`flex flex-col items-center transition-colors ${activeMainTab === 'profile' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
           <span className="text-[10px] font-bold">내 정보</span>
-        </div>
+        </button>
       </div>
     </div>
   );
