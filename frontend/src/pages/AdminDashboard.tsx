@@ -272,7 +272,15 @@ export default function AdminDashboard() {
       const optimized = res.data.optimizedRequests;
 
       if (origin && optimized && optimized.length > 0) {
-        alert('동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로 순서가 즉시 반영됩니다.');
+        let msg = '동선 최적화가 완료되었습니다.\n기사님 앱에 최적 경로 순서가 즉시 반영됩니다.';
+        
+        if (res.data.usedTmap) {
+          const distanceKm = (res.data.totalDistanceMeter / 1000).toFixed(1);
+          const timeMin = Math.round(res.data.totalTimeSec / 60);
+          msg = `[T맵 최적화 완료]\n\n총 예상 이동 거리: 약 ${distanceKm}km\n총 예상 운행 시간: 약 ${timeMin}분\n\n기사님 앱에 가장 빠른 방문 순서가 즉시 반영되었습니다.`;
+        }
+        
+        alert(msg);
       } else {
         alert(res.data.message || '동선 최적화가 완료되었습니다.');
       }
@@ -688,7 +696,7 @@ export default function AdminDashboard() {
                     onClick={() => handleOptimizeRoute(driver.id)}
                     className="w-full mt-6 py-3 bg-white border-2 border-primary-600 text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-colors"
                   >
-                    최적 동선 카카오내비 전송
+                    최적 동선 T맵으로 전송
                   </button>
                 </div>
               );

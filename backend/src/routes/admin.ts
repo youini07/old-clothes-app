@@ -490,6 +490,10 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
     const tmapAppKey = process.env.TMAP_APP_KEY;
     let optimizedList: any[] = [];
 
+    let totalTimeSec = 0;
+    let totalDistanceMeter = 0;
+    let usedTmap = false;
+
     if (tmapAppKey && tmapAppKey.length > 0 && destinations.length <= 20) {
       // T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
       try {
@@ -524,8 +528,11 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
         );
 
         if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
+          totalTimeSec = tmapRes.data.properties.totalTime || 0;
+          totalDistanceMeter = tmapRes.data.properties.totalDistance || 0;
+          usedTmap = true;
+
           // features 안에서 Point 타입 중 경유지(viaPoint)인 것들의 순서를 파악
-          // properties.viaPointId 에 원래 request.id 가 있음
           const features = tmapRes.data.features;
           const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
           
@@ -548,7 +555,6 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
         }
       } catch (tmapError: any) {
         console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.response?.data || tmapError.message);
-        // 오류 발생 시 아래 유클리드 로직으로 폴백하기 위해 optimizedList 초기화
         optimizedList = [];
       }
     }
@@ -593,6 +599,9 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
 
     res.json({
       message: '동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로가 반영됩니다.',
+      totalTimeSec,
+      totalDistanceMeter,
+      usedTmap,
       origin: {
         address: originAddress,
         x: originCoords.x,

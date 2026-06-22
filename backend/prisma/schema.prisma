@@ -47,7 +47,6 @@ model DriverProfile {
   
   partnerId String
   partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
-  
   vehicleInfo String? // 차량 정보
   
   assignedRequests Request[] @relation("AssignedDriver")
