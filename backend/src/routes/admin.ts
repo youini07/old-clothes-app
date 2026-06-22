@@ -1,4 +1,6 @@
 import express from 'express';
+import bcrypt from 'bcryptjs';
+import axios from 'axios';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
@@ -106,8 +108,6 @@ router.delete('/partners/:id/coverage/:regionId', authenticate, requireRole(['SU
     res.status(500).json({ error: '권역 삭제 중 오류가 발생했습니다.' });
   }
 });
-
-import bcrypt from 'bcryptjs';
 
 // 파트너 사장님 수동 등록 (입력값 검증 포함)
 router.post('/partners', validatePartner, authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
