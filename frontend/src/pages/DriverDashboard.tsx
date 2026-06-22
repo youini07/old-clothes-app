@@ -107,6 +107,42 @@ export default function DriverDashboard() {
     } finally { setLoading(false); }
   };
 
+  const [optimizing, setOptimizing] = useState(false);
+
+  const handleOptimizeRoute = () => {
+    if (!navigator.geolocation) {
+      alert('이 브라우저에서는 위치 정보를 지원하지 않습니다.');
+      return;
+    }
+
+    setOptimizing(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const { latitude, longitude } = position.coords;
+          const res = await axios.post(
+            `${import.meta.env.VITE_API_URL}/driver/optimize-route`,
+            { currentLat: latitude, currentLng: longitude },
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          );
+          alert(res.data.message);
+          fetchRequests(); // 순서 갱신을 위해 목록 다시 불러오기
+        } catch (error) {
+          console.error(error);
+          alert('동선 최적화 중 오류가 발생했습니다.');
+        } finally {
+          setOptimizing(false);
+        }
+      },
+      (error) => {
+        console.error('위치 정보 에러:', error);
+        alert('현재 위치를 가져올 수 없습니다. GPS 권한을 확인해주세요.');
+        setOptimizing(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  };
+
   // 이미지 압축 (Canvas를 활용해 1024px 해상도 제한 및 JPEG 70% 품질 압축)
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -295,6 +331,22 @@ export default function DriverDashboard() {
 
       {activeMainTab === 'route' ? (
         <>
+          {/* 현위치 기반 최적화 버튼 */}
+          <div className="px-4 py-3 bg-white">
+            <button 
+              onClick={handleOptimizeRoute}
+              disabled={optimizing}
+              className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-sm hover:bg-blue-700 disabled:bg-gray-400 flex items-center justify-center gap-2 transition-all"
+            >
+              {optimizing ? (
+                <>
+                  <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                  최적화 진행 중...
+                </>
+              ) : '📍 현위치 기반 최적 동선 짜기'}
+            </button>
+          </div>
+
           {/* Tab Bar */}
           <div className="flex bg-white border-b border-gray-200 sticky top-[76px] z-10">
             <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>

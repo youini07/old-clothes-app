@@ -13,8 +13,14 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="올클" />
   
-  <!-- PWA 매니페스트 & 아이콘 -->
-  <link rel="manifest" href="/manifest.json" />
+  <!-- PWA 매니페스트 & 아이콘 (접속 경로에 따라 고객용/관리자용 분리) -->
+  <script>
+    if (window.location.pathname.startsWith('/staff-login') || window.location.pathname.startsWith('/driver') || window.location.pathname.startsWith('/admin')) {
+      document.write('<link rel="manifest" href="/manifest-staff.json" />');
+    } else {
+      document.write('<link rel="manifest" href="/manifest.json" />');
+    }
+  </script>
   <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   

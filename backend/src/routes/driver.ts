@@ -1,7 +1,8 @@
 import express from 'express';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
-import { getSingleRouteETA } from '../services/kakaoRoute';
+import { getSingleRouteETA, getCoordinates } from '../services/kakaoRoute';
+import axios from 'axios';
 import { sendDepartureNotification, sendCompletionToCustomer } from '../services/notificationService';
 import { updateRequestStatusInSheet } from '../services/googleSheets';
 import { getStatusForAction } from '../services/statusService';
@@ -224,6 +225,197 @@ router.patch('/me', authenticate, requireRole(['DRIVER']), async (req: any, res:
     fs.writeFileSync(path.join(__dirname, '../../error_log_patch.txt'), errStr);
     console.error('프로필 수정 에러 상세내역:', errStr);
     res.status(500).json({ error: '프로필 수정 실패', details: errStr });
+  }
+});
+
+// 7. 기사별 동선 최적화 (카카오/T맵 좌표 API 기반 현위치 출발 정렬)
+router.post('/optimize-route', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+  const userId = req.user!.userId;
+  const { currentLat, currentLng } = req.body;
+
+  try {
+    // 기사 프로필 확인
+    const driver = await prisma.driverProfile.findUnique({
+      where: { userId }
+    });
+    if (!driver) {
+      return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
+    }
+
+    if (!currentLat || !currentLng) {
+      return res.status(400).json({ error: '현재 위치 좌표가 필요합니다.' });
+    }
+
+    // 기사에게 배정된 미완료 수거 건 조회
+    const requests = await prisma.request.findMany({
+      where: { driverId: driver.id, status: { not: 'COMPLETED' } }
+    });
+
+    if (requests.length <= 1) {
+      return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
+    }
+
+    // 각 수거지의 좌표 변환
+    const destinations: any[] = [];
+    for (const r of requests) {
+      const coords = await getCoordinates(r.address);
+      if (coords) {
+        destinations.push({
+          request: r,
+          x: parseFloat(coords.x),
+          y: parseFloat(coords.y)
+        });
+      } else {
+        // 좌표 변환 실패 시 기사 현위치로 임시 매핑
+        destinations.push({
+          request: r,
+          x: parseFloat(currentLng),
+          y: parseFloat(currentLat)
+        });
+      }
+    }
+
+    // T맵 API 키 확인
+    const tmapAppKey = process.env.TMAP_APP_KEY;
+    let optimizedList: any[] = [];
+
+    let totalTimeSec = 0;
+    let totalDistanceMeter = 0;
+    let usedTmap = false;
+
+    if (tmapAppKey && tmapAppKey.length > 0 && destinations.length <= 20) {
+      // T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
+      try {
+        const payload = {
+          reqCoordType: "WGS84GEO",
+          resCoordType: "WGS84GEO",
+          startName: "현재위치",
+          startX: currentLng.toString(),
+          startY: currentLat.toString(),
+          startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12), // YYYYMMDDHHMM
+          endName: "도착지(종료)",
+          endX: destinations[destinations.length - 1].x.toString(), // 마지막 목적지를 임의의 도착지로 설정
+          endY: destinations[destinations.length - 1].y.toString(),
+          searchOption: "0", // 0: 추천 (가장 빠른 길)
+          viaPoints: destinations.map((d, i) => ({
+            viaPointId: d.request.id,
+            viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
+            viaX: d.x.toString(),
+            viaY: d.y.toString()
+          }))
+        };
+
+        const tmapRes = await axios.post(
+          'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
+          payload,
+          {
+            headers: {
+              appKey: tmapAppKey,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+
+        if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
+          totalTimeSec = tmapRes.data.properties.totalTime || 0;
+          totalDistanceMeter = tmapRes.data.properties.totalDistance || 0;
+          usedTmap = true;
+
+          // features 안에서 Point 타입 중 경유지(viaPoint)인 것들의 순서를 파악
+          const features = tmapRes.data.features;
+          const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
+          
+          // 순서대로 정렬
+          for (const via of orderedVias) {
+            const dest = destinations.find(d => d.request.id === via.properties.viaPointId);
+            if (dest) {
+              optimizedList.push(dest.request);
+            }
+          }
+          
+          // 혹시 누락된 경유지가 있다면 뒤에 추가
+          for (const dest of destinations) {
+            if (!optimizedList.find(r => r.id === dest.request.id)) {
+              optimizedList.push(dest.request);
+            }
+          }
+        } else {
+          throw new Error('T맵 응답 형식 오류');
+        }
+      } catch (tmapError: any) {
+        console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.response?.data || tmapError.message);
+        optimizedList = [];
+      }
+    }
+
+    // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor 폴백
+    if (optimizedList.length === 0) {
+      let currentX = parseFloat(currentLng);
+      let currentY = parseFloat(currentLat);
+      const unvisited = [...destinations];
+
+      while (unvisited.length > 0) {
+        let minDistance = Infinity;
+        let nextIndex = 0;
+
+        for (let i = 0; i < unvisited.length; i++) {
+          const dx = unvisited[i].x - currentX;
+          const dy = unvisited[i].y - currentY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nextIndex = i;
+          }
+        }
+
+        const nextTarget = unvisited.splice(nextIndex, 1)[0];
+        optimizedList.push(nextTarget.request);
+        currentX = nextTarget.x;
+        currentY = nextTarget.y;
+      }
+    }
+
+    // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
+    await prisma.$transaction(
+      optimizedList.map((reqItem, idx) =>
+        prisma.request.update({
+          where: { id: reqItem.id },
+          data: { orderIndex: idx }
+        })
+      )
+    );
+
+    // 총 주행거리 계산 (km로 변환하여 저장)
+    const todayDistanceKm = usedTmap ? parseFloat((totalDistanceMeter / 1000).toFixed(1)) : null;
+    
+    if (todayDistanceKm !== null) {
+      await prisma.driverProfile.update({
+        where: { id: driver.id },
+        data: { todayDistanceKm }
+      });
+    }
+
+    res.json({
+      message: '현위치 기반 동선 최적화가 완료되었습니다!',
+      totalTimeSec,
+      totalDistanceMeter,
+      usedTmap,
+      optimizedRequests: optimizedList.map((r, idx) => {
+        const dest = destinations.find(d => d.request.id === r.id);
+        return {
+          id: r.id,
+          userName: r.userName,
+          address: r.address,
+          orderIndex: idx,
+          x: dest ? dest.x.toString() : currentLng,
+          y: dest ? dest.y.toString() : currentLat
+        };
+      })
+    });
+  } catch (error) {
+    console.error('현위치 기반 동선 최적화 에러:', error);
+    res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
   }
 });
 

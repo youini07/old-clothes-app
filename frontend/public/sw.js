@@ -2,7 +2,7 @@
 // 왜 필요한가: 오프라인에서도 앱 셸(HTML/CSS/JS)을 캐시하여 빠르게 로드,
 // 네트워크 에러 시에도 기본 UI를 보여줄 수 있음
 
-const CACHE_NAME = 'old-clothes-v2';
+const CACHE_NAME = 'old-clothes-v3';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -254,40 +254,6 @@ export default function AdminDashboard() {
     }
   };
 
-  // 기사별 수거 동선 최적화 요청
-  const handleOptimizeRoute = async (driverId: string) => {
-    if (!authToken) return alert('로그인이 필요합니다.');
-    if (!window.confirm('기사님의 동선을 최적화하시겠습니까? (자동으로 가장 효율적인 순서로 재배치됩니다)')) return;
-
-    try {
-      const res = await axios.post(
-        `${import.meta.env.VITE_API_URL}/admin/drivers/${driverId}/optimize-route`,
-        {},
-        { headers: { Authorization: `Bearer ${authToken}` } }
-      );
-      
-      fetchData(); // 최적화된 동선 순서(orderIndex)로 대시보드 리로드
-
-      const origin = res.data.origin;
-      const optimized = res.data.optimizedRequests;
-
-      if (origin && optimized && optimized.length > 0) {
-        let msg = '동선 최적화가 완료되었습니다.\n기사님 앱에 최적 경로 순서가 즉시 반영됩니다.';
-        
-        if (res.data.usedTmap) {
-          const distanceKm = (res.data.totalDistanceMeter / 1000).toFixed(1);
-          const timeMin = Math.round(res.data.totalTimeSec / 60);
-          msg = `[T맵 최적화 완료]\n\n총 예상 이동 거리: 약 ${distanceKm}km\n총 예상 운행 시간: 약 ${timeMin}분\n\n기사님 앱에 가장 빠른 방문 순서가 즉시 반영되었습니다.`;
-        }
-        
-        alert(msg);
-      } else {
-        alert(res.data.message || '동선 최적화가 완료되었습니다.');
-      }
-    } catch (error: any) {
-      alert(error.response?.data?.error || '동선 최적화 중 오류가 발생했습니다.');
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
@@ -698,13 +664,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   )}
-                  
-                  <button 
-                    onClick={() => handleOptimizeRoute(driver.id)}
-                    className="w-full mt-6 py-3 bg-white border-2 border-primary-600 text-primary-600 font-bold rounded-xl hover:bg-primary-50 transition-colors"
-                  >
-                    최적 동선 T맵으로 전송
-                  </button>
+
                 </div>
               );
             })}
