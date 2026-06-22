@@ -597,6 +597,17 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
       )
     );
 
+    // 총 주행거리 계산 (첫번째 구간을 뺄 수 없으므로 전체 주행거리를 km로 변환하여 저장)
+    const todayDistanceKm = usedTmap ? parseFloat((totalDistanceMeter / 1000).toFixed(1)) : null;
+    
+    if (todayDistanceKm !== null) {
+      // 기사님의 누적 주행 거리 업데이트
+      await prisma.driverProfile.updateMany({
+        where: { id: driverId },
+        data: { todayDistanceKm }
+      });
+    }
+
     res.json({
       message: '동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로가 반영됩니다.',
       totalTimeSec,

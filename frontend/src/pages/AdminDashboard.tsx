@@ -629,7 +629,14 @@ export default function AdminDashboard() {
                   onDragOver={handleDragOver}
                 >
                   <div className="flex justify-between items-center mb-6 pb-4 border-b border-primary-200">
-                    <h2 className="text-xl font-bold text-primary-900">🚚 {driver.user?.name || driver.name}</h2>
+                    <div className="flex flex-col">
+                      <h2 className="text-xl font-bold text-primary-900">🚚 {driver.user?.name || driver.name}</h2>
+                      {driver.todayDistanceKm && (
+                        <span className="text-xs font-medium text-gray-500 mt-1">
+                          오늘 예상 누적 주행거리: <span className="text-primary-600 font-bold">{driver.todayDistanceKm}km</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-bold">{driverRequests.length}건 대기중</span>
                   </div>
                   
