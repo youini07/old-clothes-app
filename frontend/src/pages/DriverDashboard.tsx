@@ -126,7 +126,7 @@ export default function DriverDashboard() {
             { headers: { Authorization: `Bearer ${authToken}` } }
           );
           alert(res.data.message);
-          fetchRequests(); // 순서 갱신을 위해 목록 다시 불러오기
+          fetchDriverRequests(); // 순서 갱신을 위해 목록 다시 불러오기
         } catch (error) {
           console.error(error);
           alert('동선 최적화 중 오류가 발생했습니다.');

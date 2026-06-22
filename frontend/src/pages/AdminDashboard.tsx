@@ -27,6 +27,7 @@ interface Driver {
   id: string;
   user?: { name: string };
   name?: string; // Fallback
+  todayDistanceKm?: number;
 }
 
 export default function AdminDashboard() {
