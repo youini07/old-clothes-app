@@ -174,6 +174,9 @@ router.post('/depart/:id', authenticate, requireRole(['DRIVER']), async (req: an
   }
 });
 
+import fs from 'fs';
+import path from 'path';
+
 // 5. 기사 본인 정보(프로필) 조회
 router.get('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
   try {
@@ -191,8 +194,10 @@ router.get('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: a
       vehicleInfo: user.driverProfile?.vehicleInfo || ''
     });
   } catch (error: any) {
-    console.error('프로필 조회 에러 상세내역:', error.message || error);
-    res.status(500).json({ error: '프로필 조회 실패' });
+    const errStr = error.message || String(error);
+    fs.writeFileSync(path.join(__dirname, '../../error_log_get.txt'), errStr);
+    console.error('프로필 조회 에러 상세내역:', errStr);
+    res.status(500).json({ error: '프로필 조회 실패', details: errStr });
   }
 });
 
@@ -215,8 +220,10 @@ router.patch('/me', authenticate, requireRole(['DRIVER']), async (req: any, res:
     
     res.json({ message: '프로필이 업데이트되었습니다.' });
   } catch (error: any) {
-    console.error('프로필 수정 에러 상세내역:', error.message || error);
-    res.status(500).json({ error: '프로필 수정 실패' });
+    const errStr = error.message || String(error);
+    fs.writeFileSync(path.join(__dirname, '../../error_log_patch.txt'), errStr);
+    console.error('프로필 수정 에러 상세내역:', errStr);
+    res.status(500).json({ error: '프로필 수정 실패', details: errStr });
   }
 });
 
