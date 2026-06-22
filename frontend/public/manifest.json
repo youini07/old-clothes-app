@@ -1,28 +1,21 @@
 {
-  "name": "헌옷수거 - 쉽고 빠르게",
+  "name": "헌옷수거어플",
   "short_name": "헌옷수거",
-  "description": "집에서 편하게 헌옷 수거 신청! 원하는 시간에 기사님이 방문합니다.",
+  "description": "헌옷수거 기사 및 고객용 어플리케이션",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8fafc",
-  "theme_color": "#4f46e5",
-  "orientation": "portrait-primary",
-  "scope": "/",
+  "background_color": "#ffffff",
+  "theme_color": "#4F46E5",
   "icons": [
     {
       "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     },
     {
       "src": "/icons/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
     }
-  ],
-  "categories": ["lifestyle", "utilities"],
-  "lang": "ko",
-  "dir": "ltr"
+  ]
 }
