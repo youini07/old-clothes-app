@@ -8,6 +8,9 @@ import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 /**
  * 올클(ALL-CLEAR) 홈 화면
  * - 전체 배경: 올클 로고 이미지 (/allclear-logo.png) 꽉 채우기
@@ -16,6 +19,16 @@ import ProtectedRoute from './components/ProtectedRoute';
  *   2) 관리자/사장님/기사님 로그인 링크 (최하단)
  */
 function Home() {
+  const navigate = useNavigate();
+
+  // 이미 로그인된 토큰이 있으면 해당 대시보드로 즉시 리다이렉트 (PWA iOS 버그 방지용)
+  useEffect(() => {
+    if (localStorage.getItem('admin_token')) navigate('/super-admin');
+    else if (localStorage.getItem('partner_token')) navigate('/admin');
+    else if (localStorage.getItem('driver_token')) navigate('/driver');
+    else if (localStorage.getItem('customer_token')) navigate('/status');
+  }, [navigate]);
+
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6]">
       
@@ -31,10 +44,10 @@ function Home() {
       />
 
       {/* 2. 플로팅 버튼 컨테이너 (모바일 사이즈 중앙 정렬) */}
-      <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none">
+      <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none flex flex-col justify-end pb-8">
         
         {/* 버튼 1: 카카오 로그인 (배경화면 텍스트의 '위쪽' 빈 공간) */}
-        <div className="absolute left-0 right-0 px-8 pointer-events-auto" style={{ top: '73%' }}>
+        <div className="px-8 pointer-events-auto mb-6">
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
@@ -49,6 +62,15 @@ function Home() {
           </a>
         </div>
 
+        {/* 버튼 2: 관계자 로그인 (숨은 버튼) */}
+        <div className="text-center pointer-events-auto mt-auto pb-4">
+          <button 
+            onClick={() => navigate('/staff-login')}
+            className="text-xs font-medium text-gray-500 opacity-60 hover:opacity-100 transition-opacity underline underline-offset-4"
+          >
+            기사님 및 파트너 로그인
+          </button>
+        </div>
 
       </div>
     </div>
