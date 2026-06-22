@@ -2,7 +2,6 @@
   "name": "헌옷수거어플",
   "short_name": "헌옷수거",
   "description": "헌옷수거 기사 및 고객용 어플리케이션",
-  "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4F46E5",
