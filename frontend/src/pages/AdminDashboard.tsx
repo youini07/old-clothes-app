@@ -639,7 +639,7 @@ export default function AdminDashboard() {
                         여기로 카드를 드래그하여 배정하세요
                       </div>
                     ) : (
-                      driverRequests.map((req) => (
+                      driverRequests.map((req, index) => (
                         <div 
                           key={req.id} 
                           draggable
@@ -647,7 +647,7 @@ export default function AdminDashboard() {
                           className={`p-4 bg-white border rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all flex gap-3 ${req.status === 'IN_PROGRESS' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-primary-100 hover:border-primary-400'}`}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
-                            {req.displayId}
+                            {index + 1}
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
