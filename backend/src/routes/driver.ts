@@ -190,7 +190,8 @@ router.get('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: a
       email: user.email || '',
       vehicleInfo: user.driverProfile?.vehicleInfo || ''
     });
-  } catch (error) {
+  } catch (error: any) {
+    console.error('프로필 조회 에러 상세내역:', error.message || error);
     res.status(500).json({ error: '프로필 조회 실패' });
   }
 });
@@ -206,14 +207,15 @@ router.patch('/me', authenticate, requireRole(['DRIVER']), async (req: any, res:
       data: { name, phone }
     });
     
-    await prisma.driverProfile.update({
+    // driverProfile이 없을 수도 있는 예외 상황을 방지하기 위해 updateMany 사용
+    await prisma.driverProfile.updateMany({
       where: { userId },
       data: { vehicleInfo }
     });
     
     res.json({ message: '프로필이 업데이트되었습니다.' });
-  } catch (error) {
-    console.error('프로필 수정 에러:', error);
+  } catch (error: any) {
+    console.error('프로필 수정 에러 상세내역:', error.message || error);
     res.status(500).json({ error: '프로필 수정 실패' });
   }
 });
