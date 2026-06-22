@@ -250,8 +250,8 @@ export default function DriverDashboard() {
 
     if (isAndroid) {
       // 안드로이드 크롬: T맵 앱 강제 실행
-      const fallbackUrl = `https://play.google.com/store/apps/details?id=com.skt.tmap`;
-      const intentUrl = `intent://search?name=${encodedAddress}#Intent;scheme=tmap;package=com.skt.tmap;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
+      const fallbackUrl = `https://play.google.com/store/apps/details?id=com.skt.tmap.ku`;
+      const intentUrl = `intent://search?name=${encodedAddress}#Intent;scheme=tmap;package=com.skt.tmap.ku;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
       window.location.href = intentUrl;
     } else if (isIOS) {
       // iOS: T맵 스킴 호출
