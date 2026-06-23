@@ -47,6 +47,7 @@ export default function AdminDashboard() {
 
   // 모바일/클릭 배정용 상태
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
+  const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
@@ -240,7 +241,43 @@ export default function AdminDashboard() {
   // 기존 unassignedRequests는 기사 미배정 건 전체 (드래그 앤 드롭 대상)
   const unassignedRequests = acceptedUnassigned;
 
-  // 수거 요청 수락 핸들러 (선착순)
+  // 체크박스 토글 핸들러
+  const handleToggleAllPending = () => {
+    if (selectedRequestIds.length === pendingRequests.length && pendingRequests.length > 0) {
+      setSelectedRequestIds([]);
+    } else {
+      setSelectedRequestIds(pendingRequests.map(r => r.id));
+    }
+  };
+
+  const handleToggleOnePending = (id: string) => {
+    if (selectedRequestIds.includes(id)) {
+      setSelectedRequestIds(prev => prev.filter(rId => rId !== id));
+    } else {
+      setSelectedRequestIds(prev => [...prev, id]);
+    }
+  };
+
+  // 일괄 수락 핸들러
+  const handleBulkClaim = async () => {
+    if (selectedRequestIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-claim`, {
+        requestIds: selectedRequestIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedRequestIds.length}건의 수거 요청을 한 번에 수락했습니다! 기사를 배정해주세요.`);
+      setSelectedRequestIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 수락에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    }
+  };
+
+  // 수거 요청 수락 핸들러 (단일 건)
   const handleClaim = async (requestId: string) => {
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/claim`, {}, {
@@ -517,30 +554,67 @@ export default function AdminDashboard() {
             {/* 수락 대기 섹션 */}
             {pendingRequests.length > 0 && (
               <div className="mb-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청</h2>
-                  <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold animate-pulse">{pendingRequests.length}건</span>
+                <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3">
+                  <div className="flex items-center gap-3">
+                    <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청</h2>
+                    <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold animate-pulse">{pendingRequests.length}건</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handleToggleAllPending}
+                      className="text-sm font-bold text-gray-600 bg-gray-100 px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+                    >
+                      <input 
+                        type="checkbox" 
+                        checked={selectedRequestIds.length > 0 && selectedRequestIds.length === pendingRequests.length} 
+                        readOnly 
+                        className="w-4 h-4 rounded text-orange-500 cursor-pointer"
+                      />
+                      전체선택
+                    </button>
+                    {selectedRequestIds.length > 0 && (
+                      <button
+                        onClick={handleBulkClaim}
+                        className="text-sm font-bold text-white bg-orange-600 px-4 py-2 rounded-xl hover:bg-orange-700 shadow-sm transition-all animate-fade-in"
+                      >
+                        {selectedRequestIds.length}건 일괄 수락
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="space-y-4">
                   {pendingRequests.map(req => (
                     <div 
                       key={req.id} 
-                      className="p-5 bg-orange-50 border-2 border-orange-200 rounded-2xl shadow-sm"
+                      className={`p-4 sm:p-5 border-2 rounded-2xl shadow-sm flex items-start gap-3 transition-colors cursor-pointer ${selectedRequestIds.includes(req.id) ? 'bg-orange-100 border-orange-400' : 'bg-orange-50 border-orange-200 hover:border-orange-300'}`}
+                      onClick={() => handleToggleOnePending(req.id)}
                     >
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                      <div className="pt-1">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedRequestIds.includes(req.id)}
+                          readOnly
+                          className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                        />
                       </div>
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                      <div className="flex justify-between items-center mt-3">
-                        <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
-                          {req.estimatedVolume}
-                        </span>
-                        <button
-                          onClick={() => handleClaim(req.id)}
-                          className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
-                        >
-                          ✋ 수락하기
-                        </button>
+                      <div className="flex-1">
+                        <div className="flex justify-between items-start">
+                          <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                        </div>
+                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
+                        <div className="flex justify-between items-center mt-3">
+                          <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                            {req.estimatedVolume}
+                          </span>
+                          {!selectedRequestIds.includes(req.id) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
+                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                            >
+                              ✋ 수락
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

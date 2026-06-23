@@ -328,6 +328,55 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
   }
 });
 
+// 다중 수거 요청 수락 (일괄 수락)
+router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { requestIds } = req.body;
+  const partnerId = req.user!.userId;
+
+  if (!Array.isArray(requestIds) || requestIds.length === 0) {
+    return res.status(400).json({ error: '수락할 요청 ID 배열이 필요합니다.' });
+  }
+
+  try {
+    const updatedResult = await prisma.request.updateMany({
+      where: {
+        id: { in: requestIds },
+        partnerId: null
+      },
+      data: {
+        partnerId,
+        status: 'ASSIGNED'
+      }
+    });
+
+    if (updatedResult.count > 0) {
+      const updatedRequests = await prisma.request.findMany({
+        where: { id: { in: requestIds }, partnerId },
+        include: { partner: true }
+      });
+
+      updatedRequests.forEach(updated => {
+        if (updated.partner && updated.partner.useBizMessage) {
+          sendAssignmentToCustomer(
+            updated.phone,
+            updated.userName,
+            updated.partner.businessName || updated.partner.name,
+            updated.partner.useBizMessage
+          ).catch(err => console.error('배정 안내 알림톡 전송 실패:', err));
+        }
+      });
+    }
+
+    res.json({ 
+      message: `${updatedResult.count}건의 수거 요청을 수락했습니다!`,
+      count: updatedResult.count 
+    });
+  } catch (error) {
+    console.error('일괄 수락 오류:', error);
+    res.status(500).json({ error: '일괄 수락 중 오류가 발생했습니다.' });
+  }
+});
+
 // 2. 수거 기사(Driver) 목록 조회
 router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
