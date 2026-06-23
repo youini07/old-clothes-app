@@ -340,15 +340,15 @@ export default function DriverDashboard() {
         <>
           {/* 현위치 기반 최적화 버튼 */}
           <div className="px-4 py-3 bg-white space-y-3">
-            <div className="border border-gray-200 p-3 rounded-xl bg-gray-50 flex flex-col gap-3">
-              <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer w-fit">
-                <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 accent-blue-600" />
-                <span>🔄 마지막에 되돌아올 코스 포함하기</span>
+            <div className={`p-4 rounded-2xl flex flex-col gap-3 transition-all ${returnToStart ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 accent-blue-600 cursor-pointer" />
+                <span className="font-extrabold text-gray-800 text-sm">🔄 퇴근 코스 (마지막에 출발지로 복귀)</span>
               </label>
               {returnToStart && (
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">복귀할 목적지 주소 (비워두면 현위치)</label>
-                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="pl-8">
+                  <label className="block text-xs font-bold text-gray-500 mb-1">복귀할 커스텀 목적지 (비워두면 출발지)</label>
+                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구 성복동" className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all" />
                 </div>
               )}
             </div>
@@ -383,14 +383,14 @@ export default function DriverDashboard() {
               </div>
             ) : (
               filteredRequests.map((req, index) => (
-                <div key={req.id} className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 relative">
-                  {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-8 h-8 flex items-center justify-center rounded-br-2xl rounded-tl-2xl font-bold">{index + 1}</div>}
+                <div key={req.id} className="bg-white p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-100 relative mb-4">
+                  {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-9 h-9 flex items-center justify-center rounded-br-2xl rounded-tl-3xl font-extrabold">{index + 1}</div>}
                   <div className="ml-6">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
                       <div className="flex gap-2">
-                        <a href={`tel:${req.phone}`} className="px-3 py-1 bg-green-50 text-green-700 rounded-full text-xs font-bold">{'📞 전화'}</a>
-                        <a href={`sms:${req.phone}?body=${encodeURIComponent(getSmsText(req))}`} className="px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-bold">{'💬 문자'}</a>
+                        <a href={`tel:${req.phone}`} className="px-3.5 py-1.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold transition-colors hover:bg-green-100">{'📞 전화'}</a>
+                        <a href={`sms:${req.phone}?body=${encodeURIComponent(getSmsText(req))}`} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</a>
                       </div>
                     </div>
                     {req.status === 'IN_PROGRESS' && (
@@ -409,14 +409,14 @@ export default function DriverDashboard() {
                     <div className="mt-5 grid grid-cols-2 gap-3">
                       <button 
                         onClick={() => handleNaviClick(req.address)} 
-                        className="py-3 bg-teal-500 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform"
+                        className="py-3.5 bg-teal-500 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform"
                       >
                         T맵 안내
                       </button>
                       {req.status === 'IN_PROGRESS' ? (
-                        <button onClick={() => openCompleteModal(req.id)} className="py-3 bg-blue-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
+                        <button onClick={() => openCompleteModal(req.id)} className="py-3.5 bg-blue-600 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
                       ) : (
-                        <button onClick={() => departRequest(req.id)} className="py-3 bg-green-600 text-white font-bold rounded-xl text-sm shadow-sm active:scale-95 transition-transform">출발하기</button>
+                        <button onClick={() => departRequest(req.id)} className="py-3.5 bg-green-600 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform">출발하기</button>
                       )}
                     </div>
                   )}

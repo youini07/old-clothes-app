@@ -918,7 +918,7 @@ export default function AdminDashboard() {
           
           {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
-            className="lg:col-span-1 glass-dark rounded-3xl p-6 min-h-[500px] border-gray-200 bg-white shadow-sm"
+            className="lg:col-span-1 bg-white rounded-3xl p-6 min-h-[500px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
             onDrop={(e) => handleDrop(e, null)}
             onDragOver={handleDragOver}
           >
@@ -952,8 +952,8 @@ export default function AdminDashboard() {
               <div className="mb-8">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청 {activeRegionTab !== 'ALL' && <span className="text-sm text-gray-500 font-normal">({activeRegionTab === 'UNCLASSIFIED' ? '미분류' : customRegions.find(c => c.id === activeRegionTab)?.name})</span>}</h2>
-                    <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold animate-pulse">{pendingRequests.length}건</span>
+                    <h2 className="text-xl font-extrabold text-gray-800">🔔 신규 수거 요청 {activeRegionTab !== 'ALL' && <span className="text-sm text-gray-400 font-medium">({activeRegionTab === 'UNCLASSIFIED' ? '미분류' : customRegions.find(c => c.id === activeRegionTab)?.name})</span>}</h2>
+                    <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm">{pendingRequests.length}건</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
@@ -982,7 +982,7 @@ export default function AdminDashboard() {
                   {pendingRequests.map(req => (
                     <div 
                       key={req.id} 
-                      className={`p-4 sm:p-5 border-2 rounded-2xl shadow-sm flex items-start gap-3 transition-colors cursor-pointer ${selectedRequestIds.includes(req.id) ? 'bg-orange-100 border-orange-400' : 'bg-orange-50 border-orange-200 hover:border-orange-300'}`}
+                      className={`p-4 sm:p-5 border rounded-2xl flex items-start gap-3 transition-all cursor-pointer ${selectedRequestIds.includes(req.id) ? 'bg-orange-50 border-orange-400 ring-1 ring-orange-400 shadow-sm' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}
                       onClick={() => handleToggleOnePending(req.id)}
                     >
                       <div className="pt-1">
@@ -999,7 +999,7 @@ export default function AdminDashboard() {
                         </div>
                         <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
                         <div className="flex justify-between items-center mt-3">
-                          <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                          <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
                             {req.estimatedVolume}
                           </span>
                           {!selectedRequestIds.includes(req.id) && (
@@ -1021,8 +1021,8 @@ export default function AdminDashboard() {
             {/* 기사 미배정 섹션 (수락 완료, 기사 배정 필요) */}
             <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3">
               <div className="flex items-center gap-3">
-                <h2 className="text-xl font-bold text-gray-800">기사 미배정</h2>
-                <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold">{unassignedRequests.length}건</span>
+                <h2 className="text-xl font-extrabold text-gray-800">대기중인 수거</h2>
+                <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm">{unassignedRequests.length}건</span>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -1087,12 +1087,12 @@ export default function AdminDashboard() {
                       <div className="flex justify-between items-start">
                         <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
                         {selectedRequestIdForAssign === req.id && (
-                          <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">배정 대기중</span>
+                          <span className="text-xs bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold shadow-sm">배정 대기중</span>
                         )}
                       </div>
                       <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
                       <div className="mt-3 flex justify-between items-center">
-                        <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                        <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
                           {req.estimatedVolume}
                         </span>
                         {!selectedUnassignedIds.includes(req.id) && (
@@ -1132,15 +1132,15 @@ export default function AdminDashboard() {
               return (
                 <div 
                   key={driver.id} 
-                  className="bg-primary-50/50 border-2 border-primary-100 rounded-3xl p-6 min-h-[500px] flex flex-col"
+                  className="bg-gray-50/50 border border-gray-200 rounded-3xl p-6 min-h-[500px] flex flex-col shadow-sm"
                   onDrop={(e) => handleDrop(e, driver.id)}
                   onDragOver={handleDragOver}
                 >
                   <div className="flex justify-between items-center mb-6 pb-4 border-b border-primary-200">
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        <h2 className="text-xl font-bold text-primary-900">🚚 {driver.user?.name || driver.name}</h2>
-                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300 transition-colors font-bold">수정</button>
+                        <h2 className="text-lg font-extrabold text-gray-800">🚚 {driver.user?.name || driver.name}</h2>
+                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold">수정</button>
                       </div>
                       {driver.customRegion ? (
                         <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block">
@@ -1155,7 +1155,7 @@ export default function AdminDashboard() {
                         </span>
                       )}
                     </div>
-                    <span className="bg-primary-600 text-white px-3 py-1 rounded-full text-sm font-bold">{driverRequests.length}건 대기중</span>
+                    <span className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기중</span>
                   </div>
                   
                   <div className="flex-1 space-y-4">
@@ -1169,7 +1169,7 @@ export default function AdminDashboard() {
                           key={req.id} 
                           draggable
                           onDragStart={(e) => handleDragStart(e, req.id)}
-                          className={`p-4 bg-white border rounded-2xl shadow-sm cursor-grab active:cursor-grabbing transition-all flex gap-3 ${req.status === 'IN_PROGRESS' ? 'border-blue-500 ring-2 ring-blue-100' : 'border-primary-100 hover:border-primary-400'}`}
+                          className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] cursor-grab active:cursor-grabbing transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
                         >
                           <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
                             {index + 1}
