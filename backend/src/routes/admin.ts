@@ -938,6 +938,8 @@ router.get('/debug/seed-suwon', async (req, res) => {
     await prisma.request.deleteMany({});
     
     let count = 0;
+    const requestDataToInsert = [];
+
     for (const c of citiesData) {
       let region = await prisma.region.findFirst({
         where: { province: '경기도', city: c.city, town: null }
@@ -956,25 +958,28 @@ router.get('/debug/seed-suwon', async (req, res) => {
         const address = gu ? `경기도 ${c.city} ${gu} ${dong} ${jibun}` : `경기도 ${c.city} ${dong} ${jibun}`;
         const sigungu = gu ? `${c.city} ${gu}` : c.city;
         
-        await prisma.request.create({
-          data: {
-            userName: names[Math.floor(Math.random() * names.length)],
-            phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-            address: address,
-            detailAddress: Math.floor(Math.random() * 20 + 1) + '층',
-            zipCode: '1' + Math.floor(1000 + Math.random() * 9000),
-            sigungu: sigungu,
-            bname: dong,
-            desiredDate: new Date(),
-            estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
-            status: 'PENDING',
-            partnerId: null,
-            regionId: region.id,
-          }
+        requestDataToInsert.push({
+          userName: names[Math.floor(Math.random() * names.length)],
+          phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          address: address,
+          detailAddress: Math.floor(Math.random() * 20 + 1) + '층',
+          zipCode: '1' + Math.floor(1000 + Math.random() * 9000),
+          sigungu: sigungu,
+          bname: dong,
+          desiredDate: new Date(),
+          estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
+          status: 'PENDING',
+          partnerId: null,
+          regionId: region.id,
         });
         count++;
       }
     }
+    
+    await prisma.request.createMany({
+      data: requestDataToInsert
+    });
+
     res.json({ message: `Successfully seeded ${count} requests.` });
   } catch (error) {
     res.status(500).json({ error: String(error) });
