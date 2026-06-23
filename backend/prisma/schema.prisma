@@ -25,6 +25,7 @@ model User {
   // 파트너(업체 사장님)일 경우
   isApproved      Boolean  @default(false) // 파트너 승인 여부
   coverageRegions Coverage[]
+  customRegions   CustomRegion[] @relation("PartnerCustomRegions")
   drivers         DriverProfile[] // 사장님이 고용한 기사들
   useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
   pricePerKg      Int      @default(300) // 1kg당 수거 단가 (사장님이 설정 가능)
@@ -49,6 +50,9 @@ model DriverProfile {
   partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
   vehicleInfo String? // 차량 정보
   todayDistanceKm Float? // 누적 주행 거리 (km 단위)
+  
+  customRegionId String?
+  customRegion   CustomRegion? @relation(fields: [customRegionId], references: [id], onDelete: SetNull)
   
   assignedRequests Request[] @relation("AssignedDriver")
 }
@@ -98,6 +102,8 @@ model Request {
   address        String
   detailAddress  String
   zipCode        String
+  sigungu        String?       // 카카오 기준 시/군/구 (예: "수원시 영통구")
+  bname          String?       // 카카오 기준 법정동 (예: "이의동")
   
   // 수거 관련 시간
   desiredDate    DateTime      // 고객 희망 날짜
@@ -126,4 +132,16 @@ model Request {
   
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+}
+
+// 사장님이 직접 커스터마이징하는 권역 (예: A권역 = 수원, 화성)
+model CustomRegion {
+  id        String   @id @default(uuid())
+  partnerId String
+  partner   User     @relation("PartnerCustomRegions", fields: [partnerId], references: [id], onDelete: Cascade)
+  
+  name      String   // 예: "A권역"
+  areas     String[] // 예: ["수원시", "화성시"]
+  
+  drivers   DriverProfile[]
 }

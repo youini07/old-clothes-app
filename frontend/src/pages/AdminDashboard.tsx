@@ -21,13 +21,23 @@ interface RequestItem {
   completedDate?: string | Date | null;
   createdAt?: string | Date;
   displayId?: number;
+  sigungu?: string | null;
+  bname?: string | null;
+}
+
+interface CustomRegion {
+  id: string;
+  name: string;
+  areas: string[];
 }
 
 interface Driver {
   id: string;
-  user?: { name: string };
+  user?: { name: string; phone?: string };
   name?: string; // Fallback
   todayDistanceKm?: number;
+  customRegion?: CustomRegion | null;
+  customRegionId?: string | null;
 }
 
 export default function AdminDashboard() {
@@ -42,13 +52,21 @@ export default function AdminDashboard() {
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
 
+  const [customRegions, setCustomRegions] = useState<CustomRegion[]>([]);
+  const [newRegionForm, setNewRegionForm] = useState<{ name: string; selectedAreas: string[]; exceptions: Record<string, string> }>({ name: '', selectedAreas: [], exceptions: {} });
+  const [isAddingRegion, setIsAddingRegion] = useState(false);
+
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
-  const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '' });
+  const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
+  const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
 
   // 모바일/클릭 배정용 상태
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<string[]>([]);
+
+  // 권역별 보기 탭
+  const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
@@ -68,10 +86,22 @@ export default function AdminDashboard() {
       fetchData();
       fetchStats();
       fetchSettings();
+      fetchCustomRegions();
     } else {
       setLoading(false);
     }
   }, [authToken]);
+
+  const fetchCustomRegions = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/custom-regions`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setCustomRegions(res.data.regions || []);
+    } catch (error) {
+      console.error('권역 조회 실패:', error);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -174,16 +204,114 @@ export default function AdminDashboard() {
   const handleAddDriver = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers`, driverForm, {
-        headers: { Authorization: `Bearer ${authToken}` }
-      });
-      alert(res.data.message || '기사님이 성공적으로 등록되었습니다.');
+      if (editingDriverId) {
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/drivers/${editingDriverId}`, {
+          name: driverForm.name,
+          phone: driverForm.phone,
+          vehicleInfo: driverForm.vehicleInfo,
+          customRegionId: driverForm.customRegionId || null
+        }, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        alert('기사 정보가 성공적으로 수정되었습니다.');
+      } else {
+        await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers`, driverForm, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        alert('기사님이 성공적으로 등록되었습니다.');
+      }
       setIsDriverModalOpen(false);
-      setDriverForm({ name: '', phone: '', email: '', vehicleInfo: '' });
+      setDriverForm({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
+      setEditingDriverId(null);
       fetchData(); // 새 기사님 목록 불러오기
     } catch (error: any) {
-      alert(error.response?.data?.error || '기사 등록 중 오류가 발생했습니다.');
+      alert(error.response?.data?.error || '기사 저장 중 오류가 발생했습니다.');
     }
+  };
+
+  const handleAddRegion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const areas = newRegionForm.selectedAreas.map(area => {
+        const exception = newRegionForm.exceptions[area];
+        if (exception && exception.trim() !== '') {
+          return `${area} (${exception.trim()})`;
+        }
+        return area;
+      });
+
+      if (areas.length === 0) {
+        return alert('최소 1개 이상의 지역을 선택해주세요.');
+      }
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/custom-regions`, {
+        name: newRegionForm.name,
+        areas
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('권역이 추가되었습니다.');
+      setNewRegionForm({ name: '', selectedAreas: [], exceptions: {} });
+      setIsAddingRegion(false);
+      fetchCustomRegions();
+    } catch (error: any) {
+      alert(error.response?.data?.error || '권역 추가 실패');
+    }
+  };
+
+  const handleToggleArea = (area: string) => {
+    setNewRegionForm(prev => {
+      const isSelected = prev.selectedAreas.includes(area);
+      const newSelectedAreas = isSelected ? prev.selectedAreas.filter(a => a !== area) : [...prev.selectedAreas, area];
+      return { ...prev, selectedAreas: newSelectedAreas };
+    });
+  };
+
+  const handleExceptionChange = (area: string, value: string) => {
+    setNewRegionForm(prev => ({
+      ...prev,
+      exceptions: { ...prev.exceptions, [area]: value }
+    }));
+  };
+
+  const GYEONGGI_AREAS = [
+    "수원시 장안구", "수원시 권선구", "수원시 팔달구", "수원시 영통구",
+    "용인시 처인구", "용인시 기흥구", "용인시 수지구",
+    "성남시 수정구", "성남시 중원구", "성남시 분당구",
+    "고양시 덕양구", "고양시 일산동구", "고양시 일산서구",
+    "안양시 만안구", "안양시 동안구",
+    "안산시 상록구", "안산시 단원구",
+    "부천시 원미구", "부천시 소사구", "부천시 오정구",
+    "평택시", "화성시", "시흥시", "파주시", "김포시", "광주시",
+    "광명시", "군포시", "하남시", "이천시", "양주시", "구리시",
+    "안성시", "포천시", "의왕시", "여주시", "동두천시", "과천시",
+    "양평군", "가평군", "연천군"
+  ];
+
+  const handleDeleteRegion = async (id: string) => {
+    if (!confirm('정말 이 권역을 삭제하시겠습니까? 할당된 기사님들의 권역이 해제됩니다.')) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/custom-regions/${id}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('권역이 삭제되었습니다.');
+      fetchCustomRegions();
+      fetchData();
+    } catch (error: any) {
+      alert(error.response?.data?.error || '권역 삭제 실패');
+    }
+  };
+
+  const openDriverModalForEdit = (driver: Driver) => {
+    setEditingDriverId(driver.id);
+    setDriverForm({
+      name: driver.user?.name || driver.name || '',
+      phone: driver.user?.phone || '',
+      email: '', // 이메일은 수정 불가
+      vehicleInfo: '', // TODO: fetch vehicle info if available, currently we just leave blank or need to get it from profile
+      customRegionId: driver.customRegionId || ''
+    });
+    setIsDriverModalOpen(true);
   };
 
   // 공통 기사 배정 함수 (드래그앤드롭 & 모바일 클릭 모두 사용)
@@ -235,12 +363,90 @@ export default function AdminDashboard() {
     e.preventDefault(); // 드롭 허용
   };
 
+  // 권역 매칭 헬퍼 함수
+  const matchesRegion = (req: RequestItem, areas: string[]) => {
+    const address = req.address || '';
+    for (const areaStr of areas) {
+      const match = areaStr.match(/^([^(]+)(?:\((.*)\))?$/);
+      if (match) {
+        const baseArea = match[1].trim();
+        const exceptionsStr = match[2];
+        
+        // 1. baseArea 매칭 확인
+        let isBaseMatched = false;
+        if (req.sigungu) {
+          if (req.sigungu === baseArea || req.sigungu.startsWith(baseArea)) {
+            isBaseMatched = true;
+          }
+        } else {
+          // 구형 데이터 폴백
+          if (address.includes(baseArea)) {
+            isBaseMatched = true;
+          }
+        }
+
+        if (isBaseMatched) {
+          if (exceptionsStr) {
+            const exceptions = exceptionsStr.split(',').map(s => s.trim());
+            let isExcluded = false;
+            for (const ex of exceptions) {
+              if (ex.startsWith('-')) {
+                const excludedDong = ex.substring(1).trim();
+                if (req.bname && req.bname === excludedDong) {
+                  isExcluded = true;
+                  break;
+                } else if (!req.bname && address.includes(excludedDong)) {
+                  isExcluded = true;
+                  break;
+                }
+              }
+            }
+            if (!isExcluded) return true;
+          } else {
+            return true;
+          }
+        } else {
+          // 2. 명시적 포함(+) 확인
+          if (exceptionsStr) {
+            const exceptions = exceptionsStr.split(',').map(s => s.trim());
+            for (const ex of exceptions) {
+              if (ex.startsWith('+')) {
+                const includedDong = ex.substring(1).trim();
+                if (req.bname && req.bname === includedDong) {
+                  return true;
+                } else if (!req.bname && address.includes(includedDong)) {
+                  return true;
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    return false;
+  };
+
   // 수락 대기 중인 요청 (아직 아무 사장님도 수락하지 않은 건)
-  const pendingRequests = requests.filter(r => r.status === 'PENDING' && !r.partnerId);
+  const allPendingRequests = requests.filter(r => r.status === 'PENDING' && !r.partnerId);
   // 수락 완료 + 기사 미배정 건 (사장님이 수락했지만 기사 미배정)
-  const acceptedUnassigned = requests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
-  // 기존 unassignedRequests는 기사 미배정 건 전체 (드래그 앤 드롭 대상)
-  const unassignedRequests = acceptedUnassigned;
+  const allAcceptedUnassigned = requests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
+
+  // 현재 탭에 맞는 목록 필터링
+  const getFilteredRequests = (reqList: RequestItem[]) => {
+    if (activeRegionTab === 'ALL') return reqList;
+    if (activeRegionTab === 'UNCLASSIFIED') {
+      return reqList.filter(req => {
+        // 어떤 권역에도 매칭되지 않는 건
+        return !customRegions.some(cr => matchesRegion(req, cr.areas));
+      });
+    }
+    const targetRegion = customRegions.find(cr => cr.id === activeRegionTab);
+    if (!targetRegion) return reqList;
+    return reqList.filter(req => matchesRegion(req, targetRegion.areas));
+  };
+
+  const pendingRequests = getFilteredRequests(allPendingRequests);
+  const unassignedRequests = getFilteredRequests(allAcceptedUnassigned);
 
   // 체크박스 토글 핸들러 (신규 요청)
   const handleToggleAllPending = () => {
@@ -486,6 +692,69 @@ export default function AdminDashboard() {
                 </div>
               </form>
             </div>
+
+            {/* 권역 관리 추가 */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">🗺️ 사용자 정의 권역 관리</h2>
+              <p className="text-gray-500 mb-8">기사님들에게 배정할 권역(A권역, B권역 등)과 해당 권역에 포함될 지역을 자유롭게 설정하세요.</p>
+              <div className="space-y-4">
+                {customRegions.map(cr => (
+                  <div key={cr.id} className="flex justify-between items-center p-4 bg-gray-50 border border-gray-100 rounded-xl">
+                    <div>
+                      <span className="font-bold text-gray-900 text-lg mr-3">{cr.name}</span>
+                      <span className="text-sm text-gray-600">{cr.areas.join(', ')}</span>
+                    </div>
+                    <button onClick={() => handleDeleteRegion(cr.id)} className="text-red-500 text-sm font-bold bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">삭제</button>
+                  </div>
+                ))}
+                {isAddingRegion ? (
+                  <div className="p-4 bg-primary-50 border border-primary-100 rounded-xl space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold text-primary-900 mb-1">권역 이름</label>
+                      <input type="text" value={newRegionForm.name} onChange={e => setNewRegionForm({...newRegionForm, name: e.target.value})} placeholder="예: A권역" className="w-full p-2 border border-primary-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-primary-900 mb-2">포함 지역 선택 (경기도)</label>
+                      <div className="max-h-60 overflow-y-auto border border-primary-200 rounded-xl bg-white p-3 space-y-2">
+                        {GYEONGGI_AREAS.map(area => {
+                          const isSelected = newRegionForm.selectedAreas.includes(area);
+                          return (
+                            <div key={area} className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded-lg transition-colors ${isSelected ? 'bg-primary-50 border border-primary-200' : 'hover:bg-gray-50'}`}>
+                              <label className="flex items-center gap-3 cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={isSelected}
+                                  onChange={() => handleToggleArea(area)}
+                                  className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
+                                />
+                                <span className={`font-bold ${isSelected ? 'text-primary-900' : 'text-gray-700'}`}>{area}</span>
+                              </label>
+                              {isSelected && (
+                                <input 
+                                  type="text" 
+                                  value={newRegionForm.exceptions[area] || ''}
+                                  onChange={(e) => handleExceptionChange(area, e.target.value)}
+                                  placeholder="예외 동 (예: -정자동)" 
+                                  className="mt-2 sm:mt-0 text-sm p-1.5 border border-primary-200 rounded outline-none focus:ring-1 focus:ring-primary-500 w-full sm:w-48 bg-white"
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-gray-500 mt-2">※ 체크한 시/군/구의 모든 동이 포함됩니다. 특정 동을 제외하려면 우측 칸에 <strong>-뫄뫄동</strong> 형식으로 적어주세요.</p>
+                    </div>
+                    <div className="flex gap-2 justify-end pt-2">
+                      <button onClick={() => setIsAddingRegion(false)} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg text-sm hover:bg-gray-300 transition-colors">취소</button>
+                      <button onClick={handleAddRegion} className="px-4 py-2 bg-primary-600 text-white font-bold rounded-lg text-sm shadow-sm hover:bg-primary-700 transition-colors">저장하기</button>
+                    </div>
+                  </div>
+                ) : (
+                  <button onClick={() => setIsAddingRegion(true)} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all">+ 새 권역 추가하기</button>
+                )}
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -604,12 +873,37 @@ export default function AdminDashboard() {
             onDrop={(e) => handleDrop(e, null)}
             onDragOver={handleDragOver}
           >
+            {/* 권역별 탭 */}
+            <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
+              <button 
+                onClick={() => setActiveRegionTab('ALL')} 
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeRegionTab === 'ALL' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                전체
+              </button>
+              {customRegions.map(cr => (
+                <button 
+                  key={cr.id}
+                  onClick={() => setActiveRegionTab(cr.id)} 
+                  className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeRegionTab === cr.id ? 'bg-primary-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                >
+                  {cr.name}
+                </button>
+              ))}
+              <button 
+                onClick={() => setActiveRegionTab('UNCLASSIFIED')} 
+                className={`shrink-0 px-4 py-2 rounded-full text-sm font-bold transition-colors ${activeRegionTab === 'UNCLASSIFIED' ? 'bg-red-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                미분류
+              </button>
+            </div>
+
             {/* 수락 대기 섹션 */}
             {pendingRequests.length > 0 && (
               <div className="mb-8">
                 <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3">
                   <div className="flex items-center gap-3">
-                    <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청</h2>
+                    <h2 className="text-xl font-bold text-orange-600">🔔 신규 수거 요청 {activeRegionTab !== 'ALL' && <span className="text-sm text-gray-500 font-normal">({activeRegionTab === 'UNCLASSIFIED' ? '미분류' : customRegions.find(c => c.id === activeRegionTab)?.name})</span>}</h2>
                     <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold animate-pulse">{pendingRequests.length}건</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -787,7 +1081,17 @@ export default function AdminDashboard() {
                 >
                   <div className="flex justify-between items-center mb-6 pb-4 border-b border-primary-200">
                     <div className="flex flex-col">
-                      <h2 className="text-xl font-bold text-primary-900">🚚 {driver.user?.name || driver.name}</h2>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-xl font-bold text-primary-900">🚚 {driver.user?.name || driver.name}</h2>
+                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-700 px-2 py-1 rounded hover:bg-gray-300 transition-colors font-bold">수정</button>
+                      </div>
+                      {driver.customRegion ? (
+                        <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block">
+                          {driver.customRegion.name} ({driver.customRegion.areas.join(', ')})
+                        </span>
+                      ) : (
+                        <span className="text-xs font-medium text-gray-400 mt-1.5 inline-block">할당된 권역 없음</span>
+                      )}
                       {driver.todayDistanceKm && (
                         <span className="text-xs font-medium text-gray-500 mt-1">
                           오늘 예상 누적 주행거리: <span className="text-primary-600 font-bold">{driver.todayDistanceKm}km</span>
@@ -922,28 +1226,32 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 기사님 추가 모달 */}
+      {/* 기사님 추가/수정 모달 */}
       {isDriverModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl relative">
             <button 
-              onClick={() => setIsDriverModalOpen(false)}
+              onClick={() => { setIsDriverModalOpen(false); setEditingDriverId(null); setDriverForm({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' }); }}
               className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
             >
               ✕
             </button>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">기사님 등록</h2>
-            <p className="text-sm text-gray-500 mb-6">등록된 기사님의 초기 비밀번호는 입력하신 연락처로 설정됩니다.</p>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">{editingDriverId ? '기사님 정보 수정' : '기사님 등록'}</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              {editingDriverId ? '기사님의 담당 권역(월별 교대) 및 정보를 수정합니다.' : '등록된 기사님의 초기 비밀번호는 입력하신 연락처로 설정됩니다.'}
+            </p>
             
             <form onSubmit={handleAddDriver} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">기사님 성함</label>
                 <input required type="text" value={driverForm.name} onChange={e => setDriverForm({...driverForm, name: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="홍길동" />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">이메일 (ID 겸용)</label>
-                <input required type="email" value={driverForm.email} onChange={e => setDriverForm({...driverForm, email: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="driver@test.com" />
-              </div>
+              {!editingDriverId && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">이메일 (ID 겸용)</label>
+                  <input required type="email" value={driverForm.email} onChange={e => setDriverForm({...driverForm, email: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="driver@test.com" />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">연락처</label>
                 <input required type="tel" value={driverForm.phone} onChange={e => setDriverForm({...driverForm, phone: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="010-1234-5678" />
@@ -952,13 +1260,23 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-semibold text-gray-700 mb-1">차량 정보 (선택)</label>
                 <input type="text" value={driverForm.vehicleInfo} onChange={e => setDriverForm({...driverForm, vehicleInfo: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="1톤 트럭 (서울12가 3456)" />
               </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">담당 권역 배정</label>
+                <select value={driverForm.customRegionId} onChange={e => setDriverForm({...driverForm, customRegionId: e.target.value})} className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 text-gray-900">
+                  <option value="">-- 할당 안 함 --</option>
+                  {customRegions.map(cr => (
+                    <option key={cr.id} value={cr.id}>{cr.name} ({cr.areas.join(', ')})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">환경 설정 탭에서 권역을 추가할 수 있습니다.</p>
+              </div>
 
               <div className="pt-4">
                 <button 
                   type="submit" 
                   className="w-full py-4 bg-primary-600 text-white font-bold rounded-xl shadow-lg hover:bg-primary-700 transition-colors"
                 >
-                  등록 완료하기
+                  {editingDriverId ? '수정 완료하기' : '등록 완료하기'}
                 </button>
               </div>
             </form>

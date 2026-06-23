@@ -450,7 +450,7 @@ router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, 
     const partnerId = req.user!.userId;
     const drivers = await prisma.driverProfile.findMany({
       where: { partnerId },
-      include: { user: true }
+      include: { user: true, customRegion: true }
     });
     res.json({ drivers });
   } catch (error) {
@@ -462,7 +462,7 @@ router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, 
 router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
     const partnerId = req.user!.userId;
-    const { name, phone, email, vehicleInfo } = req.body;
+    const { name, phone, email, vehicleInfo, customRegionId } = req.body;
 
     // 초기 비밀번호는 연락처로 설정
     const initialPassword = phone || '12345678';
@@ -493,13 +493,16 @@ router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), 
       where: { userId: newDriverUser.id },
       update: {
         partnerId,
-        vehicleInfo
+        vehicleInfo,
+        customRegionId: customRegionId || null
       },
       create: {
         userId: newDriverUser.id,
         partnerId,
-        vehicleInfo
-      }
+        vehicleInfo,
+        customRegionId: customRegionId || null
+      },
+      include: { customRegion: true }
     });
 
     // 응답 시 프론트엔드 형식에 맞게 user 정보 포함
@@ -605,6 +608,131 @@ router.post('/drivers/self', authenticate, requireRole(['PARTNER']), async (req:
 });
 
 // 최적 동선 기능은 기사(Driver) 전용 API로 이전되었습니다. (driver.ts)
+
+// ==========================================
+// [PARTNER 전용] 권역 커스터마이징 (CustomRegion)
+// ==========================================
+
+// 권역 목록 조회
+router.get('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const regions = await prisma.customRegion.findMany({
+      where: { partnerId }
+    });
+    res.json({ regions });
+  } catch (error) {
+    res.status(500).json({ error: '권역 목록 조회 실패' });
+  }
+});
+
+// 새 권역 생성
+router.post('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const { name, areas } = req.body; // areas: string[]
+
+    if (!name || !areas || !Array.isArray(areas)) {
+      return res.status(400).json({ error: '권역 이름과 지역 목록이 필요합니다.' });
+    }
+
+    const newRegion = await prisma.customRegion.create({
+      data: {
+        partnerId,
+        name,
+        areas
+      }
+    });
+
+    res.json({ message: '권역이 추가되었습니다.', region: newRegion });
+  } catch (error) {
+    console.error('권역 생성 실패:', error);
+    res.status(500).json({ error: '권역 생성 실패' });
+  }
+});
+
+// 권역 삭제
+router.delete('/custom-regions/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const { id } = req.params;
+
+    // 해당 권역이 본인의 것인지 확인
+    const region = await prisma.customRegion.findUnique({ where: { id } });
+    if (!region || region.partnerId !== partnerId) {
+      return res.status(403).json({ error: '권한이 없습니다.' });
+    }
+
+    // 기사들에게 할당된 권역도 SetNull 되도록 schema에 onDelete: SetNull이 설정되어 있음 (또는 cascade)
+    // 수동으로 기사들의 customRegionId를 null로 변경
+    await prisma.driverProfile.updateMany({
+      where: { customRegionId: id },
+      data: { customRegionId: null }
+    });
+
+    await prisma.customRegion.delete({
+      where: { id }
+    });
+
+    res.json({ message: '권역이 삭제되었습니다.' });
+  } catch (error) {
+    console.error('권역 삭제 실패:', error);
+    res.status(500).json({ error: '권역 삭제 실패' });
+  }
+});
+
+// 기사의 권역(월별 교대용) 및 정보 수정
+router.patch('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const driverId = req.params.id;
+    const { customRegionId, vehicleInfo, name, phone } = req.body;
+
+    // 본인 기사인지 확인
+    const driver = await prisma.driverProfile.findUnique({
+      where: { id: driverId },
+      include: { user: true }
+    });
+    
+    if (!driver || driver.partnerId !== partnerId) {
+      return res.status(403).json({ error: '권한이 없습니다.' });
+    }
+
+    // 권역 유효성 검사
+    if (customRegionId) {
+      const region = await prisma.customRegion.findUnique({ where: { id: customRegionId } });
+      if (!region || region.partnerId !== partnerId) {
+        return res.status(400).json({ error: '유효하지 않은 권역입니다.' });
+      }
+    }
+
+    const updatedDriverProfile = await prisma.driverProfile.update({
+      where: { id: driverId },
+      data: { 
+        customRegionId: customRegionId || null,
+        ...(vehicleInfo !== undefined && { vehicleInfo })
+      },
+      include: { customRegion: true, user: true }
+    });
+
+    if (name || phone) {
+      await prisma.user.update({
+        where: { id: driver.userId },
+        data: {
+          ...(name && { name }),
+          ...(phone && { phone })
+        }
+      });
+      if (name) updatedDriverProfile.user.name = name;
+      if (phone) updatedDriverProfile.user.phone = phone;
+    }
+
+    res.json({ message: '기사 정보가 수정되었습니다.', driver: updatedDriverProfile });
+  } catch (error) {
+    console.error('기사 수정 에러:', error);
+    res.status(500).json({ error: '기사 수정 중 오류가 발생했습니다.' });
+  }
+});
 
 // ==========================================
 // [PARTNER 전용] 정산 및 통계 기능

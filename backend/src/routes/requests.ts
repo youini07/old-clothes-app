@@ -53,6 +53,8 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
         address: requestData.address,
         detailAddress: requestData.detailAddress,
         zipCode: requestData.zipCode,
+        sigungu: requestData.regionInfo?.city || null,
+        bname: requestData.regionInfo?.town || null,
         desiredDate: new Date(requestData.desiredDate),
         estimatedVolume: requestData.estimatedVolume,
         status: 'PENDING', // 항상 미배정(PENDING)으로 시작
