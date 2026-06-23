@@ -64,6 +64,7 @@ export default function AdminDashboard() {
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<string[]>([]);
+  const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
 
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
@@ -447,6 +448,54 @@ export default function AdminDashboard() {
 
   const pendingRequests = getFilteredRequests(allPendingRequests);
   const unassignedRequests = getFilteredRequests(allAcceptedUnassigned);
+
+  // 일괄 기사 배정 핸들러
+  const handleBulkAssign = async (targetDriverId: string | 'AUTO') => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    
+    setLoading(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    const updates = selectedUnassignedIds.map(async (reqId) => {
+      const req = requests.find(r => r.id === reqId);
+      if (!req) return;
+
+      let finalDriverId = targetDriverId;
+      
+      if (targetDriverId === 'AUTO') {
+        const matchedDriver = drivers.find(d => {
+          if (!d.customRegionId) return false;
+          const cr = customRegions.find(c => c.id === d.customRegionId);
+          if (!cr) return false;
+          return matchesRegion(req, cr.areas);
+        });
+        if (!matchedDriver) {
+          failCount++;
+          return;
+        }
+        finalDriverId = matchedDriver.id;
+      }
+
+      try {
+        await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
+          requestId: reqId,
+          driverId: finalDriverId,
+          confirmedDate: new Date()
+        }, { headers: { Authorization: `Bearer ${authToken}` } });
+        successCount++;
+      } catch (err) {
+        failCount++;
+      }
+    });
+
+    await Promise.all(updates);
+    
+    alert(`${successCount}건 배정 성공` + (failCount > 0 ? `, ${failCount}건 실패 (권역 미스매치 또는 오류)` : ''));
+    setSelectedUnassignedIds([]);
+    setIsBulkAssignModalOpen(false);
+    fetchData();
+  };
 
   // 체크박스 토글 핸들러 (신규 요청)
   const handleToggleAllPending = () => {
@@ -989,12 +1038,20 @@ export default function AdminDashboard() {
                   전체선택
                 </button>
                 {selectedUnassignedIds.length > 0 && (
-                  <button
-                    onClick={handleBulkUnclaim}
-                    className="text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 shadow-sm transition-all animate-fade-in"
-                  >
-                    {selectedUnassignedIds.length}건 일괄 취소
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setIsBulkAssignModalOpen(true)}
+                      className="text-sm font-bold text-white bg-primary-600 px-4 py-2 rounded-xl hover:bg-primary-700 shadow-sm transition-all animate-fade-in"
+                    >
+                      {selectedUnassignedIds.length}건 일괄 배정
+                    </button>
+                    <button
+                      onClick={handleBulkUnclaim}
+                      className="text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 shadow-sm transition-all animate-fade-in"
+                    >
+                      {selectedUnassignedIds.length}건 일괄 취소
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
@@ -1315,6 +1372,50 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+      {/* 모바일 기사 일괄 배정 모달 */}
+      {isBulkAssignModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">선택한 {selectedUnassignedIds.length}건을 배정합니다</h3>
+            
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+              <button
+                onClick={() => handleBulkAssign('AUTO')}
+                className="w-full text-center p-4 bg-primary-100 hover:bg-primary-200 rounded-2xl border border-primary-300 transition-all mb-4"
+              >
+                <div className="font-extrabold text-primary-900 text-lg">
+                  ✨ 권역별 기사님께 자동 배정
+                </div>
+                <p className="text-sm text-primary-700 mt-1">각 수거건의 주소에 맞는 담당 기사님을 찾아 자동으로 일괄 배정합니다.</p>
+              </button>
+              <div className="flex items-center gap-2 my-4">
+                <div className="h-px bg-gray-200 flex-1"></div>
+                <span className="text-xs font-bold text-gray-400">또는 특정 기사님께 전체 배정</span>
+                <div className="h-px bg-gray-200 flex-1"></div>
+              </div>
+              {drivers.map(driver => (
+                <button
+                  key={driver.id}
+                  onClick={() => handleBulkAssign(driver.id)}
+                  className="w-full text-left p-4 bg-gray-50 hover:bg-primary-50 rounded-2xl border border-gray-100 hover:border-primary-200 transition-all"
+                >
+                  <div className="font-bold text-gray-900 text-lg">
+                    {driver.user?.name || driver.name} 기사님
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button 
+              onClick={() => setIsBulkAssignModalOpen(false)}
+              className="mt-6 w-full py-4 text-gray-500 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 수거 완료 상세 증빙 모달 */}
       {selectedCompletedRequest && (

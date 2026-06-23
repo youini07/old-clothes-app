@@ -13,11 +13,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const statusService_1 = require("../services/statusService");
-const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
 // ==========================================
@@ -110,7 +110,6 @@ router.delete('/partners/:id/coverage/:regionId', authMiddleware_1.authenticate,
         res.status(500).json({ error: '권역 삭제 중 오류가 발생했습니다.' });
     }
 }));
-const bcryptjs_1 = __importDefault(require("bcryptjs"));
 // 파트너 사장님 수동 등록 (입력값 검증 포함)
 router.post('/partners', validateMiddleware_1.validatePartner, authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { name, phone, email, businessName, province, city } = req.body;
@@ -303,13 +302,111 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
         res.status(500).json({ error: '수거 요청 수락 중 오류가 발생했습니다.' });
     }
 }));
+// 수거 요청 수락 취소 (다시 대기 상태로 변경)
+router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const partnerId = req.user.userId;
+    try {
+        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!request) {
+            return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
+        }
+        if (request.partnerId !== partnerId) {
+            return res.status(403).json({ error: '본인이 수락한 건만 취소할 수 있습니다.' });
+        }
+        if (request.driverId) {
+            return res.status(400).json({ error: '이미 기사에게 배정된 건은 수락을 취소할 수 없습니다. 배정을 먼저 해제해주세요.' });
+        }
+        const updated = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: {
+                partnerId: null,
+                status: 'PENDING'
+            }
+        });
+        res.json({ message: '수락이 취소되었습니다.', request: updated });
+    }
+    catch (error) {
+        console.error('수락 취소 오류:', error);
+        res.status(500).json({ error: '수락 취소 중 오류가 발생했습니다.' });
+    }
+}));
+// 다중 수거 요청 수락 (일괄 수락)
+router.post('/requests/bulk-claim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { requestIds } = req.body;
+    const partnerId = req.user.userId;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+        return res.status(400).json({ error: '수락할 요청 ID 배열이 필요합니다.' });
+    }
+    try {
+        const updatedResult = yield prisma_1.prisma.request.updateMany({
+            where: {
+                id: { in: requestIds },
+                partnerId: null
+            },
+            data: {
+                partnerId,
+                status: 'ASSIGNED'
+            }
+        });
+        if (updatedResult.count > 0) {
+            const updatedRequests = yield prisma_1.prisma.request.findMany({
+                where: { id: { in: requestIds }, partnerId },
+                include: { partner: true }
+            });
+            updatedRequests.forEach(updated => {
+                if (updated.partner && updated.partner.useBizMessage) {
+                    (0, notificationService_1.sendAssignmentToCustomer)(updated.phone, updated.userName, updated.partner.businessName || updated.partner.name, updated.partner.useBizMessage).catch(err => console.error('배정 안내 알림톡 전송 실패:', err));
+                }
+            });
+        }
+        res.json({
+            message: `${updatedResult.count}건의 수거 요청을 수락했습니다!`,
+            count: updatedResult.count
+        });
+    }
+    catch (error) {
+        console.error('일괄 수락 오류:', error);
+        res.status(500).json({ error: '일괄 수락 중 오류가 발생했습니다.' });
+    }
+}));
+// 다중 수거 요청 수락 취소 (일괄 취소)
+router.post('/requests/bulk-unclaim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { requestIds } = req.body;
+    const partnerId = req.user.userId;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+        return res.status(400).json({ error: '수락 취소할 요청 ID 배열이 필요합니다.' });
+    }
+    try {
+        // 본인이 수락한 건이고 아직 기사 배정이 안 된 건들만 일괄 취소
+        const updatedResult = yield prisma_1.prisma.request.updateMany({
+            where: {
+                id: { in: requestIds },
+                partnerId: partnerId,
+                driverId: null
+            },
+            data: {
+                partnerId: null,
+                status: 'PENDING'
+            }
+        });
+        res.json({
+            message: `${updatedResult.count}건의 수락이 취소되었습니다.`,
+            count: updatedResult.count
+        });
+    }
+    catch (error) {
+        console.error('일괄 수락 취소 오류:', error);
+        res.status(500).json({ error: '일괄 수락 취소 중 오류가 발생했습니다.' });
+    }
+}));
 // 2. 수거 기사(Driver) 목록 조회
 router.get('/drivers', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const partnerId = req.user.userId;
         const drivers = yield prisma_1.prisma.driverProfile.findMany({
             where: { partnerId },
-            include: { user: true }
+            include: { user: true, customRegion: true }
         });
         res.json({ drivers });
     }
@@ -321,7 +418,7 @@ router.get('/drivers', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
 router.post('/drivers', validateMiddleware_1.validateDriver, authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const partnerId = req.user.userId;
-        const { name, phone, email, vehicleInfo } = req.body;
+        const { name, phone, email, vehicleInfo, customRegionId } = req.body;
         // 초기 비밀번호는 연락처로 설정
         const initialPassword = phone || '12345678';
         const hashedPassword = yield bcryptjs_1.default.hash(initialPassword, 10);
@@ -349,13 +446,16 @@ router.post('/drivers', validateMiddleware_1.validateDriver, authMiddleware_1.au
             where: { userId: newDriverUser.id },
             update: {
                 partnerId,
-                vehicleInfo
+                vehicleInfo,
+                customRegionId: customRegionId || null
             },
             create: {
                 userId: newDriverUser.id,
                 partnerId,
-                vehicleInfo
-            }
+                vehicleInfo,
+                customRegionId: customRegionId || null
+            },
+            include: { customRegion: true }
         });
         // 응답 시 프론트엔드 형식에 맞게 user 정보 포함
         res.json({ message: '기사님이 성공적으로 등록되었습니다.', driver: Object.assign(Object.assign({}, newDriverProfile), { user: newDriverUser }) });
@@ -380,7 +480,14 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
         });
         // 일정 확정 안내 알림톡 발송 (비동기)
         if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
-            (0, notificationService_1.sendScheduleConfirmedToCustomer)(request.phone, request.userName, request.confirmedDate, request.partner.useBizMessage).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+            let driverPhone = undefined;
+            if (request.driverId) {
+                const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true } });
+                if (driverProfile && driverProfile.user.phone) {
+                    driverPhone = driverProfile.user.phone;
+                }
+            }
+            (0, notificationService_1.sendScheduleConfirmedToCustomer)(request.phone, request.userName, request.confirmedDate, request.partner.useBizMessage, driverPhone).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
         }
         res.json({ message: '기사 배정이 완료되었습니다.', request });
     }
@@ -388,103 +495,161 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
         res.status(500).json({ error: '기사 배정 실패' });
     }
 }));
-// 4. 기사별 동선 최적화 (카카오 좌표 API 기반 최단거리 정렬)
-router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { driverId } = req.params;
-    const partnerId = req.user.userId;
+// 4. 배정 취소 (기사에게 배정한 수거건 다시 회수)
+router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
     try {
-        // 기사가 이 파트너 소속인지 확인
-        const driver = yield prisma_1.prisma.driverProfile.findFirst({
-            where: { id: driverId, partnerId }
-        });
-        if (!driver) {
-            return res.status(404).json({ error: '소속 기사를 찾을 수 없습니다.' });
+        const partnerId = req.user.userId;
+        // 권한 확인
+        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!request || request.partnerId !== partnerId) {
+            return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청입니다.' });
         }
-        // 기사에게 배정된 미완료 수거 건 조회
-        const requests = yield prisma_1.prisma.request.findMany({
-            where: { driverId, status: { not: 'COMPLETED' } }
-        });
-        if (requests.length <= 1) {
-            return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
-        }
-        // 파트너(본사) 주소 조회 (출발지)
-        const partner = yield prisma_1.prisma.user.findUnique({ where: { id: partnerId } });
-        const originAddress = (partner === null || partner === void 0 ? void 0 : partner.address) || '경기 평택시 신장로 72-13'; // 기본값
-        // 출발지 좌표 변환
-        const originCoords = yield (0, kakaoRoute_1.getCoordinates)(originAddress);
-        if (!originCoords) {
-            return res.status(400).json({ error: '출발지 주소의 좌표를 찾을 수 없습니다.' });
-        }
-        // 각 수거지의 좌표 변환
-        const destinations = [];
-        for (const r of requests) {
-            const coords = yield (0, kakaoRoute_1.getCoordinates)(r.address);
-            if (coords) {
-                destinations.push({
-                    request: r,
-                    x: parseFloat(coords.x),
-                    y: parseFloat(coords.y)
-                });
+        const updated = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: {
+                driverId: null,
+                status: 'ASSIGNED', // 기사 미배정 상태로 롤백 (파트너는 여전히 수락된 상태)
+                confirmedDate: null,
+                etaMinutes: null
             }
-            else {
-                // 좌표 변환 실패 시 출발지 근처로 임시 매핑
-                destinations.push({
-                    request: r,
-                    x: parseFloat(originCoords.x),
-                    y: parseFloat(originCoords.y)
-                });
-            }
-        }
-        // Nearest Neighbor 알고리즘을 이용한 최적 경로 탐색 (유클리드 거리 기반)
-        const optimizedList = [];
-        let currentX = parseFloat(originCoords.x);
-        let currentY = parseFloat(originCoords.y);
-        const unvisited = [...destinations];
-        while (unvisited.length > 0) {
-            let minDistance = Infinity;
-            let nextIndex = 0;
-            for (let i = 0; i < unvisited.length; i++) {
-                const dx = unvisited[i].x - currentX;
-                const dy = unvisited[i].y - currentY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-                if (distance < minDistance) {
-                    minDistance = distance;
-                    nextIndex = i;
-                }
-            }
-            const nextTarget = unvisited.splice(nextIndex, 1)[0];
-            optimizedList.push(nextTarget.request);
-            currentX = nextTarget.x;
-            currentY = nextTarget.y;
-        }
-        // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
-        yield prisma_1.prisma.$transaction(optimizedList.map((reqItem, idx) => prisma_1.prisma.request.update({
-            where: { id: reqItem.id },
-            data: { orderIndex: idx }
-        })));
-        res.json({
-            message: '동선 최적화가 완료되었습니다. 기사님 앱에 최적 경로가 반영됩니다.',
-            origin: {
-                address: originAddress,
-                x: originCoords.x,
-                y: originCoords.y
-            },
-            optimizedRequests: optimizedList.map((r, idx) => {
-                const dest = destinations.find(d => d.request.id === r.id);
-                return {
-                    id: r.id,
-                    userName: r.userName,
-                    address: r.address,
-                    orderIndex: idx,
-                    x: dest ? dest.x.toString() : originCoords.x,
-                    y: dest ? dest.y.toString() : originCoords.y
-                };
-            })
         });
+        res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
     }
     catch (error) {
-        console.error('동선 최적화 에러:', error);
-        res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
+        console.error('배정 취소 에러:', error);
+        res.status(500).json({ error: '배정 취소 중 오류가 발생했습니다.' });
+    }
+}));
+// 5. 사장님 본인을 기사로 자동 등록 (원클릭)
+router.post('/drivers/self', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const existing = yield prisma_1.prisma.driverProfile.findUnique({ where: { userId: partnerId } });
+        if (existing) {
+            return res.status(400).json({ error: '이미 사장님 계정으로 기사가 등록되어 있습니다.' });
+        }
+        const newDriverProfile = yield prisma_1.prisma.driverProfile.create({
+            data: {
+                userId: partnerId,
+                partnerId: partnerId,
+                vehicleInfo: '사장님 본인 차량' // 기본값
+            },
+            include: { user: true }
+        });
+        res.json({ message: '사장님이 기사로 성공적으로 등록되었습니다.', driver: newDriverProfile });
+    }
+    catch (error) {
+        console.error('사장님 기사 등록 에러:', error);
+        res.status(500).json({ error: '기사 등록 중 오류가 발생했습니다.' });
+    }
+}));
+// 최적 동선 기능은 기사(Driver) 전용 API로 이전되었습니다. (driver.ts)
+// ==========================================
+// [PARTNER 전용] 권역 커스터마이징 (CustomRegion)
+// ==========================================
+// 권역 목록 조회
+router.get('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const regions = yield prisma_1.prisma.customRegion.findMany({
+            where: { partnerId }
+        });
+        res.json({ regions });
+    }
+    catch (error) {
+        res.status(500).json({ error: '권역 목록 조회 실패' });
+    }
+}));
+// 새 권역 생성
+router.post('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const { name, areas } = req.body; // areas: string[]
+        if (!name || !areas || !Array.isArray(areas)) {
+            return res.status(400).json({ error: '권역 이름과 지역 목록이 필요합니다.' });
+        }
+        const newRegion = yield prisma_1.prisma.customRegion.create({
+            data: {
+                partnerId,
+                name,
+                areas
+            }
+        });
+        res.json({ message: '권역이 추가되었습니다.', region: newRegion });
+    }
+    catch (error) {
+        console.error('권역 생성 실패:', error);
+        res.status(500).json({ error: '권역 생성 실패' });
+    }
+}));
+// 권역 삭제
+router.delete('/custom-regions/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const { id } = req.params;
+        // 해당 권역이 본인의 것인지 확인
+        const region = yield prisma_1.prisma.customRegion.findUnique({ where: { id } });
+        if (!region || region.partnerId !== partnerId) {
+            return res.status(403).json({ error: '권한이 없습니다.' });
+        }
+        // 기사들에게 할당된 권역도 SetNull 되도록 schema에 onDelete: SetNull이 설정되어 있음 (또는 cascade)
+        // 수동으로 기사들의 customRegionId를 null로 변경
+        yield prisma_1.prisma.driverProfile.updateMany({
+            where: { customRegionId: id },
+            data: { customRegionId: null }
+        });
+        yield prisma_1.prisma.customRegion.delete({
+            where: { id }
+        });
+        res.json({ message: '권역이 삭제되었습니다.' });
+    }
+    catch (error) {
+        console.error('권역 삭제 실패:', error);
+        res.status(500).json({ error: '권역 삭제 실패' });
+    }
+}));
+// 기사의 권역(월별 교대용) 및 정보 수정
+router.patch('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const driverId = req.params.id;
+        const { customRegionId, vehicleInfo, name, phone } = req.body;
+        // 본인 기사인지 확인
+        const driver = yield prisma_1.prisma.driverProfile.findUnique({
+            where: { id: driverId },
+            include: { user: true }
+        });
+        if (!driver || driver.partnerId !== partnerId) {
+            return res.status(403).json({ error: '권한이 없습니다.' });
+        }
+        // 권역 유효성 검사
+        if (customRegionId) {
+            const region = yield prisma_1.prisma.customRegion.findUnique({ where: { id: customRegionId } });
+            if (!region || region.partnerId !== partnerId) {
+                return res.status(400).json({ error: '유효하지 않은 권역입니다.' });
+            }
+        }
+        const updatedDriverProfile = yield prisma_1.prisma.driverProfile.update({
+            where: { id: driverId },
+            data: Object.assign({ customRegionId: customRegionId || null }, (vehicleInfo !== undefined && { vehicleInfo })),
+            include: { customRegion: true, user: true }
+        });
+        if (name || phone) {
+            yield prisma_1.prisma.user.update({
+                where: { id: driver.userId },
+                data: Object.assign(Object.assign({}, (name && { name })), (phone && { phone }))
+            });
+            if (name)
+                updatedDriverProfile.user.name = name;
+            if (phone)
+                updatedDriverProfile.user.phone = phone;
+        }
+        res.json({ message: '기사 정보가 수정되었습니다.', driver: updatedDriverProfile });
+    }
+    catch (error) {
+        console.error('기사 수정 에러:', error);
+        res.status(500).json({ error: '기사 수정 중 오류가 발생했습니다.' });
     }
 }));
 // ==========================================
@@ -496,13 +661,10 @@ router.get('/stats', authMiddleware_1.authenticate, (0, authMiddleware_1.require
         // 파트너가 담당하는 권역 ID 목록
         const coverages = yield prisma_1.prisma.coverage.findMany({ where: { partnerId } });
         const regionIds = coverages.map((c) => c.regionId);
-        // 해당 파트너에게 배정된 모든 수거 건 조회
+        // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
         const allRequests = yield prisma_1.prisma.request.findMany({
             where: {
-                OR: [
-                    { regionId: { in: regionIds } },
-                    { partnerId: partnerId }
-                ]
+                partnerId: partnerId
             },
             orderBy: { createdAt: 'desc' }
         });
@@ -656,6 +818,66 @@ router.get('/debug/regions', (req, res) => __awaiter(void 0, void 0, void 0, fun
     }
     catch (error) {
         res.status(500).json({ error: 'debug error', details: String(error) });
+    }
+}));
+// [DEBUG] 8개 시 80개 랜덤 수거 신청 시드 데이터 생성
+router.post('/debug/seed-suwon', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const citiesData = [
+            { city: "수원시", guList: ["장안구", "권선구", "팔달구", "영통구"], dongList: ["정자동", "권선동", "인계동", "영통동", "매탄동", "이의동", "호매실동"] },
+            { city: "용인시", guList: ["처인구", "기흥구", "수지구"], dongList: ["역북동", "구갈동", "풍덕천동", "상현동", "보라동", "신갈동"] },
+            { city: "성남시", guList: ["수정구", "중원구", "분당구"], dongList: ["태평동", "성남동", "정자동", "서현동", "백현동", "판교동"] },
+            { city: "고양시", guList: ["덕양구", "일산동구", "일산서구"], dongList: ["화정동", "마두동", "일산동", "대화동", "정발산동", "행신동"] },
+            { city: "안양시", guList: ["만안구", "동안구"], dongList: ["안양동", "석수동", "비산동", "평촌동", "호계동", "관양동"] },
+            { city: "안산시", guList: ["상록구", "단원구"], dongList: ["본오동", "사동", "고잔동", "초지동", "선부동", "월피동"] },
+            { city: "부천시", guList: ["원미구", "소사구", "오정구"], dongList: ["중동", "상동", "송내동", "오정동", "심곡본동", "역곡동"] },
+            { city: "광명시", guList: [""], dongList: ["광명동", "철산동", "하안동", "소하동", "일직동"] }
+        ];
+        const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
+            '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
+        const volumes = ['헌옷 15kg', '헌옷 25kg, 신발 3켤레', '30kg 이상 (마대자루 2개)', '소량 (10kg 내외)', '옷 20kg, 가방 5개'];
+        yield prisma_1.prisma.request.deleteMany({});
+        let count = 0;
+        const requestDataToInsert = [];
+        for (const c of citiesData) {
+            let region = yield prisma_1.prisma.region.findFirst({
+                where: { province: '경기도', city: c.city, town: null }
+            });
+            if (!region) {
+                region = yield prisma_1.prisma.region.create({
+                    data: { province: '경기도', city: c.city, town: null }
+                });
+            }
+            for (let i = 0; i < 10; i++) {
+                const gu = c.guList[Math.floor(Math.random() * c.guList.length)];
+                const dong = c.dongList[Math.floor(Math.random() * c.dongList.length)];
+                const jibun = Math.floor(Math.random() * 1000) + '-' + Math.floor(Math.random() * 10);
+                const address = gu ? `경기도 ${c.city} ${gu} ${dong} ${jibun}` : `경기도 ${c.city} ${dong} ${jibun}`;
+                const sigungu = gu ? `${c.city} ${gu}` : c.city;
+                requestDataToInsert.push({
+                    userName: names[Math.floor(Math.random() * names.length)],
+                    phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+                    address: address,
+                    detailAddress: Math.floor(Math.random() * 20 + 1) + '층',
+                    zipCode: '1' + Math.floor(1000 + Math.random() * 9000),
+                    sigungu: sigungu,
+                    bname: dong,
+                    desiredDate: new Date(),
+                    estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
+                    status: 'PENDING',
+                    partnerId: null,
+                    regionId: region.id,
+                });
+                count++;
+            }
+        }
+        yield prisma_1.prisma.request.createMany({
+            data: requestDataToInsert
+        });
+        res.json({ message: `Successfully seeded ${count} requests.` });
+    }
+    catch (error) {
+        res.status(500).json({ error: String(error) });
     }
 }));
 // [DEBUG] 동(town) 단위 Region을 시(city) 단위로 통합 마이그레이션

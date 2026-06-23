@@ -22,7 +22,7 @@ const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
 // 새로운 수거 신청 생성 (입력값 검증 포함)
 router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     const requestData = req.body;
     try {
         // 1. 주소에서 시/도, 시/군/구 파싱 (통계용 regionId 기록)
@@ -63,12 +63,14 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
                 address: requestData.address,
                 detailAddress: requestData.detailAddress,
                 zipCode: requestData.zipCode,
+                sigungu: ((_a = requestData.regionInfo) === null || _a === void 0 ? void 0 : _a.city) || null,
+                bname: ((_b = requestData.regionInfo) === null || _b === void 0 ? void 0 : _b.town) || null,
                 desiredDate: new Date(requestData.desiredDate),
                 estimatedVolume: requestData.estimatedVolume,
                 status: 'PENDING', // 항상 미배정(PENDING)으로 시작
                 partnerId: null, // 사장님이 수락할 때까지 null
                 regionId,
-                customerId: ((_a = req.user) === null || _a === void 0 ? void 0 : _a.userId) || null,
+                customerId: ((_c = req.user) === null || _c === void 0 ? void 0 : _c.userId) || null,
             }
         });
         // 3. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
