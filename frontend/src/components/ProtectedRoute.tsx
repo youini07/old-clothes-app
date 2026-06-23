@@ -29,21 +29,20 @@ export default function ProtectedRoute({ children, allowedRoles, redirectTo = '/
       if (!allowedRoles.includes(userInfo.role)) {
         return <Navigate to={redirectTo} replace />;
       }
+      
+      // 역할별 필수 토큰 체크
+      if (userInfo.role === 'PARTNER' && !localStorage.getItem('admin_token')) {
+        return <Navigate to="/login" replace />;
+      }
+      if (userInfo.role === 'DRIVER' && !localStorage.getItem('driver_token')) {
+        return <Navigate to="/login" replace />;
+      }
+      if (userInfo.role === 'SUPER_ADMIN' && !localStorage.getItem('superadmin_token')) {
+        return <Navigate to="/login" replace />;
+      }
     } catch {
       return <Navigate to={redirectTo} replace />;
     }
-  }
-
-  // 관리자 계열은 별도 토큰 키도 체크
-  // (PARTNER는 admin_token, DRIVER는 driver_token, SUPER_ADMIN은 superadmin_token)
-  if (allowedRoles.includes('PARTNER') && !localStorage.getItem('admin_token')) {
-    return <Navigate to="/login" replace />;
-  }
-  if (allowedRoles.includes('DRIVER') && !localStorage.getItem('driver_token')) {
-    return <Navigate to="/login" replace />;
-  }
-  if (allowedRoles.includes('SUPER_ADMIN') && !localStorage.getItem('superadmin_token')) {
-    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;
