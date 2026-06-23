@@ -146,18 +146,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role: 'PARTNER' });
-      const token = res.data.token;
-      localStorage.setItem('admin_token', token);
-      setAuthToken(token);
-    } catch (error) {
-      alert('데모 로그인 실패');
-      setLoading(false);
-    }
-  };
 
   const fetchData = async () => {
     setLoading(true);
