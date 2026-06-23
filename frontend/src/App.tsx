@@ -34,9 +34,9 @@ function Home() {
   const handleSeedData = async () => {
     try {
       setSeeding(true);
-      alert('라이브 서버에 30건의 테스트 데이터를 꽂아넣습니다. 잠시만 기다려주세요...');
+      alert('라이브 서버에 80건의 테스트 데이터를 꽂아넣습니다. 잠시만 기다려주세요...');
       await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
-      alert('성공! 30건의 테스트 데이터가 들어갔습니다. 이제 데모 로그인으로 확인해보세요.');
+      alert('성공! 80건의 테스트 데이터가 들어갔습니다. 이제 데모 로그인으로 확인해보세요.');
     } catch (e) {
       alert('데이터 생성에 실패했습니다.');
     } finally {
@@ -91,7 +91,7 @@ function Home() {
             disabled={seeding}
             className="text-[10px] bg-black/20 text-white px-3 py-1.5 rounded-full hover:bg-black/40 transition-colors backdrop-blur-sm"
           >
-            {seeding ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 30건 자동 생성'}
+            {seeding ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 80건 자동 생성'}
           </button>
         </div>
 

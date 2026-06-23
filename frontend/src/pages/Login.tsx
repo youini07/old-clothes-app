@@ -169,9 +169,9 @@ export default function Login() {
               onClick={async () => {
                 try {
                   setLoading(true);
-                  alert('라이브 서버에 30건의 테스트 데이터를 꽂아넣습니다. 약 3~5초 정도 소요됩니다.');
+                  alert('라이브 서버에 80건의 테스트 데이터를 꽂아넣습니다. 약 3~5초 정도 소요됩니다.');
                   await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
-                  alert('성공! 30건의 테스트 데이터가 들어갔습니다. 이제 사장님 데모로 로그인해보세요.');
+                  alert('성공! 80건의 테스트 데이터가 들어갔습니다. 이제 사장님 데모로 로그인해보세요.');
                 } catch (e) {
                   alert('데이터 생성에 실패했습니다. (이미 생성되었거나 서버 오류입니다.)');
                 } finally {
@@ -181,7 +181,7 @@ export default function Login() {
               disabled={loading}
               className="text-xs bg-gray-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-gray-900 transition-colors"
             >
-              {loading ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 30건 즉시 자동 생성'}
+              {loading ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 80건 즉시 자동 생성'}
             </button>
           </div>
 
