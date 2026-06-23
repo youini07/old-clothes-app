@@ -7,11 +7,6 @@ const ALIGO_SENDER_KEY = process.env.ALIGO_SENDER_KEY || 'your_sender_key';
 const SENDER_PHONE = process.env.SENDER_PHONE || '010-0000-0000';
 
 const sendRealBizMessage = async (tplCode: string, phone: string, userName: string, message: string, title: string) => {
-  // 만약 API KEY가 기본값이면 Mock 모드로 실행
-  if (!ALIGO_API_KEY || ALIGO_API_KEY === 'your_aligo_api_key') {
-    return sendMockBizMessage(title, phone, message);
-  }
-
   try {
     const params = new URLSearchParams();
     params.append('apikey', ALIGO_API_KEY);
@@ -23,7 +18,7 @@ const sendRealBizMessage = async (tplCode: string, phone: string, userName: stri
     params.append('recvname_1', userName);
     params.append('subject_1', title);
     params.append('message_1', message);
-    params.append('failover', 'Y'); // 실패 시 문자 대체 발송
+    params.append('failover', 'Y'); // 카카오톡 실패 시 문자 대체 발송
     params.append('fsubject_1', title);
     params.append('fmessage_1', message);
 
@@ -39,6 +34,45 @@ const sendRealBizMessage = async (tplCode: string, phone: string, userName: stri
     console.error(`[알림톡 발송 실패] ${phone}:`, error);
     return false;
   }
+};
+
+const sendDirectSms = async (phone: string, message: string, title: string) => {
+  try {
+    const params = new URLSearchParams();
+    params.append('key', ALIGO_API_KEY); // 일반 문자 API는 apikey 대신 key를 사용합니다
+    params.append('user_id', ALIGO_USER_ID);
+    params.append('sender', SENDER_PHONE);
+    params.append('receiver', phone);
+    params.append('msg', message);
+    params.append('title', title);
+
+    const response = await axios.post('https://apis.aligo.in/send/', params.toString(), {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    });
+
+    console.log(`[일반 문자 발송 성공] ${phone}:`, response.data);
+    return true;
+  } catch (error) {
+    console.error(`[일반 문자 발송 실패] ${phone}:`, error);
+    return false;
+  }
+};
+
+const sendNotification = async (tplCode: string, phone: string, userName: string, message: string, title: string) => {
+  // 1. API KEY가 없으면 테스트(Mock) 모드로 실행
+  if (!ALIGO_API_KEY || ALIGO_API_KEY === 'your_aligo_api_key') {
+    return sendMockBizMessage(title, phone, message);
+  }
+
+  // 2. 카카오톡 발신프로필 키(사업자 필요)가 없으면 일반 문자(SMS)로 우회 전송
+  if (!ALIGO_SENDER_KEY || ALIGO_SENDER_KEY === 'your_sender_key') {
+    return sendDirectSms(phone, message, title);
+  }
+
+  // 3. 둘 다 설정되어 있으면 카카오 알림톡 전송 (실패 시 내부적으로 문자 대체 전송됨)
+  return sendRealBizMessage(tplCode, phone, userName, message, title);
 };
 
 const sendMockBizMessage = (title: string, phone: string, message: string) => {
@@ -62,21 +96,21 @@ export const sendDepartureNotification = async (phone: string, userName: string,
   }
   
   const tplCode = process.env.ALIGO_TPL_DEPARTURE || 'TPL_001';
-  return sendRealBizMessage(tplCode, phone, userName, message, '수거 출발 안내');
+  return sendNotification(tplCode, phone, userName, message, '수거 출발 안내');
 };
 
 export const sendNewRequestToPartner = async (partnerPhone: string, customerName: string, address: string, useBizMessage: boolean) => {
   if (!useBizMessage) return false;
   const message = `[올클 파트너 알림]\n새로운 수거 신청이 접수되었습니다!\n- 고객명: ${customerName}\n- 수거지: ${address}\n\n관리자 페이지에서 확인 후 업체를 배정해 주세요.`;
   const tplCode = process.env.ALIGO_TPL_NEW_REQUEST || 'TPL_002';
-  return sendRealBizMessage(tplCode, partnerPhone, customerName, message, '신규 신청 접수');
+  return sendNotification(tplCode, partnerPhone, customerName, message, '신규 신청 접수');
 };
 
 export const sendAssignmentToCustomer = async (phone: string, userName: string, partnerName: string, useBizMessage: boolean) => {
   if (!useBizMessage) return false;
   const message = `[올클 알림톡]\n${userName}님, 헌옷 수거 업체 배정이 완료되었습니다.\n- 담당 업체: ${partnerName}\n\n곧 담당 기사님이 수거 일정을 확정해 드릴 예정입니다. 조금만 기다려주세요!`;
   const tplCode = process.env.ALIGO_TPL_ASSIGNED || 'TPL_003';
-  return sendRealBizMessage(tplCode, phone, userName, message, '업체 배정 완료');
+  return sendNotification(tplCode, phone, userName, message, '업체 배정 완료');
 };
 
 export const sendScheduleConfirmedToCustomer = async (phone: string, userName: string, confirmedDate: Date, useBizMessage: boolean, driverPhone?: string) => {
@@ -89,12 +123,12 @@ export const sendScheduleConfirmedToCustomer = async (phone: string, userName: s
   }
   
   const tplCode = process.env.ALIGO_TPL_SCHEDULED || 'TPL_004';
-  return sendRealBizMessage(tplCode, phone, userName, message, '수거 일정 확정');
+  return sendNotification(tplCode, phone, userName, message, '수거 일정 확정');
 };
 
 export const sendCompletionToCustomer = async (phone: string, userName: string, actualWeight: number, totalPrice: number, useBizMessage: boolean) => {
   if (!useBizMessage) return false;
   const message = `[올클 알림톡]\n${userName}님, 헌옷 수거가 완료되었습니다!\n\n[수거 내역]\n- 수거 무게: ${actualWeight}kg\n- 정산 금액: ${totalPrice.toLocaleString()}원\n\n이용해 주셔서 감사합니다. 올클과 함께 깨끗한 하루 보내세요!`;
   const tplCode = process.env.ALIGO_TPL_COMPLETED || 'TPL_005';
-  return sendRealBizMessage(tplCode, phone, userName, message, '수거 완료 및 정산');
+  return sendNotification(tplCode, phone, userName, message, '수거 완료 및 정산');
 };

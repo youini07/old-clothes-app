@@ -71,6 +71,12 @@ export default function DriverDashboard() {
   const [activeMainTab, setActiveMainTab] = useState<'route' | 'profile'>('route');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token') || localStorage.getItem('admin_token'));
 
+  // 고객 포장 사진 뷰어 상태
+  const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+
+  // 문자 템플릿 모달 상태
+  const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, index: number} | null>(null);
+
   // 수거 완료 모달 상태
   const [completeModal, setCompleteModal] = useState<{ open: boolean; requestId: string | null; step: number }>({ open: false, requestId: null, step: 1 });
   const [actualWeight, setActualWeight] = useState('');
@@ -292,17 +298,21 @@ export default function DriverDashboard() {
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
 
-  const getSmsText = (req: RequestItem) => {
-    if (req.status === 'COMPLETED') {
-      const weight = req.actualWeight || 0;
-      const price = req.totalPrice || 0;
-      return `[올클] 수거완료! ${weight}kg, 총 ${price.toLocaleString()}원 정산. 감사합니다.`;
-    }
-    if (req.status === 'IN_PROGRESS') {
-      const eta = req.etaMinutes ? `${req.etaMinutes}분 후` : '곧';
-      return `[올클] 수거 기사 출발! 약 ${eta} 도착 예정입니다. 잠시만 기다려주세요.`;
-    }
-    return `[올클] 안녕하세요! 헌옷 수거 기사입니다. 조만간 방문 예정입니다.`;
+  const getSmsTemplate1 = (req: RequestItem, index: number) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const day = tomorrow.getDate();
+    return `안녕하세요! 올클입니다.\n\n내일(${day}일) 헌옷 수거 방문 예정입니다.\n고객님의 수거 순번은 [${index + 1}번째] 입니다.\n\n수거할 옷과 물품들은 미리 포장하여 문 앞에 내놓아 주시면 감사하겠습니다!`;
+  };
+
+  const getSmsTemplate2 = (req: RequestItem) => {
+    return `안녕하세요! 올클입니다.\n\n지금 고객님 댁으로 수거하러 출발합니다!\n곧 도착할 예정이오니 잠시만 기다려주세요.\n감사합니다.`;
+  };
+
+  const getSmsTemplate3 = (req: RequestItem) => {
+    const weight = req.actualWeight || 0;
+    const price = req.totalPrice || 0;
+    return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!`;
   };
 
   const PhotoUpload = ({ photo, setter, label, color }: { photo: string | null; setter: (v: string | null) => void; label: string; color: string }) => (
@@ -421,7 +431,7 @@ export default function DriverDashboard() {
                       <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
                       <div className="flex gap-2">
                         <a href={`tel:${req.phone}`} className="px-3.5 py-1.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold transition-colors hover:bg-green-100">{'📞 전화'}</a>
-                        <a href={`sms:${req.phone}?body=${encodeURIComponent(getSmsText(req))}`} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</a>
+                        <button onClick={() => setSelectedSmsReq({req, index})} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</button>
                       </div>
                     </div>
                     {req.status === 'IN_PROGRESS' && (
@@ -436,6 +446,17 @@ export default function DriverDashboard() {
                       <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
                     )}
                   </div>
+                  {req.customerPackedPhotoUrl && (
+                    <div className="mt-3 ml-6">
+                      <button 
+                        onClick={() => setViewingPhoto(req.customerPackedPhotoUrl)}
+                        className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        고객 포장 사진 확인
+                      </button>
+                    </div>
+                  )}
                   {activeTab === 'pending' && (
                     <div className="mt-5 grid grid-cols-2 gap-3">
                       <button 
@@ -540,6 +561,61 @@ export default function DriverDashboard() {
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Photo Viewer Modal */}
+      {viewingPhoto && (
+        <div className="fixed inset-0 bg-black/90 z-[70] flex items-center justify-center p-4" onClick={() => setViewingPhoto(null)}>
+          <button className="absolute top-4 right-4 text-white p-2" onClick={() => setViewingPhoto(null)}>
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+          <img src={viewingPhoto} alt="확대된 사진" className="max-w-full max-h-full object-contain rounded-lg" />
+        </div>
+      )}
+
+      {/* SMS Template Modal */}
+      {selectedSmsReq && (
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center sm:p-4">
+          <div className="bg-white w-full sm:w-auto sm:min-w-[360px] rounded-t-3xl sm:rounded-3xl p-6 animate-slideUp">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xl font-bold text-gray-900">문자 메시지 보내기</h3>
+              <button onClick={() => setSelectedSmsReq(null)} className="text-gray-400 hover:text-gray-600">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            
+            <p className="text-sm text-gray-600 mb-4">전송할 메시지 템플릿을 선택하세요. 메시지 앱이 열리며 자동 완성됩니다.</p>
+            
+            <div className="space-y-3">
+              <a 
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.req, selectedSmsReq.index))}`}
+                onClick={() => setSelectedSmsReq(null)}
+                className="block w-full text-left p-4 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
+              >
+                <div className="font-bold text-blue-800 mb-1">1. 내일 방문 안내 (수거일 확정)</div>
+                <div className="text-xs text-blue-600 line-clamp-2">"안녕하세요! 올클입니다. 내일 헌옷 수거 방문 예정입니다. 수거할 옷과 물품들은..."</div>
+              </a>
+              
+              <a 
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate2(selectedSmsReq.req))}`}
+                onClick={() => setSelectedSmsReq(null)}
+                className="block w-full text-left p-4 rounded-xl border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 transition-colors"
+              >
+                <div className="font-bold text-indigo-800 mb-1">2. 수거 출발 안내</div>
+                <div className="text-xs text-indigo-600 line-clamp-2">"안녕하세요! 올클입니다. 지금 고객님 댁으로 수거하러 출발합니다..."</div>
+              </a>
+              
+              <a 
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate3(selectedSmsReq.req))}`}
+                onClick={() => setSelectedSmsReq(null)}
+                className="block w-full text-left p-4 rounded-xl border border-green-100 bg-green-50 hover:bg-green-100 transition-colors"
+              >
+                <div className="font-bold text-green-800 mb-1">3. 수거 완료 안내</div>
+                <div className="text-xs text-green-600 line-clamp-2">"안녕하세요! 올클입니다. 고객님의 헌옷 수거가 완료되었습니다..."</div>
+              </a>
+            </div>
           </div>
         </div>
       )}

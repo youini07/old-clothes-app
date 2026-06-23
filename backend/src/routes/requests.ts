@@ -181,4 +181,32 @@ router.post('/optimize', async (req, res) => {
   }
 });
 
+// 고객 포장 사진 업로드 API
+router.patch('/:id/customer-photo', optionalAuthenticate, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { customerPackedPhotoUrl } = req.body;
+
+    const existingRequest = await prisma.request.findUnique({ where: { id } });
+    if (!existingRequest) {
+      return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
+    }
+
+    // 보안 검사 (선택 사항): 로그인한 유저라면 자신의 요청인지 확인 (비회원 신청건은 통과)
+    if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
+      return res.status(403).json({ error: '권한이 없습니다.' });
+    }
+
+    const updatedRequest = await prisma.request.update({
+      where: { id },
+      data: { customerPackedPhotoUrl }
+    });
+
+    res.json({ message: '포장 사진이 성공적으로 업로드되었습니다.', request: updatedRequest });
+  } catch (error) {
+    console.error('포장 사진 업로드 에러:', error);
+    res.status(500).json({ error: '사진 업로드 중 문제가 발생했습니다.' });
+  }
+});
+
 export default router;

@@ -126,6 +126,9 @@ model Request {
   scalePhotoUrl   String?      // 2단계: 저울에 올린 무게 사진
   extraPhotoUrl   String?      // 3단계: 특이사항 사진
   
+  // 고객 업로드 포장 사진
+  customerPackedPhotoUrl String? // 고객이 내놓은 후 직접 업로드한 사진
+  
   driverNote      String?      // 기사가 남기는 특이사항 메모
   
   status         String        @default("PENDING")

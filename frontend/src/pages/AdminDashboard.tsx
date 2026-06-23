@@ -18,6 +18,7 @@ interface RequestItem {
   itemPhotoUrl?: string | null;
   scalePhotoUrl?: string | null;
   extraPhotoUrl?: string | null;
+  customerPackedPhotoUrl?: string | null;
   completedDate?: string | Date | null;
   createdAt?: string | Date;
   displayId?: number;
@@ -1446,7 +1447,19 @@ export default function AdminDashboard() {
               {/* 사진 리스트 */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-3">📍 첨부 증빙 사진</h3>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {/* 고객 업로드 포장 사진 */}
+                  <div className="flex flex-col items-center gap-1.5">
+                    <div className="w-full h-24 bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                      {selectedCompletedRequest.customerPackedPhotoUrl ? (
+                        <img src={selectedCompletedRequest.customerPackedPhotoUrl} alt="고객 업로드 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.customerPackedPhotoUrl!)} />
+                      ) : (
+                        <span className="text-xs text-blue-400">고객 미첨부</span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-blue-600 font-bold">고객 포장 사진</span>
+                  </div>
+
                   {/* 1단계 물품 사진 */}
                   <div className="flex flex-col items-center gap-1.5">
                     <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">

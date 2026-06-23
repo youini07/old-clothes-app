@@ -108,6 +108,75 @@ export default function CustomerDashboard() {
     }
   };
 
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const max_size = 1024;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > max_size) {
+              height *= max_size / width;
+              width = max_size;
+            }
+          } else {
+            if (height > max_size) {
+              width *= max_size / height;
+              height = max_size;
+            }
+          }
+
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.7));
+          } else {
+            reject(new Error('Canvas context error'));
+          }
+        };
+        img.onerror = () => reject(new Error('이미지 로드 실패'));
+        img.src = event.target?.result as string;
+      };
+      reader.onerror = () => reject(new Error('파일 읽기 실패'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, reqId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingReqId(reqId);
+    try {
+      const base64Photo = await compressImage(file);
+      const token = localStorage.getItem('auth_token');
+      
+      await axios.patch(`${import.meta.env.VITE_API_URL}/requests/${reqId}/customer-photo`, {
+        customerPackedPhotoUrl: base64Photo
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      alert('포장 사진이 업로드되었습니다.');
+      // 리스트 갱신
+      fetchMyRequests(token || '');
+    } catch (error) {
+      console.error('사진 업로드 실패:', error);
+      alert('사진 업로드 중 오류가 발생했습니다.');
+    } finally {
+      setUploadingReqId(null);
+    }
+  };
+
   const getStatusText = (status: string) => {
     switch(status) {
       case 'PENDING': return '예약 접수';
@@ -233,6 +302,31 @@ export default function CustomerDashboard() {
                         <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-sm font-bold">
                           <span className="text-gray-600">수거 완료된 무게</span>
                           <span className="text-green-600 text-lg">{req.actualWeight} kg</span>
+                        </div>
+                      )}
+
+                      {/* 고객 포장 사진 업로드 영역 */}
+                      {req.status !== 'COMPLETED' && (
+                        <div className="mt-4 border-t border-gray-100 pt-4">
+                          <p className="text-sm font-bold text-gray-800 mb-2">포장 사진 등록 (선택)</p>
+                          <p className="text-xs text-gray-500 mb-3">기사님이 물건을 쉽게 찾을 수 있도록 문 앞에 내놓은 사진을 올려주세요.</p>
+                          
+                          {req.customerPackedPhotoUrl ? (
+                            <div className="relative inline-block">
+                              <img src={req.customerPackedPhotoUrl} alt="포장 사진" className="w-24 h-24 object-cover rounded-xl border border-gray-200" />
+                              <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full shadow-md cursor-pointer hover:bg-blue-700">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, req.id)} disabled={uploadingReqId === req.id} />
+                              </label>
+                            </div>
+                          ) : (
+                            <label className={`block w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition-colors ${uploadingReqId === req.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                              <span className="text-sm font-bold text-gray-500">
+                                {uploadingReqId === req.id ? '업로드 중...' : '📷 사진 촬영 또는 앨범 선택'}
+                              </span>
+                              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, req.id)} disabled={uploadingReqId === req.id} />
+                            </label>
+                          )}
                         </div>
                       )}
 
