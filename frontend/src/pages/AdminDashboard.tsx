@@ -294,7 +294,7 @@ export default function AdminDashboard() {
 
   // 수거 요청 수락 취소 핸들러
   const handleUnclaim = async (requestId: string) => {
-    if (!window.confirm('이 요청의 수락을 취소하시겠습니까? 다시 대기 상태로 돌아가며, 다른 업체가 수락할 수 있습니다.')) return;
+    if (!window.confirm('이 요청의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.')) return;
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/unclaim`, {}, {
         headers: { Authorization: `Bearer ${authToken}` }
