@@ -292,8 +292,21 @@ export default function AdminDashboard() {
               </button>
             )}
             <button 
+              onClick={async () => {
+                try {
+                  await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers/self`, {}, {
+                    headers: { Authorization: `Bearer ${authToken}` }
+                  });
+                } catch (e: any) { /* Ignore if already exists */ }
+                window.location.href = '/driver';
+              }}
+              className="px-1.5 py-3 md:px-4 md:py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
+            >
+              기사 모드 🚚
+            </button>
+            <button 
               onClick={() => setIsDriverModalOpen(true)}
-              className="px-1.5 py-3 md:px-6 md:py-3 bg-primary-600 text-white font-bold rounded-xl shadow-md hover:bg-primary-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
+              className="px-1.5 py-3 md:px-4 md:py-3 bg-primary-600 text-white font-bold rounded-xl shadow-md hover:bg-primary-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
             >
               기사님 추가
             </button>
@@ -625,12 +638,31 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
-                              <h3 className="font-bold text-gray-900 text-sm">{req.userName}</h3>
-                              {req.status === 'IN_PROGRESS' && (
-                                <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse">
-                                  이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
-                                </span>
-                              )}
+                              <div className="flex items-center gap-2">
+                                <h3 className="font-bold text-gray-900 text-sm">{req.userName}</h3>
+                                {req.status === 'IN_PROGRESS' && (
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                    이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                  try {
+                                    await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
+                                      headers: { Authorization: `Bearer ${authToken}` }
+                                    });
+                                    fetchData();
+                                  } catch (error) {
+                                    alert('배정 취소에 실패했습니다.');
+                                  }
+                                }}
+                                className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                              >
+                                배정 취소
+                              </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{req.address}</p>
                           </div>

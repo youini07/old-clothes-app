@@ -433,6 +433,61 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
   }
 });
 
+// 4. 배정 취소 (기사에게 배정한 수거건 다시 회수)
+router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  const { id } = req.params;
+  try {
+    const partnerId = req.user!.userId;
+    
+    // 권한 확인
+    const request = await prisma.request.findUnique({ where: { id } });
+    if (!request || request.partnerId !== partnerId) {
+      return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청입니다.' });
+    }
+
+    const updated = await prisma.request.update({
+      where: { id },
+      data: {
+        driverId: null,
+        status: 'ASSIGNED', // 기사 미배정 상태로 롤백 (파트너는 여전히 수락된 상태)
+        confirmedDate: null,
+        etaMinutes: null
+      }
+    });
+
+    res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
+  } catch (error) {
+    console.error('배정 취소 에러:', error);
+    res.status(500).json({ error: '배정 취소 중 오류가 발생했습니다.' });
+  }
+});
+
+// 5. 사장님 본인을 기사로 자동 등록 (원클릭)
+router.post('/drivers/self', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+
+    const existing = await prisma.driverProfile.findUnique({ where: { userId: partnerId } });
+    if (existing) {
+      return res.status(400).json({ error: '이미 사장님 계정으로 기사가 등록되어 있습니다.' });
+    }
+
+    const newDriverProfile = await prisma.driverProfile.create({
+      data: {
+        userId: partnerId,
+        partnerId: partnerId,
+        vehicleInfo: '사장님 본인 차량' // 기본값
+      },
+      include: { user: true }
+    });
+
+    res.json({ message: '사장님이 기사로 성공적으로 등록되었습니다.', driver: newDriverProfile });
+  } catch (error) {
+    console.error('사장님 기사 등록 에러:', error);
+    res.status(500).json({ error: '기사 등록 중 오류가 발생했습니다.' });
+  }
+});
+
 // 최적 동선 기능은 기사(Driver) 전용 API로 이전되었습니다. (driver.ts)
 
 // ==========================================
@@ -618,6 +673,63 @@ router.get('/debug/regions', async (req, res) => {
     res.json({ regions, recentRequests });
   } catch (error) {
     res.status(500).json({ error: 'debug error', details: String(error) });
+  }
+});
+
+// [DEBUG] 수원 지역 랜덤 30개 수거 신청 시드 데이터 생성
+router.get('/debug/seed-suwon', async (req, res) => {
+  try {
+    const suwonAddresses = [
+      '경기도 수원시 팔달구 권광로 142', '경기도 수원시 팔달구 매산로 1', '경기도 수원시 영통구 센트럴타운로 76', 
+      '경기도 수원시 장안구 경수대로 927', '경기도 수원시 권선구 세권로 243', '경기도 수원시 장안구 수성로 303', 
+      '경기도 수원시 장안구 대평로 90', '경기도 수원시 영통구 매영로 345', '경기도 수원시 팔달구 동수원로 318', 
+      '경기도 수원시 권선구 호매실로 104', '경기도 수원시 영통구 광교중앙로 140', '경기도 수원시 팔달구 우만동 600', 
+      '경기도 수원시 영통구 원천동 605', '경기도 수원시 권선구 금곡로 212', '경기도 수원시 장안구 정자동 111-1', 
+      '경기도 수원시 팔달구 인계동 1122', '경기도 수원시 영통구 망포동 651', '경기도 수원시 권선구 세류동 1110', 
+      '경기도 수원시 장안구 파장동 605-1', '경기도 수원시 팔달구 행궁동 11', '경기도 수원시 권선구 구운동 115', 
+      '경기도 수원시 영통구 영통동 961-6', '경기도 수원시 영통구 매탄동 1267', '경기도 수원시 장안구 연무동 257', 
+      '경기도 수원시 권선구 오목천동 548', '경기도 수원시 팔달구 지동 402', '경기도 수원시 팔달구 화서동 72-1', 
+      '경기도 수원시 장안구 조원동 894', '경기도 수원시 권선구 탑동 903', '경기도 수원시 영통구 이의동 1336'
+    ];
+    const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
+                   '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은', 
+                   '전시우', '고하린', '문도현', '손아린', '양유준', '배지유', '백승우', '허소율', '남이준', '심나은'];
+    const volumes = ['10kg~20kg', '20kg~30kg', '30kg 이상'];
+
+    let suwonRegion = await prisma.region.findFirst({ where: { province: '경기도', city: '수원시', town: null } });
+    if (!suwonRegion) {
+      suwonRegion = await prisma.region.create({ data: { province: '경기도', city: '수원시', town: null } });
+    }
+
+    const demoPartner = await prisma.user.findUnique({ where: { email: 'demo_partner@test.com' } });
+    if (demoPartner) {
+      const coverageExists = await prisma.coverage.findFirst({ where: { partnerId: demoPartner.id, regionId: suwonRegion.id } });
+      if (!coverageExists) {
+        await prisma.coverage.create({ data: { partnerId: demoPartner.id, regionId: suwonRegion.id } });
+      }
+    }
+
+    let count = 0;
+    for (let i = 0; i < 30; i++) {
+      await prisma.request.create({
+        data: {
+          userName: names[i] || '고객님',
+          phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          address: suwonAddresses[i],
+          detailAddress: Math.floor(Math.random() * 10) + 1 + '층',
+          zipCode: '16000',
+          desiredDate: new Date(),
+          estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
+          status: 'PENDING',
+          partnerId: null,
+          regionId: suwonRegion.id,
+        }
+      });
+      count++;
+    }
+    res.json({ message: `Successfully seeded ${count} requests in Suwon.` });
+  } catch (error) {
+    res.status(500).json({ error: String(error) });
   }
 });
 

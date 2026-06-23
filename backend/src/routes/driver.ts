@@ -7,14 +7,56 @@ import { sendDepartureNotification, sendCompletionToCustomer } from '../services
 import { updateRequestStatusInSheet } from '../services/googleSheets';
 import { getStatusForAction } from '../services/statusService';
 
+// 유클리드 거리 계산 헬퍼
+function getDistance(x1: number, y1: number, x2: number, y2: number) {
+  const dx = x1 - x2;
+  const dy = y1 - y2;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// 용량 제한 기반 지리적 클러스터 생성 함수
+function createClusters(destinations: any[], startX: number, startY: number, maxPerCluster: number) {
+  let unvisited = [...destinations];
+  let clusters: any[][] = [];
+  let currentX = startX;
+  let currentY = startY;
+
+  while (unvisited.length > 0) {
+    let cluster: any[] = [];
+    let cx = currentX;
+    let cy = currentY;
+
+    for (let i = 0; i < maxPerCluster && unvisited.length > 0; i++) {
+      let minDist = Infinity;
+      let nextIdx = 0;
+      for (let j = 0; j < unvisited.length; j++) {
+        let dist = getDistance(unvisited[j].x, unvisited[j].y, cx, cy);
+        if (dist < minDist) {
+          minDist = dist;
+          nextIdx = j;
+        }
+      }
+      let target = unvisited.splice(nextIdx, 1)[0];
+      cluster.push(target);
+      cx = target.x;
+      cy = target.y;
+    }
+    clusters.push(cluster);
+    currentX = cx;
+    currentY = cy;
+  }
+  return clusters;
+}
+
 const router = express.Router();
+
 
 // ==========================================
 // [DRIVER 전용] 수거 기사 앱 기능
 // ==========================================
 
 // 1. 배정된 오늘의 수거 동선 목록 조회
-router.get('/requests', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
     const userId = req.user!.userId;
     // 기사 프로필 찾기
@@ -38,7 +80,7 @@ router.get('/requests', authenticate, requireRole(['DRIVER']), async (req: any, 
 });
 
 // 2. 동선 순서 수동 변경 (Drag & Drop 결과)
-router.put('/reorder', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.put('/reorder', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const { reorderedRequests } = req.body; 
   // reorderedRequests: [{ id: 'req_1', orderIndex: 0 }, { id: 'req_2', orderIndex: 1 }, ...]
   
@@ -60,7 +102,7 @@ router.put('/reorder', authenticate, requireRole(['DRIVER']), async (req: any, r
 
 // 3. 수거 완료 처리 (다단계 사진 및 무게 입력)
 // 향후 multer & aws-sdk 를 이용한 R2 업로드 연동 필요
-router.post('/complete/:id', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.post('/complete/:id', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const { id } = req.params;
   const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body as any;
 
@@ -117,7 +159,7 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER']), async (req: 
 });
 
 // 4. 수거 출발 처리 및 ETA 계산
-router.post('/depart/:id', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.post('/depart/:id', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const { id } = req.params;
   const { currentLat, currentLng } = req.body as any;
 
@@ -179,7 +221,7 @@ import fs from 'fs';
 import path from 'path';
 
 // 5. 기사 본인 정보(프로필) 조회
-router.get('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.get('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
     const userId = req.user!.userId;
     const user = await prisma.user.findUnique({
@@ -203,7 +245,7 @@ router.get('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: a
 });
 
 // 6. 기사 프로필 수정
-router.patch('/me', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.patch('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
     const userId = req.user!.userId;
     const { name, phone, vehicleInfo } = req.body;
@@ -229,7 +271,7 @@ router.patch('/me', authenticate, requireRole(['DRIVER']), async (req: any, res:
 });
 
 // 7. 기사별 동선 최적화 (카카오/T맵 좌표 API 기반 현위치 출발 정렬)
-router.post('/optimize-route', authenticate, requireRole(['DRIVER']), async (req: any, res: any) => {
+router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const userId = req.user!.userId;
   const { currentLat, currentLng } = req.body;
 
@@ -283,68 +325,91 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER']), async (req
     let totalDistanceMeter = 0;
     let usedTmap = false;
 
-    if (tmapAppKey && tmapAppKey.length > 0 && destinations.length <= 20) {
-      // T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
+    if (tmapAppKey && tmapAppKey.length > 0) {
       try {
-        const payload = {
-          reqCoordType: "WGS84GEO",
-          resCoordType: "WGS84GEO",
-          startName: "현재위치",
-          startX: currentLng.toString(),
-          startY: currentLat.toString(),
-          startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12), // YYYYMMDDHHMM
-          endName: "도착지(종료)",
-          endX: destinations[destinations.length - 1].x.toString(), // 마지막 목적지를 임의의 도착지로 설정
-          endY: destinations[destinations.length - 1].y.toString(),
-          searchOption: "0", // 0: 추천 (가장 빠른 길)
-          viaPoints: destinations.map((d, i) => ({
-            viaPointId: d.request.id,
-            viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
-            viaX: d.x.toString(),
-            viaY: d.y.toString()
-          }))
-        };
+        // 1. 목적지들을 최대 20개 단위의 지리적 클러스터로 분할
+        const clusters = createClusters(destinations, parseFloat(currentLng), parseFloat(currentLat), 20);
+        let currentStartX = parseFloat(currentLng);
+        let currentStartY = parseFloat(currentLat);
 
-        const tmapRes = await axios.post(
-          'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
-          payload,
-          {
-            headers: {
-              appKey: tmapAppKey,
-              'Content-Type': 'application/json'
-            }
-          }
-        );
+        for (const cluster of clusters) {
+          if (cluster.length === 0) continue;
 
-        if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
-          totalTimeSec = tmapRes.data.properties.totalTime || 0;
-          totalDistanceMeter = tmapRes.data.properties.totalDistance || 0;
-          usedTmap = true;
-
-          // features 안에서 Point 타입 중 경유지(viaPoint)인 것들의 순서를 파악
-          const features = tmapRes.data.features;
-          const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
+          // 2. T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
+          // 마지막 요소를 목적지로 임시 설정
+          const clusterDest = cluster[cluster.length - 1];
           
-          // 순서대로 정렬
-          for (const via of orderedVias) {
-            const dest = destinations.find(d => d.request.id === via.properties.viaPointId);
-            if (dest) {
-              optimizedList.push(dest.request);
+          const payload = {
+            reqCoordType: "WGS84GEO",
+            resCoordType: "WGS84GEO",
+            startName: "출발지",
+            startX: currentStartX.toString(),
+            startY: currentStartY.toString(),
+            startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
+            endName: "도착지",
+            endX: clusterDest.x.toString(),
+            endY: clusterDest.y.toString(),
+            searchOption: "0", // 0: 추천 (가장 빠른 길)
+            viaPoints: cluster.map((d: any, i: number) => ({
+              viaPointId: d.request.id,
+              viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
+              viaX: d.x.toString(),
+              viaY: d.y.toString()
+            }))
+          };
+
+          const tmapRes = await axios.post(
+            'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
+            payload,
+            {
+              headers: {
+                appKey: tmapAppKey,
+                'Content-Type': 'application/json'
+              }
             }
-          }
-          
-          // 혹시 누락된 경유지가 있다면 뒤에 추가
-          for (const dest of destinations) {
-            if (!optimizedList.find(r => r.id === dest.request.id)) {
-              optimizedList.push(dest.request);
+          );
+
+          if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
+            totalTimeSec += tmapRes.data.properties.totalTime || 0;
+            totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
+            usedTmap = true;
+
+            // features 안에서 경유지 순서를 파악
+            const features = tmapRes.data.features;
+            const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
+            
+            // 정렬된 순서대로 optimizedList에 추가
+            for (const via of orderedVias) {
+              const dest = cluster.find((d: any) => d.request.id === via.properties.viaPointId);
+              if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
+                optimizedList.push(dest.request);
+              }
             }
+            
+            // TMAP 결과 누락(도착지 등) 처리
+            for (const dest of cluster) {
+              if (!optimizedList.find(r => r.id === dest.request.id)) {
+                optimizedList.push(dest.request);
+              }
+            }
+
+            // 다음 클러스터 출발지는 현재 클러스터의 마지막 수거지
+            const lastProcessed = optimizedList[optimizedList.length - 1];
+            const lastDestCoords = cluster.find((d: any) => d.request.id === lastProcessed.id);
+            if (lastDestCoords) {
+              currentStartX = lastDestCoords.x;
+              currentStartY = lastDestCoords.y;
+            }
+          } else {
+            throw new Error('T맵 응답 형식 오류');
           }
-        } else {
-          throw new Error('T맵 응답 형식 오류');
         }
       } catch (tmapError: any) {
         console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.response?.data || tmapError.message);
         optimizedList = [];
+        usedTmap = false;
+        totalTimeSec = 0;
+        totalDistanceMeter = 0;
       }
     }
 

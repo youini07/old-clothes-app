@@ -89,7 +89,7 @@ function App() {
           <Route path="/status" element={<ProtectedRoute allowedRoles={['CUSTOMER']}><CustomerDashboard /></ProtectedRoute>} />
           <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} redirectTo="/staff-login"><SuperAdminDashboard /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={['PARTNER']} redirectTo="/staff-login"><AdminDashboard /></ProtectedRoute>} />
-          <Route path="/driver" element={<ProtectedRoute allowedRoles={['DRIVER']} redirectTo="/staff-login"><DriverDashboard /></ProtectedRoute>} />
+          <Route path="/driver" element={<ProtectedRoute allowedRoles={['DRIVER', 'PARTNER']} redirectTo="/staff-login"><DriverDashboard /></ProtectedRoute>} />
         </Routes>
       </div>
     </Router>
