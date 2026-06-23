@@ -184,7 +184,7 @@ router.post('/optimize', async (req, res) => {
 // 고객 포장 사진 업로드 API
 router.patch('/:id/customer-photo', optionalAuthenticate, async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params;
+    const id = req.params.id as string;
     const { customerPackedPhotoUrl } = req.body;
 
     const existingRequest = await prisma.request.findUnique({ where: { id } });

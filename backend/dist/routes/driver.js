@@ -250,7 +250,7 @@ router.patch('/me', authMiddleware_1.authenticate, (0, authMiddleware_1.requireR
 router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     var _a;
     const userId = req.user.userId;
-    const { currentLat, currentLng } = req.body;
+    const { currentLat, currentLng, returnToStart, returnAddress } = req.body;
     try {
         // 기사 프로필 확인
         const driver = yield prisma_1.prisma.driverProfile.findUnique({
@@ -372,17 +372,31 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
                 totalDistanceMeter = 0;
             }
         }
-        // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor 폴백
+        // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor + 2-Opt 폴백
         if (optimizedList.length === 0) {
-            let currentX = parseFloat(currentLng);
-            let currentY = parseFloat(currentLat);
+            const startX = parseFloat(currentLng);
+            const startY = parseFloat(currentLat);
+            let endX = startX;
+            let endY = startY;
+            // 마지막 복귀 주소가 명시적으로 있는 경우 좌표 변환
+            if (returnToStart && returnAddress && returnAddress.trim() !== '') {
+                const coords = yield (0, kakaoRoute_1.getCoordinates)(returnAddress);
+                if (coords) {
+                    endX = parseFloat(coords.x);
+                    endY = parseFloat(coords.y);
+                }
+            }
             const unvisited = [...destinations];
+            let route = [];
+            let cx = startX;
+            let cy = startY;
+            // 1. Initial Route with Nearest Neighbor
             while (unvisited.length > 0) {
                 let minDistance = Infinity;
                 let nextIndex = 0;
                 for (let i = 0; i < unvisited.length; i++) {
-                    const dx = unvisited[i].x - currentX;
-                    const dy = unvisited[i].y - currentY;
+                    const dx = unvisited[i].x - cx;
+                    const dy = unvisited[i].y - cy;
                     const distance = Math.sqrt(dx * dx + dy * dy);
                     if (distance < minDistance) {
                         minDistance = distance;
@@ -390,10 +404,37 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
                     }
                 }
                 const nextTarget = unvisited.splice(nextIndex, 1)[0];
-                optimizedList.push(nextTarget.request);
-                currentX = nextTarget.x;
-                currentY = nextTarget.y;
+                route.push(nextTarget);
+                cx = nextTarget.x;
+                cy = nextTarget.y;
             }
+            // 2. 2-Opt Algorithm to resolve crossings and optimize (True TSP)
+            let improved = true;
+            let iterations = 0;
+            while (improved && iterations < 1000) { // Safety limit
+                improved = false;
+                iterations++;
+                for (let i = 0; i < route.length - 1; i++) {
+                    for (let k = i + 1; k < route.length; k++) {
+                        const node_i_minus_1 = i === 0 ? { x: startX, y: startY } : route[i - 1];
+                        const node_i = route[i];
+                        const node_k = route[k];
+                        const node_k_plus_1 = k === route.length - 1
+                            ? (returnToStart ? { x: endX, y: endY } : null)
+                            : route[k + 1];
+                        const d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_i.x, 2) + Math.pow(node_i_minus_1.y - node_i.y, 2));
+                        const d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_k.x - node_k_plus_1.x, 2) + Math.pow(node_k.y - node_k_plus_1.y, 2)) : 0;
+                        const new_d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_k.x, 2) + Math.pow(node_i_minus_1.y - node_k.y, 2));
+                        const new_d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_i.x - node_k_plus_1.x, 2) + Math.pow(node_i.y - node_k_plus_1.y, 2)) : 0;
+                        if (new_d1 + new_d2 < d1 + d2 - 0.0000001) { // EPSILON to prevent infinite loops on float math
+                            const segment = route.slice(i, k + 1).reverse();
+                            route.splice(i, segment.length, ...segment);
+                            improved = true;
+                        }
+                    }
+                }
+            }
+            optimizedList = route.map(r => r.request);
         }
         // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
         yield prisma_1.prisma.$transaction(optimizedList.map((reqItem, idx) => prisma_1.prisma.request.update({

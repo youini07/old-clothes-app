@@ -823,15 +823,95 @@ router.get('/debug/regions', (req, res) => __awaiter(void 0, void 0, void 0, fun
 // [DEBUG] 8개 시 80개 랜덤 수거 신청 시드 데이터 생성
 router.post('/debug/seed-suwon', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const citiesData = [
-            { city: "수원시", guList: ["장안구", "권선구", "팔달구", "영통구"], dongList: ["정자동", "권선동", "인계동", "영통동", "매탄동", "이의동", "호매실동"] },
-            { city: "용인시", guList: ["처인구", "기흥구", "수지구"], dongList: ["역북동", "구갈동", "풍덕천동", "상현동", "보라동", "신갈동"] },
-            { city: "성남시", guList: ["수정구", "중원구", "분당구"], dongList: ["태평동", "성남동", "정자동", "서현동", "백현동", "판교동"] },
-            { city: "고양시", guList: ["덕양구", "일산동구", "일산서구"], dongList: ["화정동", "마두동", "일산동", "대화동", "정발산동", "행신동"] },
-            { city: "안양시", guList: ["만안구", "동안구"], dongList: ["안양동", "석수동", "비산동", "평촌동", "호계동", "관양동"] },
-            { city: "안산시", guList: ["상록구", "단원구"], dongList: ["본오동", "사동", "고잔동", "초지동", "선부동", "월피동"] },
-            { city: "부천시", guList: ["원미구", "소사구", "오정구"], dongList: ["중동", "상동", "송내동", "오정동", "심곡본동", "역곡동"] },
-            { city: "광명시", guList: [""], dongList: ["광명동", "철산동", "하안동", "소하동", "일직동"] }
+        const realAddresses = [
+            // 수원시
+            { address: "경기도 수원시 장안구 조원동 893", sigungu: "수원시 장안구", bname: "조원동", city: "수원시" },
+            { address: "경기도 수원시 권선구 권선동 1234", sigungu: "수원시 권선구", bname: "권선동", city: "수원시" },
+            { address: "경기도 수원시 팔달구 매산로1가 18", sigungu: "수원시 팔달구", bname: "매산로1가", city: "수원시" },
+            { address: "경기도 수원시 영통구 원천동 593", sigungu: "수원시 영통구", bname: "원천동", city: "수원시" },
+            { address: "경기도 수원시 장안구 송죽동 382-6", sigungu: "수원시 장안구", bname: "송죽동", city: "수원시" },
+            { address: "경기도 수원시 권선구 탑동 903", sigungu: "수원시 권선구", bname: "탑동", city: "수원시" },
+            { address: "경기도 수원시 팔달구 인계동 1111", sigungu: "수원시 팔달구", bname: "인계동", city: "수원시" },
+            { address: "경기도 수원시 영통구 매탄동 1268", sigungu: "수원시 영통구", bname: "매탄동", city: "수원시" },
+            { address: "경기도 수원시 팔달구 화서동 410-1", sigungu: "수원시 팔달구", bname: "화서동", city: "수원시" },
+            { address: "경기도 수원시 권선구 세류동 1146", sigungu: "수원시 권선구", bname: "세류동", city: "수원시" },
+            // 용인시
+            { address: "경기도 용인시 처인구 삼가동 556", sigungu: "용인시 처인구", bname: "삼가동", city: "용인시" },
+            { address: "경기도 용인시 기흥구 구갈동 358-6", sigungu: "용인시 기흥구", bname: "구갈동", city: "용인시" },
+            { address: "경기도 용인시 수지구 풍덕천동 720", sigungu: "용인시 수지구", bname: "풍덕천동", city: "용인시" },
+            { address: "경기도 용인시 기흥구 보정동 1264", sigungu: "용인시 기흥구", bname: "보정동", city: "용인시" },
+            { address: "경기도 용인시 수지구 동천동 899", sigungu: "용인시 수지구", bname: "동천동", city: "용인시" },
+            { address: "경기도 용인시 처인구 역북동 754", sigungu: "용인시 처인구", bname: "역북동", city: "용인시" },
+            { address: "경기도 용인시 기흥구 신갈동 58", sigungu: "용인시 기흥구", bname: "신갈동", city: "용인시" },
+            { address: "경기도 용인시 기흥구 마북동 524", sigungu: "용인시 기흥구", bname: "마북동", city: "용인시" },
+            { address: "경기도 용인시 수지구 상현동 254", sigungu: "용인시 수지구", bname: "상현동", city: "용인시" },
+            { address: "경기도 용인시 처인구 고림동 502", sigungu: "용인시 처인구", bname: "고림동", city: "용인시" },
+            // 성남시
+            { address: "경기도 성남시 수정구 태평동 7288", sigungu: "성남시 수정구", bname: "태평동", city: "성남시" },
+            { address: "경기도 성남시 중원구 성남동 4165", sigungu: "성남시 중원구", bname: "성남동", city: "성남시" },
+            { address: "경기도 성남시 분당구 야탑동 341", sigungu: "성남시 분당구", bname: "야탑동", city: "성남시" },
+            { address: "경기도 성남시 분당구 서현동 256", sigungu: "성남시 분당구", bname: "서현동", city: "성남시" },
+            { address: "경기도 성남시 분당구 정자동 178", sigungu: "성남시 분당구", bname: "정자동", city: "성남시" },
+            { address: "경기도 성남시 수정구 수진동 2959", sigungu: "성남시 수정구", bname: "수진동", city: "성남시" },
+            { address: "경기도 성남시 중원구 금광동 140", sigungu: "성남시 중원구", bname: "금광동", city: "성남시" },
+            { address: "경기도 성남시 분당구 백현동 541", sigungu: "성남시 분당구", bname: "백현동", city: "성남시" },
+            { address: "경기도 성남시 분당구 판교동 595", sigungu: "성남시 분당구", bname: "판교동", city: "성남시" },
+            { address: "경기도 성남시 수정구 신흥동 2465", sigungu: "성남시 수정구", bname: "신흥동", city: "성남시" },
+            // 고양시
+            { address: "경기도 고양시 덕양구 화정동 963", sigungu: "고양시 덕양구", bname: "화정동", city: "고양시" },
+            { address: "경기도 고양시 일산동구 마두동 812", sigungu: "고양시 일산동구", bname: "마두동", city: "고양시" },
+            { address: "경기도 고양시 일산서구 대화동 2605", sigungu: "고양시 일산서구", bname: "대화동", city: "고양시" },
+            { address: "경기도 고양시 덕양구 행신동 995", sigungu: "고양시 덕양구", bname: "행신동", city: "고양시" },
+            { address: "경기도 고양시 일산동구 장항동 906", sigungu: "고양시 일산동구", bname: "장항동", city: "고양시" },
+            { address: "경기도 고양시 일산서구 주엽동 109", sigungu: "고양시 일산서구", bname: "주엽동", city: "고양시" },
+            { address: "경기도 고양시 덕양구 성사동 704", sigungu: "고양시 덕양구", bname: "성사동", city: "고양시" },
+            { address: "경기도 고양시 일산동구 정발산동 1248", sigungu: "고양시 일산동구", bname: "정발산동", city: "고양시" },
+            { address: "경기도 고양시 일산서구 탄현동 1640", sigungu: "고양시 일산서구", bname: "탄현동", city: "고양시" },
+            { address: "경기도 고양시 덕양구 토당동 856", sigungu: "고양시 덕양구", bname: "토당동", city: "고양시" },
+            // 안양시
+            { address: "경기도 안양시 만안구 안양동 622-26", sigungu: "안양시 만안구", bname: "안양동", city: "안양시" },
+            { address: "경기도 안양시 동안구 호계동 1039-3", sigungu: "안양시 동안구", bname: "호계동", city: "안양시" },
+            { address: "경기도 안양시 동안구 평촌동 895", sigungu: "안양시 동안구", bname: "평촌동", city: "안양시" },
+            { address: "경기도 안양시 만안구 석수동 260", sigungu: "안양시 만안구", bname: "석수동", city: "안양시" },
+            { address: "경기도 안양시 만안구 박달동 68-1", sigungu: "안양시 만안구", bname: "박달동", city: "안양시" },
+            { address: "경기도 안양시 동안구 비산동 1115", sigungu: "안양시 동안구", bname: "비산동", city: "안양시" },
+            { address: "경기도 안양시 동안구 관양동 1587", sigungu: "안양시 동안구", bname: "관양동", city: "안양시" },
+            { address: "경기도 안양시 만안구 안양동 707-285", sigungu: "안양시 만안구", bname: "안양동", city: "안양시" },
+            { address: "경기도 안양시 동안구 호계동 1051", sigungu: "안양시 동안구", bname: "호계동", city: "안양시" },
+            { address: "경기도 안양시 동안구 비산동 1111", sigungu: "안양시 동안구", bname: "비산동", city: "안양시" },
+            // 안산시
+            { address: "경기도 안산시 단원구 고잔동 528", sigungu: "안산시 단원구", bname: "고잔동", city: "안산시" },
+            { address: "경기도 안산시 상록구 사동 1271", sigungu: "안산시 상록구", bname: "사동", city: "안산시" },
+            { address: "경기도 안산시 단원구 초지동 666", sigungu: "안산시 단원구", bname: "초지동", city: "안산시" },
+            { address: "경기도 안산시 상록구 본오동 871", sigungu: "안산시 상록구", bname: "본오동", city: "안산시" },
+            { address: "경기도 안산시 단원구 선부동 1070", sigungu: "안산시 단원구", bname: "선부동", city: "안산시" },
+            { address: "경기도 안산시 상록구 성포동 593", sigungu: "안산시 상록구", bname: "성포동", city: "안산시" },
+            { address: "경기도 안산시 단원구 와동 836", sigungu: "안산시 단원구", bname: "와동", city: "안산시" },
+            { address: "경기도 안산시 상록구 일동 651", sigungu: "안산시 상록구", bname: "일동", city: "안산시" },
+            { address: "경기도 안산시 단원구 신길동 1686", sigungu: "안산시 단원구", bname: "신길동", city: "안산시" },
+            { address: "경기도 안산시 상록구 월피동 508", sigungu: "안산시 상록구", bname: "월피동", city: "안산시" },
+            // 부천시
+            { address: "경기도 부천시 원미구 중동 1156", sigungu: "부천시 원미구", bname: "중동", city: "부천시" },
+            { address: "경기도 부천시 원미구 상동 548-4", sigungu: "부천시 원미구", bname: "상동", city: "부천시" },
+            { address: "경기도 부천시 소사구 송내동 387", sigungu: "부천시 소사구", bname: "송내동", city: "부천시" },
+            { address: "경기도 부천시 오정구 오정동 736", sigungu: "부천시 오정구", bname: "오정동", city: "부천시" },
+            { address: "경기도 부천시 소사구 역곡동 73-1", sigungu: "부천시 소사구", bname: "역곡동", city: "부천시" },
+            { address: "경기도 부천시 원미구 심곡동 175-6", sigungu: "부천시 원미구", bname: "심곡동", city: "부천시" },
+            { address: "경기도 부천시 오정구 고강동 302", sigungu: "부천시 오정구", bname: "고강동", city: "부천시" },
+            { address: "경기도 부천시 소사구 심곡본동 544", sigungu: "부천시 소사구", bname: "심곡본동", city: "부천시" },
+            { address: "경기도 부천시 원미구 춘의동 169", sigungu: "부천시 원미구", bname: "춘의동", city: "부천시" },
+            { address: "경기도 부천시 오정구 원종동 281", sigungu: "부천시 오정구", bname: "원종동", city: "부천시" },
+            // 광명시
+            { address: "경기도 광명시 철산동 418", sigungu: "광명시", bname: "철산동", city: "광명시" },
+            { address: "경기도 광명시 하안동 610", sigungu: "광명시", bname: "하안동", city: "광명시" },
+            { address: "경기도 광명시 소하동 1344", sigungu: "광명시", bname: "소하동", city: "광명시" },
+            { address: "경기도 광명시 광명동 158-970", sigungu: "광명시", bname: "광명동", city: "광명시" },
+            { address: "경기도 광명시 일직동 500", sigungu: "광명시", bname: "일직동", city: "광명시" },
+            { address: "경기도 광명시 철산동 442", sigungu: "광명시", bname: "철산동", city: "광명시" },
+            { address: "경기도 광명시 하안동 63-4", sigungu: "광명시", bname: "하안동", city: "광명시" },
+            { address: "경기도 광명시 소하동 1271", sigungu: "광명시", bname: "소하동", city: "광명시" },
+            { address: "경기도 광명시 광명동 164", sigungu: "광명시", bname: "광명동", city: "광명시" },
+            { address: "경기도 광명시 일직동 508", sigungu: "광명시", bname: "일직동", city: "광명시" }
         ];
         const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
             '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
@@ -839,37 +919,35 @@ router.post('/debug/seed-suwon', (req, res) => __awaiter(void 0, void 0, void 0,
         yield prisma_1.prisma.request.deleteMany({});
         let count = 0;
         const requestDataToInsert = [];
-        for (const c of citiesData) {
-            let region = yield prisma_1.prisma.region.findFirst({
-                where: { province: '경기도', city: c.city, town: null }
+        // 캐시용 Region 조회 맵
+        const regionCache = {};
+        for (const item of realAddresses) {
+            if (!regionCache[item.city]) {
+                let region = yield prisma_1.prisma.region.findFirst({
+                    where: { province: '경기도', city: item.city, town: null }
+                });
+                if (!region) {
+                    region = yield prisma_1.prisma.region.create({
+                        data: { province: '경기도', city: item.city, town: null }
+                    });
+                }
+                regionCache[item.city] = region.id;
+            }
+            requestDataToInsert.push({
+                userName: names[Math.floor(Math.random() * names.length)],
+                phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+                address: item.address,
+                detailAddress: Math.floor(Math.random() * 20 + 1) + '층',
+                zipCode: '1' + Math.floor(1000 + Math.random() * 9000),
+                sigungu: item.sigungu,
+                bname: item.bname,
+                desiredDate: new Date(),
+                estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
+                status: 'PENDING',
+                partnerId: null,
+                regionId: regionCache[item.city],
             });
-            if (!region) {
-                region = yield prisma_1.prisma.region.create({
-                    data: { province: '경기도', city: c.city, town: null }
-                });
-            }
-            for (let i = 0; i < 10; i++) {
-                const gu = c.guList[Math.floor(Math.random() * c.guList.length)];
-                const dong = c.dongList[Math.floor(Math.random() * c.dongList.length)];
-                const jibun = Math.floor(Math.random() * 1000) + '-' + Math.floor(Math.random() * 10);
-                const address = gu ? `경기도 ${c.city} ${gu} ${dong} ${jibun}` : `경기도 ${c.city} ${dong} ${jibun}`;
-                const sigungu = gu ? `${c.city} ${gu}` : c.city;
-                requestDataToInsert.push({
-                    userName: names[Math.floor(Math.random() * names.length)],
-                    phone: `010-${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-                    address: address,
-                    detailAddress: Math.floor(Math.random() * 20 + 1) + '층',
-                    zipCode: '1' + Math.floor(1000 + Math.random() * 9000),
-                    sigungu: sigungu,
-                    bname: dong,
-                    desiredDate: new Date(),
-                    estimatedVolume: volumes[Math.floor(Math.random() * volumes.length)],
-                    status: 'PENDING',
-                    partnerId: null,
-                    regionId: region.id,
-                });
-                count++;
-            }
+            count++;
         }
         yield prisma_1.prisma.request.createMany({
             data: requestDataToInsert
