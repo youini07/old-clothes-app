@@ -110,6 +110,12 @@ export default function DriverDashboard() {
   const [optimizing, setOptimizing] = useState(false);
   const [returnToStart, setReturnToStart] = useState(true);
   const [returnAddress, setReturnAddress] = useState('');
+  
+  const [isLargeText, setIsLargeText] = useState(() => localStorage.getItem('driver_isLargeText') === 'true');
+
+  useEffect(() => {
+    localStorage.setItem('driver_isLargeText', isLargeText.toString());
+  }, [isLargeText]);
 
   const handleOptimizeRoute = () => {
     if (!navigator.geolocation) {
@@ -315,14 +321,29 @@ export default function DriverDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-20">
+    <div className="min-h-screen bg-gray-50 pb-20 custom-scrollbar">
+      {isLargeText && (
+        <style>{`
+          html { font-size: 19px !important; }
+        `}</style>
+      )}
+      
       {/* Header */}
-      <div className="bg-white px-6 py-5 shadow-sm sticky top-0 z-10 flex justify-between items-center">
+      <div className="bg-white px-6 py-5 shadow-sm sticky top-0 z-20 flex justify-between items-center">
         <div>
           <h1 className="text-xl font-extrabold text-gray-900">{'오늘의 수거 동선 🚚'}</h1>
           <p className="text-sm text-gray-500 mt-1">안전 운전하세요!</p>
         </div>
         <div className="flex gap-2">
+          {isLargeText ? (
+            <button onClick={() => setIsLargeText(false)} className="px-3 py-2 bg-gray-200 text-gray-800 font-bold rounded-xl text-xs hover:bg-gray-300 transition-colors whitespace-nowrap">
+              🔍 기본 크기
+            </button>
+          ) : (
+            <button onClick={() => setIsLargeText(true)} className="px-3 py-2 bg-blue-100 text-blue-700 font-bold rounded-xl text-xs hover:bg-blue-200 transition-colors whitespace-nowrap">
+              🔍 크게 보기
+            </button>
+          )}
           {localStorage.getItem('admin_token') && (
             <button onClick={() => window.location.href = '/admin'} className="px-3 py-2 text-xs bg-indigo-100 text-indigo-700 font-bold rounded-lg hover:bg-indigo-200 transition-all flex items-center">
               🔙 사장 모드
@@ -367,7 +388,7 @@ export default function DriverDashboard() {
           </div>
 
           {/* Tab Bar */}
-          <div className="flex bg-white border-b border-gray-200 sticky top-[76px] z-10">
+          <div className="flex bg-white border-b border-gray-200 sticky top-[88px] z-10">
             <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>
             <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>수거 완료</button>
           </div>
