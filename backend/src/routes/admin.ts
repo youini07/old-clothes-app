@@ -617,13 +617,10 @@ router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), asyn
     const coverages = await prisma.coverage.findMany({ where: { partnerId } });
     const regionIds = coverages.map((c: any) => c.regionId);
 
-    // 해당 파트너에게 배정된 모든 수거 건 조회
+    // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
     const allRequests = await prisma.request.findMany({
       where: {
-        OR: [
-          { regionId: { in: regionIds } },
-          { partnerId: partnerId }
-        ]
+        partnerId: partnerId
       },
       orderBy: { createdAt: 'desc' }
     });
