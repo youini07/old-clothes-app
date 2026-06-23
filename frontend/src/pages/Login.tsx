@@ -162,8 +162,30 @@ export default function Login() {
               🚚 기사님 데모
             </button>
           </div>
+          
+          <div className="mt-4 flex justify-center">
+            <button 
+              type="button"
+              onClick={async () => {
+                try {
+                  setLoading(true);
+                  alert('라이브 서버에 30건의 테스트 데이터를 꽂아넣습니다. 약 3~5초 정도 소요됩니다.');
+                  await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
+                  alert('성공! 30건의 테스트 데이터가 들어갔습니다. 이제 사장님 데모로 로그인해보세요.');
+                } catch (e) {
+                  alert('데이터 생성에 실패했습니다. (이미 생성되었거나 서버 오류입니다.)');
+                } finally {
+                  setLoading(false);
+                }
+              }}
+              disabled={loading}
+              className="text-xs bg-gray-800 text-white px-4 py-2 rounded-xl shadow-md hover:bg-gray-900 transition-colors"
+            >
+              {loading ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 30건 즉시 자동 생성'}
+            </button>
+          </div>
 
-          <div className="mt-8 text-center text-sm text-gray-500">
+          <div className="mt-6 text-center text-sm text-gray-500">
             <p>초기 비밀번호 안내</p>
             <p className="mt-1">사장님: 등록된 휴대폰 번호</p>
           </div>

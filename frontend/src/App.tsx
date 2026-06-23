@@ -8,8 +8,9 @@ import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 /**
  * 올클(ALL-CLEAR) 홈 화면
@@ -20,6 +21,7 @@ import { useNavigate } from 'react-router-dom';
  */
 function Home() {
   const navigate = useNavigate();
+  const [seeding, setSeeding] = useState(false);
 
   // 이미 로그인된 토큰이 있으면 해당 대시보드로 즉시 리다이렉트 (PWA iOS 버그 방지용)
   useEffect(() => {
@@ -28,6 +30,19 @@ function Home() {
     else if (localStorage.getItem('driver_token')) navigate('/driver');
     else if (localStorage.getItem('customer_token')) navigate('/status');
   }, [navigate]);
+
+  const handleSeedData = async () => {
+    try {
+      setSeeding(true);
+      alert('라이브 서버에 30건의 테스트 데이터를 꽂아넣습니다. 잠시만 기다려주세요...');
+      await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
+      alert('성공! 30건의 테스트 데이터가 들어갔습니다. 이제 데모 로그인으로 확인해보세요.');
+    } catch (e) {
+      alert('데이터 생성에 실패했습니다.');
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6]">
@@ -62,13 +77,21 @@ function Home() {
           </a>
         </div>
 
-        {/* 버튼 2: 관계자 로그인 (숨은 버튼) */}
-        <div className="text-center pointer-events-auto mt-auto pb-4">
+        {/* 버튼 2: 관계자 로그인 및 데이터 생성 */}
+        <div className="text-center pointer-events-auto mt-auto pb-4 flex flex-col gap-4 items-center">
           <button 
             onClick={() => navigate('/staff-login')}
             className="text-xs font-medium text-gray-500 opacity-60 hover:opacity-100 transition-opacity underline underline-offset-4"
           >
             기사님 및 파트너 로그인
+          </button>
+          
+          <button 
+            onClick={handleSeedData}
+            disabled={seeding}
+            className="text-[10px] bg-black/20 text-white px-3 py-1.5 rounded-full hover:bg-black/40 transition-colors backdrop-blur-sm"
+          >
+            {seeding ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 30건 자동 생성'}
           </button>
         </div>
 
