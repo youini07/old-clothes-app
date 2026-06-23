@@ -419,25 +419,60 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
       let currentY = parseFloat(currentLat);
       const unvisited = [...destinations];
 
-      while (unvisited.length > 0) {
-        let minDistance = Infinity;
-        let nextIndex = 0;
+      // 1. 시/구(도시) 단위로 먼저 그룹화하여 지그재그 이동 방지
+      const grouped: Record<string, any[]> = {};
+      for (const dest of unvisited) {
+        // 주소나 sigungu에서 '수원시', '용인시' 등을 추출
+        const city = dest.request.sigungu ? dest.request.sigungu.split(' ')[0] : '기타';
+        if (!grouped[city]) grouped[city] = [];
+        grouped[city].push(dest);
+      }
 
-        for (let i = 0; i < unvisited.length; i++) {
-          const dx = unvisited[i].x - currentX;
-          const dy = unvisited[i].y - currentY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
+      let groups = Object.values(grouped);
 
-          if (distance < minDistance) {
-            minDistance = distance;
-            nextIndex = i;
+      // 2. 가장 가까운 그룹(도시) 단위로 순차 방문
+      while (groups.length > 0) {
+        let closestGroupIdx = 0;
+        let minGroupDist = Infinity;
+        
+        for (let i = 0; i < groups.length; i++) {
+          const group = groups[i];
+          let minPtDist = Infinity;
+          for (const pt of group) {
+            const dist = Math.sqrt(Math.pow(pt.x - currentX, 2) + Math.pow(pt.y - currentY, 2));
+            if (dist < minPtDist) {
+              minPtDist = dist;
+            }
+          }
+          if (minPtDist < minGroupDist) {
+            minGroupDist = minPtDist;
+            closestGroupIdx = i;
           }
         }
 
-        const nextTarget = unvisited.splice(nextIndex, 1)[0];
-        optimizedList.push(nextTarget.request);
-        currentX = nextTarget.x;
-        currentY = nextTarget.y;
+        const targetGroup = groups.splice(closestGroupIdx, 1)[0];
+        
+        // 3. 해당 그룹(도시) 내에서 Nearest Neighbor 최적화
+        while (targetGroup.length > 0) {
+          let minDistance = Infinity;
+          let nextIndex = 0;
+
+          for (let i = 0; i < targetGroup.length; i++) {
+            const dx = targetGroup[i].x - currentX;
+            const dy = targetGroup[i].y - currentY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < minDistance) {
+              minDistance = distance;
+              nextIndex = i;
+            }
+          }
+
+          const nextTarget = targetGroup.splice(nextIndex, 1)[0];
+          optimizedList.push(nextTarget.request);
+          currentX = nextTarget.x;
+          currentY = nextTarget.y;
+        }
       }
     }
 
