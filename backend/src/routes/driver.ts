@@ -273,7 +273,7 @@ router.patch('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req
 // 7. 기사별 동선 최적화 (카카오/T맵 좌표 API 기반 현위치 출발 정렬)
 router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const userId = req.user!.userId;
-  const { currentLat, currentLng } = req.body;
+  const { currentLat, currentLng, returnToStart } = req.body;
 
   try {
     // 기사 프로필 확인
@@ -413,67 +413,65 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
       }
     }
 
-    // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor 폴백
+    // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor + 2-Opt 폴백
     if (optimizedList.length === 0) {
-      let currentX = parseFloat(currentLng);
-      let currentY = parseFloat(currentLat);
+      const startX = parseFloat(currentLng);
+      const startY = parseFloat(currentLat);
       const unvisited = [...destinations];
+      let route: any[] = [];
+      let cx = startX;
+      let cy = startY;
 
-      // 1. 시/구(도시) 단위로 먼저 그룹화하여 지그재그 이동 방지
-      const grouped: Record<string, any[]> = {};
-      for (const dest of unvisited) {
-        // 주소나 sigungu에서 '수원시', '용인시' 등을 추출
-        const city = dest.request.sigungu ? dest.request.sigungu.split(' ')[0] : '기타';
-        if (!grouped[city]) grouped[city] = [];
-        grouped[city].push(dest);
-      }
-
-      let groups = Object.values(grouped);
-
-      // 2. 가장 가까운 그룹(도시) 단위로 순차 방문
-      while (groups.length > 0) {
-        let closestGroupIdx = 0;
-        let minGroupDist = Infinity;
-        
-        for (let i = 0; i < groups.length; i++) {
-          const group = groups[i];
-          let minPtDist = Infinity;
-          for (const pt of group) {
-            const dist = Math.sqrt(Math.pow(pt.x - currentX, 2) + Math.pow(pt.y - currentY, 2));
-            if (dist < minPtDist) {
-              minPtDist = dist;
-            }
-          }
-          if (minPtDist < minGroupDist) {
-            minGroupDist = minPtDist;
-            closestGroupIdx = i;
+      // 1. Initial Route with Nearest Neighbor
+      while (unvisited.length > 0) {
+        let minDistance = Infinity;
+        let nextIndex = 0;
+        for (let i = 0; i < unvisited.length; i++) {
+          const dx = unvisited[i].x - cx;
+          const dy = unvisited[i].y - cy;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < minDistance) {
+            minDistance = distance;
+            nextIndex = i;
           }
         }
+        const nextTarget = unvisited.splice(nextIndex, 1)[0];
+        route.push(nextTarget);
+        cx = nextTarget.x;
+        cy = nextTarget.y;
+      }
 
-        const targetGroup = groups.splice(closestGroupIdx, 1)[0];
-        
-        // 3. 해당 그룹(도시) 내에서 Nearest Neighbor 최적화
-        while (targetGroup.length > 0) {
-          let minDistance = Infinity;
-          let nextIndex = 0;
+      // 2. 2-Opt Algorithm to resolve crossings and optimize (True TSP)
+      let improved = true;
+      let iterations = 0;
+      while (improved && iterations < 1000) { // Safety limit
+        improved = false;
+        iterations++;
+        for (let i = 0; i < route.length - 1; i++) {
+          for (let k = i + 1; k < route.length; k++) {
+            const node_i_minus_1 = i === 0 ? { x: startX, y: startY } : route[i - 1];
+            const node_i = route[i];
+            const node_k = route[k];
+            const node_k_plus_1 = k === route.length - 1 
+              ? (returnToStart ? { x: startX, y: startY } : null) 
+              : route[k + 1];
 
-          for (let i = 0; i < targetGroup.length; i++) {
-            const dx = targetGroup[i].x - currentX;
-            const dy = targetGroup[i].y - currentY;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+            const d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_i.x, 2) + Math.pow(node_i_minus_1.y - node_i.y, 2));
+            const d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_k.x - node_k_plus_1.x, 2) + Math.pow(node_k.y - node_k_plus_1.y, 2)) : 0;
+            
+            const new_d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_k.x, 2) + Math.pow(node_i_minus_1.y - node_k.y, 2));
+            const new_d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_i.x - node_k_plus_1.x, 2) + Math.pow(node_i.y - node_k_plus_1.y, 2)) : 0;
 
-            if (distance < minDistance) {
-              minDistance = distance;
-              nextIndex = i;
+            if (new_d1 + new_d2 < d1 + d2 - 0.0000001) { // EPSILON to prevent infinite loops on float math
+              const segment = route.slice(i, k + 1).reverse();
+              route.splice(i, segment.length, ...segment);
+              improved = true;
             }
           }
-
-          const nextTarget = targetGroup.splice(nextIndex, 1)[0];
-          optimizedList.push(nextTarget.request);
-          currentX = nextTarget.x;
-          currentY = nextTarget.y;
         }
       }
+
+      optimizedList = route.map(r => r.request);
     }
 
     // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
