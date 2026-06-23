@@ -345,9 +345,20 @@ export default function DriverDashboard() {
             </button>
           )}
           {localStorage.getItem('admin_token') && (
-            <button onClick={() => window.location.href = '/admin'} className="px-2.5 py-2 text-xs bg-indigo-100 text-indigo-700 font-bold rounded-lg hover:bg-indigo-200 transition-all flex items-center whitespace-nowrap flex-shrink-0">
-              🔙 사장
-            </button>
+            <div className="flex bg-gray-100/80 p-1 rounded-xl shadow-inner relative w-32 border border-gray-200 backdrop-blur-sm shrink-0">
+              <div className="absolute left-1 top-1 w-[calc(50%-4px)] bottom-1 bg-white rounded-lg shadow-[0_2px_8px_rgb(0,0,0,0.08)] transition-transform duration-300 translate-x-0"></div>
+              <button 
+                className="flex-1 py-1.5 text-[10px] font-extrabold z-10 text-blue-600 transition-colors cursor-default"
+              >
+                🚚 기사
+              </button>
+              <button 
+                onClick={() => window.location.href = '/admin'} 
+                className="flex-1 py-1.5 text-[10px] font-bold z-10 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                🏢 사장
+              </button>
+            </div>
           )}
           {!authToken && <button onClick={handleDemoLogin} className="px-3 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs whitespace-nowrap flex-shrink-0">데모 로그인</button>}
           <button onClick={() => { localStorage.removeItem('driver_token'); localStorage.removeItem('admin_token'); localStorage.removeItem('auth_token'); window.location.href = '/login'; }} className="flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all flex-shrink-0">

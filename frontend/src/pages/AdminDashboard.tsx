@@ -613,29 +613,8 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-gray-500 mt-2 font-medium text-sm md:text-base">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
           </div>
-          <div className="grid grid-cols-3 gap-2 w-full md:flex md:w-auto md:gap-3">
-            <button 
-              onClick={() => {
-                localStorage.removeItem('admin_token');
-                window.location.href = '/login';
-              }}
-              className="flex items-center justify-center px-1.5 py-3 md:px-4 md:py-3 text-[10px] sm:text-xs md:text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all whitespace-nowrap"
-            >
-              <svg className="w-3.5 h-3.5 mr-0.5 sm:mr-1 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
-              로그아웃
-            </button>
-            {!authToken ? (
-              <button onClick={handleDemoLogin} className="px-1.5 py-3 md:px-6 md:py-3 bg-yellow-400 text-yellow-900 font-bold rounded-xl shadow-md hover:bg-yellow-500 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap">
-                데모 로그인
-              </button>
-            ) : (
-              <button 
-                onClick={() => setIsPasswordModalOpen(true)}
-                className="px-1.5 py-3 md:px-4 md:py-3 bg-gray-800 text-white font-bold rounded-xl shadow-md hover:bg-gray-900 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
-              >
-                비밀번호 변경
-              </button>
-            )}
+          <div className="flex bg-gray-100/80 p-1.5 rounded-2xl shadow-inner relative w-48 border border-gray-200 backdrop-blur-sm shrink-0">
+            <div className="absolute left-1.5 top-1.5 w-[calc(50%-6px)] bottom-1.5 bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.08)] transition-transform duration-300 translate-x-full"></div>
             <button 
               onClick={async () => {
                 try {
@@ -645,15 +624,14 @@ export default function AdminDashboard() {
                 } catch (e: any) { /* Ignore if already exists */ }
                 window.location.href = '/driver';
               }}
-              className="px-1.5 py-3 md:px-4 md:py-3 bg-blue-600 text-white font-bold rounded-xl shadow-md hover:bg-blue-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
+              className="flex-1 py-2 text-xs font-bold z-10 text-gray-500 hover:text-gray-700 transition-colors"
             >
-              기사 모드 🚚
+              🚚 기사 모드
             </button>
             <button 
-              onClick={() => setIsDriverModalOpen(true)}
-              className="px-1.5 py-3 md:px-4 md:py-3 bg-primary-600 text-white font-bold rounded-xl shadow-md hover:bg-primary-700 transition-all active:scale-95 text-[10px] sm:text-xs md:text-sm text-center whitespace-nowrap"
+              className="flex-1 py-2 text-xs font-extrabold z-10 text-blue-600 transition-colors cursor-default"
             >
-              기사님 추가
+              🏢 사장 모드
             </button>
           </div>
         </div>
@@ -801,6 +779,34 @@ export default function AdminDashboard() {
                 ) : (
                   <button onClick={() => setIsAddingRegion(true)} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all">+ 새 권역 추가하기</button>
                 )}
+              </div>
+            </div>
+
+            {/* 관리자 메뉴 (비밀번호 변경, 로그아웃, 기사님 추가) */}
+            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">🛠️ 계정 및 관리자 메뉴</h2>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button 
+                  onClick={() => setIsDriverModalOpen(true)}
+                  className="flex-1 py-4 bg-primary-600 text-white font-bold rounded-xl shadow-sm hover:bg-primary-700 transition-all active:scale-95"
+                >
+                  기사님 추가
+                </button>
+                <button 
+                  onClick={() => setIsPasswordModalOpen(true)}
+                  className="flex-1 py-4 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all active:scale-95"
+                >
+                  비밀번호 변경
+                </button>
+                <button 
+                  onClick={() => {
+                    localStorage.removeItem('admin_token');
+                    window.location.href = '/login';
+                  }}
+                  className="flex-1 py-4 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all active:scale-95"
+                >
+                  로그아웃
+                </button>
               </div>
             </div>
 
