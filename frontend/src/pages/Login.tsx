@@ -170,7 +170,7 @@ export default function Login() {
                 try {
                   setLoading(true);
                   alert('라이브 서버에 80건의 테스트 데이터를 꽂아넣습니다. 약 3~5초 정도 소요됩니다.');
-                  await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
+                  await axios.post(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
                   alert('성공! 80건의 테스트 데이터가 들어갔습니다. 이제 사장님 데모로 로그인해보세요.');
                 } catch (e) {
                   alert('데이터 생성에 실패했습니다. (이미 생성되었거나 서버 오류입니다.)');

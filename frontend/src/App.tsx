@@ -35,7 +35,7 @@ function Home() {
     try {
       setSeeding(true);
       alert('라이브 서버에 80건의 테스트 데이터를 꽂아넣습니다. 잠시만 기다려주세요...');
-      await axios.get(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
       alert('성공! 80건의 테스트 데이터가 들어갔습니다. 이제 데모 로그인으로 확인해보세요.');
     } catch (e) {
       alert('데이터 생성에 실패했습니다.');

@@ -918,7 +918,7 @@ router.get('/debug/regions', async (req, res) => {
 });
 
 // [DEBUG] 8개 시 80개 랜덤 수거 신청 시드 데이터 생성
-router.get('/debug/seed-suwon', async (req, res) => {
+router.post('/debug/seed-suwon', async (req, res) => {
   try {
     const citiesData = [
       { city: "수원시", guList: ["장안구", "권선구", "팔달구", "영통구"], dongList: ["정자동", "권선동", "인계동", "영통동", "매탄동", "이의동", "호매실동"] },
