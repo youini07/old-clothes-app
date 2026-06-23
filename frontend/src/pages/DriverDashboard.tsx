@@ -108,7 +108,8 @@ export default function DriverDashboard() {
   };
 
   const [optimizing, setOptimizing] = useState(false);
-  const [returnToStart, setReturnToStart] = useState(false);
+  const [returnToStart, setReturnToStart] = useState(true);
+  const [returnAddress, setReturnAddress] = useState('');
 
   const handleOptimizeRoute = () => {
     if (!navigator.geolocation) {
@@ -123,7 +124,7 @@ export default function DriverDashboard() {
           const { latitude, longitude } = position.coords;
           const res = await axios.post(
             `${import.meta.env.VITE_API_URL}/driver/optimize-route`,
-            { currentLat: latitude, currentLng: longitude, returnToStart },
+            { currentLat: latitude, currentLng: longitude, returnToStart, returnAddress },
             { headers: { Authorization: `Bearer ${authToken}` } }
           );
           alert(res.data.message);
@@ -339,10 +340,18 @@ export default function DriverDashboard() {
         <>
           {/* 현위치 기반 최적화 버튼 */}
           <div className="px-4 py-3 bg-white space-y-3">
-            <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer w-fit mx-auto border border-gray-200 px-3 py-2 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
-              <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 accent-blue-600" />
-              <span>🔄 출발지로 다시 돌아오는 코스로 짜기</span>
-            </label>
+            <div className="border border-gray-200 p-3 rounded-xl bg-gray-50 flex flex-col gap-3">
+              <label className="flex items-center gap-2 text-sm font-bold text-gray-700 cursor-pointer w-fit">
+                <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 accent-blue-600" />
+                <span>🔄 마지막에 되돌아올 코스 포함하기</span>
+              </label>
+              {returnToStart && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">복귀할 목적지 주소 (비워두면 현위치)</label>
+                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구" className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                </div>
+              )}
+            </div>
             <button 
               onClick={handleOptimizeRoute}
               disabled={optimizing}

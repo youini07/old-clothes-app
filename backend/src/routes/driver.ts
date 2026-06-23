@@ -273,7 +273,7 @@ router.patch('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req
 // 7. 기사별 동선 최적화 (카카오/T맵 좌표 API 기반 현위치 출발 정렬)
 router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const userId = req.user!.userId;
-  const { currentLat, currentLng, returnToStart } = req.body;
+  const { currentLat, currentLng, returnToStart, returnAddress } = req.body;
 
   try {
     // 기사 프로필 확인
@@ -417,6 +417,19 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
     if (optimizedList.length === 0) {
       const startX = parseFloat(currentLng);
       const startY = parseFloat(currentLat);
+      
+      let endX = startX;
+      let endY = startY;
+
+      // 마지막 복귀 주소가 명시적으로 있는 경우 좌표 변환
+      if (returnToStart && returnAddress && returnAddress.trim() !== '') {
+        const coords = await getCoordinates(returnAddress);
+        if (coords) {
+          endX = parseFloat(coords.x);
+          endY = parseFloat(coords.y);
+        }
+      }
+
       const unvisited = [...destinations];
       let route: any[] = [];
       let cx = startX;
@@ -453,7 +466,7 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
             const node_i = route[i];
             const node_k = route[k];
             const node_k_plus_1 = k === route.length - 1 
-              ? (returnToStart ? { x: startX, y: startY } : null) 
+              ? (returnToStart ? { x: endX, y: endY } : null) 
               : route[k + 1];
 
             const d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_i.x, 2) + Math.pow(node_i_minus_1.y - node_i.y, 2));
