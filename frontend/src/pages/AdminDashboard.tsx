@@ -48,6 +48,7 @@ export default function AdminDashboard() {
   // 모바일/클릭 배정용 상태
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
+  const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<string[]>([]);
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
@@ -241,7 +242,7 @@ export default function AdminDashboard() {
   // 기존 unassignedRequests는 기사 미배정 건 전체 (드래그 앤 드롭 대상)
   const unassignedRequests = acceptedUnassigned;
 
-  // 체크박스 토글 핸들러
+  // 체크박스 토글 핸들러 (신규 요청)
   const handleToggleAllPending = () => {
     if (selectedRequestIds.length === pendingRequests.length && pendingRequests.length > 0) {
       setSelectedRequestIds([]);
@@ -255,6 +256,23 @@ export default function AdminDashboard() {
       setSelectedRequestIds(prev => prev.filter(rId => rId !== id));
     } else {
       setSelectedRequestIds(prev => [...prev, id]);
+    }
+  };
+
+  // 체크박스 토글 핸들러 (기사 미배정)
+  const handleToggleAllUnassigned = () => {
+    if (selectedUnassignedIds.length === unassignedRequests.length && unassignedRequests.length > 0) {
+      setSelectedUnassignedIds([]);
+    } else {
+      setSelectedUnassignedIds(unassignedRequests.map(r => r.id));
+    }
+  };
+
+  const handleToggleOneUnassigned = (id: string) => {
+    if (selectedUnassignedIds.includes(id)) {
+      setSelectedUnassignedIds(prev => prev.filter(rId => rId !== id));
+    } else {
+      setSelectedUnassignedIds(prev => [...prev, id]);
     }
   };
 
@@ -272,6 +290,26 @@ export default function AdminDashboard() {
       fetchData();
     } catch (error: any) {
       const msg = error?.response?.data?.error || '일괄 수락에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    }
+  };
+
+  // 일괄 수락 취소 핸들러
+  const handleBulkUnclaim = async () => {
+    if (selectedUnassignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    if (!window.confirm(`선택한 ${selectedUnassignedIds.length}건의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.`)) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-unclaim`, {
+        requestIds: selectedUnassignedIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedUnassignedIds.length}건의 수락이 한 번에 취소되었습니다.`);
+      setSelectedUnassignedIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 취소에 실패했습니다.';
       alert(msg);
       fetchData();
     }
@@ -638,9 +676,33 @@ export default function AdminDashboard() {
             )}
 
             {/* 기사 미배정 섹션 (수락 완료, 기사 배정 필요) */}
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-800">기사 미배정</h2>
-              <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold">{unassignedRequests.length}건</span>
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center mb-4 gap-3">
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-bold text-gray-800">기사 미배정</h2>
+                <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-bold">{unassignedRequests.length}건</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleToggleAllUnassigned}
+                  className="text-sm font-bold text-gray-600 bg-gray-100 px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+                >
+                  <input 
+                    type="checkbox" 
+                    checked={selectedUnassignedIds.length > 0 && selectedUnassignedIds.length === unassignedRequests.length} 
+                    readOnly 
+                    className="w-4 h-4 rounded text-gray-500 cursor-pointer"
+                  />
+                  전체선택
+                </button>
+                {selectedUnassignedIds.length > 0 && (
+                  <button
+                    onClick={handleBulkUnclaim}
+                    className="text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 shadow-sm transition-all animate-fade-in"
+                  >
+                    {selectedUnassignedIds.length}건 일괄 취소
+                  </button>
+                )}
+              </div>
             </div>
             
             {loading ? (
@@ -657,22 +719,40 @@ export default function AdminDashboard() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, req.id)}
                     onClick={() => setSelectedRequestIdForAssign(req.id)}
-                    className="p-5 bg-white border border-gray-200 rounded-2xl shadow-sm cursor-pointer lg:cursor-grab active:cursor-grabbing hover:border-primary-400 transition-all"
+                    className={`p-4 sm:p-5 border rounded-2xl shadow-sm cursor-pointer lg:cursor-grab active:cursor-grabbing transition-all flex items-start gap-3 ${
+                      selectedRequestIdForAssign === req.id ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200' : 
+                      selectedUnassignedIds.includes(req.id) ? 'bg-gray-50 border-gray-400' : 'bg-white border-gray-200 hover:border-primary-400'
+                    }`}
                   >
-                    <div className="flex justify-between items-start">
-                      <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                    <div className="pt-1">
+                      <input 
+                        type="checkbox" 
+                        checked={selectedUnassignedIds.includes(req.id)}
+                        onChange={(e) => { e.stopPropagation(); handleToggleOneUnassigned(req.id); }}
+                        className="w-5 h-5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 cursor-pointer"
+                      />
                     </div>
-                    <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                    <div className="mt-3 flex justify-between items-center">
-                      <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
-                        {req.estimatedVolume}
-                      </span>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
-                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg transition-colors active:scale-95"
-                      >
-                        수락 취소
-                      </button>
+                    <div className="flex-1">
+                      <div className="flex justify-between items-start">
+                        <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                        {selectedRequestIdForAssign === req.id && (
+                          <span className="text-xs bg-primary-600 text-white px-2 py-1 rounded-full font-bold animate-pulse">배정 대기중</span>
+                        )}
+                      </div>
+                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
+                      <div className="mt-3 flex justify-between items-center">
+                        <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                          {req.estimatedVolume}
+                        </span>
+                        {!selectedUnassignedIds.includes(req.id) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
+                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg transition-colors active:scale-95"
+                          >
+                            수락 취소
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 ))}

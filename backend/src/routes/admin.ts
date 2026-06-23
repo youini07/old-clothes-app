@@ -411,6 +411,39 @@ router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER
   }
 });
 
+// 다중 수거 요청 수락 취소 (일괄 취소)
+router.post('/requests/bulk-unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { requestIds } = req.body;
+  const partnerId = req.user!.userId;
+
+  if (!Array.isArray(requestIds) || requestIds.length === 0) {
+    return res.status(400).json({ error: '수락 취소할 요청 ID 배열이 필요합니다.' });
+  }
+
+  try {
+    // 본인이 수락한 건이고 아직 기사 배정이 안 된 건들만 일괄 취소
+    const updatedResult = await prisma.request.updateMany({
+      where: {
+        id: { in: requestIds },
+        partnerId: partnerId,
+        driverId: null
+      },
+      data: {
+        partnerId: null,
+        status: 'PENDING'
+      }
+    });
+
+    res.json({ 
+      message: `${updatedResult.count}건의 수락이 취소되었습니다.`,
+      count: updatedResult.count 
+    });
+  } catch (error) {
+    console.error('일괄 수락 취소 오류:', error);
+    res.status(500).json({ error: '일괄 수락 취소 중 오류가 발생했습니다.' });
+  }
+});
+
 // 2. 수거 기사(Driver) 목록 조회
 router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
