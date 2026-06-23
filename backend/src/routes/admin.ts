@@ -328,6 +328,40 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
   }
 });
 
+// 수거 요청 수락 취소 (다시 대기 상태로 변경)
+router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  const partnerId = req.user!.userId;
+
+  try {
+    const request = await prisma.request.findUnique({ where: { id } });
+    if (!request) {
+      return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
+    }
+
+    if (request.partnerId !== partnerId) {
+      return res.status(403).json({ error: '본인이 수락한 건만 취소할 수 있습니다.' });
+    }
+
+    if (request.driverId) {
+      return res.status(400).json({ error: '이미 기사에게 배정된 건은 수락을 취소할 수 없습니다. 배정을 먼저 해제해주세요.' });
+    }
+
+    const updated = await prisma.request.update({
+      where: { id },
+      data: {
+        partnerId: null,
+        status: 'PENDING'
+      }
+    });
+
+    res.json({ message: '수락이 취소되었습니다.', request: updated });
+  } catch (error) {
+    console.error('수락 취소 오류:', error);
+    res.status(500).json({ error: '수락 취소 중 오류가 발생했습니다.' });
+  }
+});
+
 // 다중 수거 요청 수락 (일괄 수락)
 router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { requestIds } = req.body;

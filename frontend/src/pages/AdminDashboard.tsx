@@ -292,6 +292,21 @@ export default function AdminDashboard() {
     }
   };
 
+  // 수거 요청 수락 취소 핸들러
+  const handleUnclaim = async (requestId: string) => {
+    if (!window.confirm('이 요청의 수락을 취소하시겠습니까? 다시 대기 상태로 돌아가며, 다른 업체가 수락할 수 있습니다.')) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/unclaim`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('수락이 취소되었습니다.');
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '수락 취소에 실패했습니다.';
+      alert(msg);
+    }
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
@@ -648,8 +663,16 @@ export default function AdminDashboard() {
                       <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
                     </div>
                     <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                    <div className="mt-3 inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
-                      {req.estimatedVolume}
+                    <div className="mt-3 flex justify-between items-center">
+                      <span className="inline-block bg-primary-50 text-primary-700 px-2 py-1 rounded text-xs font-bold">
+                        {req.estimatedVolume}
+                      </span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
+                        className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg transition-colors active:scale-95"
+                      >
+                        수락 취소
+                      </button>
                     </div>
                   </div>
                 ))}
