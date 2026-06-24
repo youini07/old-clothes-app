@@ -10,6 +10,7 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
   const mapContainer = useRef<HTMLDivElement>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [loadingCoords, setLoadingCoords] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
     const loadMap = () => {
@@ -34,10 +35,13 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
     const geocoder = new kakao.maps.services.Geocoder();
 
     const drawMap = async () => {
-      setLoadingCoords(true);
-      const coordsPromises = requests.map((req, index) => {
-        return new Promise<{ lat: number; lng: number; req: any; index: number }>((resolve) => {
-          geocoder.addressSearch(req.address, (result: any, status: any) => {
+      try {
+        setLoadingCoords(true);
+        setErrorMsg(null);
+        
+        const coordsPromises = requests.map((req, index) => {
+          return new Promise<{ lat: number; lng: number; req: any; index: number }>((resolve) => {
+            geocoder.addressSearch(req.address, (result: any, status: any) => {
             if (status === kakao.maps.services.Status.OK) {
               resolve({
                 lat: parseFloat(result[0].y),
@@ -46,6 +50,7 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
                 index
               });
             } else {
+              console.error('Geocoder failed for address:', req.address, status);
               // 실패 시 null로 처리
               resolve({ lat: 0, lng: 0, req, index: -1 });
             }
@@ -56,19 +61,19 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
       const results = await Promise.all(coordsPromises);
       const validResults = results.filter(r => r.index !== -1);
 
-      if (validResults.length === 0 && !currentLat) {
-        setLoadingCoords(false);
-        return;
-      }
-
-      // 맵 중심 설정
-      const centerLat = validResults.length > 0 ? validResults[0].lat : currentLat || 37.566826;
-      const centerLng = validResults.length > 0 ? validResults[0].lng : currentLng || 126.9786567;
+      // 항상 지도를 생성하도록 보장
+      const centerLat = validResults.length > 0 ? validResults[0].lat : currentLat || 37.2636;
+      const centerLng = validResults.length > 0 ? validResults[0].lng : currentLng || 127.0286;
 
       const mapOption = {
         center: new kakao.maps.LatLng(centerLat, centerLng),
         level: 6, // 넓게 보기
       };
+
+      // 기존 맵 초기화
+      if (mapContainer.current) {
+        mapContainer.current.innerHTML = '';
+      }
 
       const map = new kakao.maps.Map(mapContainer.current, mapOption);
       const bounds = new kakao.maps.LatLngBounds();
@@ -153,16 +158,25 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
 
       // 모든 마커가 보이도록 지도 범위 재설정
       if (validResults.length > 0 || (currentLat && currentLng)) {
-        // 경로가 너무 가까우면 레벨이 너무 낮아질 수 있으므로 약간의 여백
         map.setBounds(bounds);
         
-        // 렌더링 완료 후 줌 레벨 조정이 필요한 경우를 대비해
         setTimeout(() => {
+          map.relayout();
+          map.setBounds(bounds);
           if (map.getLevel() < 3) map.setLevel(3);
-        }, 100);
+        }, 300);
+      } else {
+        setTimeout(() => {
+          map.relayout();
+        }, 300);
       }
 
       setLoadingCoords(false);
+    } catch (err: any) {
+      console.error('Map draw error:', err);
+      setErrorMsg('지도를 그리는 중 오류가 발생했습니다: ' + (err.message || String(err)));
+      setLoadingCoords(false);
+    }
     };
 
     drawMap();
@@ -178,7 +192,13 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
           </div>
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" />
+      {errorMsg && (
+        <div className="absolute inset-0 z-20 bg-white flex flex-col items-center justify-center p-4 text-center">
+          <div className="text-red-500 font-bold mb-2">⚠️ 오류 발생</div>
+          <p className="text-gray-600 text-sm">{errorMsg}</p>
+        </div>
+      )}
+      <div ref={mapContainer} className="w-full h-full" style={{ minHeight: '300px' }} />
     </div>
   );
 }
