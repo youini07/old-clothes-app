@@ -12,6 +12,7 @@ interface RequestItem {
   etaMinutes?: number;
   actualWeight?: number;
   totalPrice?: number;
+  customerPackedPhotoUrl?: string | null;
   createdAt?: string | Date;
 }
 
@@ -298,14 +299,14 @@ export default function DriverDashboard() {
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
 
-  const getSmsTemplate1 = (req: RequestItem, index: number) => {
+  const getSmsTemplate1 = (index: number) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day = tomorrow.getDate();
     return `안녕하세요! 올클입니다.\n\n내일(${day}일) 헌옷 수거 방문 예정입니다.\n고객님의 수거 순번은 [${index + 1}번째] 입니다.\n\n수거할 옷과 물품들은 미리 포장하여 문 앞에 내놓아 주시면 감사하겠습니다!`;
   };
 
-  const getSmsTemplate2 = (req: RequestItem) => {
+  const getSmsTemplate2 = () => {
     return `안녕하세요! 올클입니다.\n\n지금 고객님 댁으로 수거하러 출발합니다!\n곧 도착할 예정이오니 잠시만 기다려주세요.\n감사합니다.`;
   };
 
@@ -449,7 +450,7 @@ export default function DriverDashboard() {
                   {req.customerPackedPhotoUrl && (
                     <div className="mt-3 ml-6">
                       <button 
-                        onClick={() => setViewingPhoto(req.customerPackedPhotoUrl)}
+                        onClick={() => setViewingPhoto(req.customerPackedPhotoUrl || null)}
                         className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
@@ -590,7 +591,7 @@ export default function DriverDashboard() {
             
             <div className="space-y-3">
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.req, selectedSmsReq.index))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.index))}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
               >
@@ -599,7 +600,7 @@ export default function DriverDashboard() {
               </a>
               
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate2(selectedSmsReq.req))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate2())}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 transition-colors"
               >
