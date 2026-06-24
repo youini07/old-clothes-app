@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import DriverMap from '../components/DriverMap';
 
 interface RequestItem {
   id: string;
@@ -71,6 +72,7 @@ export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [activeMainTab, setActiveMainTab] = useState<'route' | 'profile'>('route');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token') || localStorage.getItem('admin_token'));
+  const [showMap, setShowMap] = useState(false);
 
   // 고객 포장 사진 뷰어 상태
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
@@ -411,6 +413,17 @@ export default function DriverDashboard() {
                 </>
               ) : '📍 현위치 기반 최적 동선 짜기'}
             </button>
+            <button 
+              onClick={() => setShowMap(!showMap)}
+              className="w-full bg-teal-50 text-teal-700 border border-teal-200 font-bold py-3 rounded-xl shadow-sm hover:bg-teal-100 flex items-center justify-center gap-2 transition-all"
+            >
+              🗺️ {showMap ? '지도 숨기기' : '전체 동선 지도에서 보기'}
+            </button>
+            {showMap && (
+              <div className="mt-2">
+                <DriverMap requests={filteredRequests} />
+              </div>
+            )}
           </div>
 
           {/* Tab Bar */}
