@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
@@ -6,7 +6,19 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [autoLogin, setAutoLogin] = useState(true);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('saved_email');
+    const savedPassword = localStorage.getItem('saved_password');
+    const isAutoLogin = localStorage.getItem('auto_login') === 'true';
+    if (isAutoLogin && savedEmail && savedPassword) {
+      setEmail(savedEmail);
+      setPassword(savedPassword);
+      setAutoLogin(true);
+    }
+  }, []);
 
   const handleDemoLogin = async (role: 'PARTNER' | 'DRIVER') => {
     setLoading(true);
@@ -46,6 +58,16 @@ export default function Login() {
         email,
         password
       });
+
+      if (autoLogin) {
+        localStorage.setItem('saved_email', email);
+        localStorage.setItem('saved_password', password);
+        localStorage.setItem('auto_login', 'true');
+      } else {
+        localStorage.removeItem('saved_email');
+        localStorage.removeItem('saved_password');
+        localStorage.setItem('auto_login', 'false');
+      }
 
       const { token, user } = res.data;
       
@@ -125,6 +147,19 @@ export default function Login() {
                 className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
                 placeholder="••••••••"
               />
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="autoLogin"
+                checked={autoLogin}
+                onChange={e => setAutoLogin(e.target.checked)}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="autoLogin" className="ml-2 block text-sm text-gray-900 cursor-pointer">
+                아이디/비밀번호 저장 (자동 로그인)
+              </label>
             </div>
 
             <button

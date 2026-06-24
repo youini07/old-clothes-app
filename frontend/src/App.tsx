@@ -46,7 +46,7 @@ function Home() {
       <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none flex flex-col justify-end pb-8">
         
         {/* 버튼 1: 카카오 로그인 (배경화면 텍스트의 '위쪽' 빈 공간) */}
-        <div className="px-8 pointer-events-auto mb-[55px]">
+        <div className="px-8 pointer-events-auto mb-[85px]">
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
@@ -59,16 +59,6 @@ function Home() {
             </svg>
             카카오로 3초만에 시작하기
           </a>
-        </div>
-
-        {/* 버튼 2: 관계자 로그인 */}
-        <div className="text-center pointer-events-auto mb-4">
-          <button 
-            onClick={() => navigate('/staff-login')}
-            className="text-xs font-medium text-gray-500 opacity-60 hover:opacity-100 transition-opacity underline underline-offset-4"
-          >
-            기사님 및 파트너 로그인
-          </button>
         </div>
 
       </div>
