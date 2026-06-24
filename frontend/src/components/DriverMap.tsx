@@ -104,18 +104,35 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
 
             const displayIndex = i + 1;
             const isCompleted = res.req.status === 'COMPLETED';
+            const isInProgress = res.req.status === 'IN_PROGRESS';
+
+            let bgColor = '#FECACA'; // 옅은 붉은색 (대기중)
+            let textColor = '#991B1B'; // 진한 붉은색 글씨
+            let borderStyle = '2px solid white';
+            let extraStyle = '';
+            
+            if (isCompleted) {
+              bgColor = '#22C55E'; // 초록색 (완료)
+              textColor = 'white';
+            } else if (isInProgress) {
+              bgColor = '#3B82F6'; // 파란색 (가고있는중)
+              textColor = 'white';
+              borderStyle = '3px solid #DBEAFE'; // 눈에 띄는 테두리
+              extraStyle = 'box-shadow: 0 0 12px rgba(59,130,246,0.9); transform: scale(1.2); z-index: 10;'; // 크기 키우고 글로우 효과 (강조)
+            }
 
             const content = `
               <div style="
-                background-color: ${isCompleted ? '#9CA3AF' : '#EAB308'}; 
-                color: ${isCompleted ? 'white' : '#713F12'}; 
-                width: 28px; height: 28px; 
+                background-color: ${bgColor}; 
+                color: ${textColor}; 
+                width: 30px; height: 30px; 
                 border-radius: 50%; 
                 display: flex; align-items: center; justify-content: center; 
                 font-weight: bold; font-size: 14px;
-                border: 2px solid white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                border: ${borderStyle};
+                box-shadow: 0 2px 5px rgba(0,0,0,0.3);
                 cursor: pointer;
+                ${extraStyle}
               ">
                 ${displayIndex}
               </div>
