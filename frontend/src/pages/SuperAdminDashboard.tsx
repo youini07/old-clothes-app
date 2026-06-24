@@ -215,6 +215,10 @@ export default function SuperAdminDashboard() {
               <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
               로그아웃
             </button>
+            <a href="https://docs.google.com/spreadsheets/d/1hOwdwvhPIq2QAGWMNsSWXQXWa6MFUOYsp3gM8rr6ImY/edit" target="_blank" rel="noopener noreferrer" className="hidden md:flex px-4 py-2 bg-green-50 text-green-700 font-bold rounded-xl text-sm border border-green-200 hover:bg-green-100 transition-colors items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              전체 수거현황 스프레드시트
+            </a>
             {authToken && (
               <button 
                 onClick={() => setIsModalOpen(true)}

@@ -7,6 +7,7 @@ import { validatePartner, validateDriver } from '../middleware/validateMiddlewar
 import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
 import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
+import { updateRequestStatusInSheet } from '../services/googleSheets';
 
 const router = express.Router();
 
@@ -304,6 +305,9 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
       include: { partner: true }
     });
 
+    // 구글 시트 상태 연동
+    updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
+
     // 업체 배정 안내 알림톡 발송 (비동기)
     if (updated.partner && updated.partner.useBizMessage) {
       sendAssignmentToCustomer(
@@ -354,6 +358,9 @@ router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPE
         status: 'PENDING'
       }
     });
+
+    // 구글 시트 상태 연동
+    updateRequestStatusInSheet(id, 'PENDING').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
 
     res.json({ message: '수락이 취소되었습니다.', request: updated });
   } catch (error) {
@@ -527,6 +534,9 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
       include: { partner: true }
     });
 
+    // 구글 시트 상태 연동
+    updateRequestStatusInSheet(requestId, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
+
     // 일정 확정 안내 알림톡 발송 (비동기)
     if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
       let driverPhone = undefined;
@@ -573,6 +583,9 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
         etaMinutes: null
       }
     });
+
+    // 구글 시트 상태 연동
+    updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
 
     res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
   } catch (error) {

@@ -332,7 +332,8 @@ export default function DriverDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20 custom-scrollbar">
+    <>
+      <div className="min-h-screen bg-gray-50 pb-20 custom-scrollbar print:hidden">
       {isLargeText && (
         <style>{`
           html { font-size: 19px !important; }
@@ -355,6 +356,10 @@ export default function DriverDashboard() {
               🔍 크게
             </button>
           )}
+          <button onClick={() => window.print()} className="px-2.5 py-2 bg-purple-100 text-purple-700 font-bold rounded-xl text-xs hover:bg-purple-200 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+            인쇄
+          </button>
           {localStorage.getItem('admin_token') && (
             <div className="flex bg-gray-100/80 p-1 rounded-xl shadow-inner relative w-32 border border-gray-200 backdrop-blur-sm shrink-0">
               <div className="absolute left-1 top-1 w-[calc(50%-4px)] bottom-1 bg-white rounded-lg shadow-[0_2px_8px_rgb(0,0,0,0.08)] transition-transform duration-300 translate-x-0"></div>
@@ -632,6 +637,36 @@ export default function DriverDashboard() {
           <span className="text-[10px] font-bold">내 정보</span>
         </button>
       </div>
-    </div>
+      </div>
+      
+      {/* 인쇄용 화면 (프린트 시에만 보임) */}
+      <div className="hidden print:block p-8 bg-white text-black">
+        <h1 className="text-2xl font-bold mb-6 text-center">오늘의 수거 리스트 ({new Date().toLocaleDateString('ko-KR')})</h1>
+        <table className="w-full border-collapse border border-black text-sm">
+          <thead>
+            <tr className="bg-gray-200">
+              <th className="border border-black p-2 text-center">순번</th>
+              <th className="border border-black p-2 text-left">주소</th>
+              <th className="border border-black p-2 text-left">상세주소</th>
+              <th className="border border-black p-2 text-center">고객명</th>
+              <th className="border border-black p-2 text-center">연락처</th>
+              <th className="border border-black p-2 text-center">예상수거량</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRequests.map((req, idx) => (
+              <tr key={req.id}>
+                <td className="border border-black p-2 text-center font-bold">{idx + 1}</td>
+                <td className="border border-black p-2">{req.address}</td>
+                <td className="border border-black p-2">{req.detailAddress}</td>
+                <td className="border border-black p-2 text-center">{req.userName}</td>
+                <td className="border border-black p-2 text-center">{req.phone}</td>
+                <td className="border border-black p-2 text-center">{req.estimatedVolume}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

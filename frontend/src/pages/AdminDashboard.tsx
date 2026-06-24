@@ -602,26 +602,32 @@ export default function AdminDashboard() {
             </h1>
             <p className="text-gray-500 mt-2 font-medium text-sm md:text-base">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
           </div>
-          <div className="flex bg-gray-100/80 p-1.5 rounded-2xl shadow-inner relative w-48 border border-gray-200 backdrop-blur-sm shrink-0">
-            <div className="absolute left-1.5 top-1.5 w-[calc(50%-6px)] bottom-1.5 bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.08)] transition-transform duration-300 translate-x-full"></div>
-            <button 
-              onClick={async () => {
-                try {
-                  await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers/self`, {}, {
-                    headers: { Authorization: `Bearer ${authToken}` }
-                  });
-                } catch (e: any) { /* Ignore if already exists */ }
-                window.location.href = '/driver';
-              }}
-              className="flex-1 py-2 text-xs font-bold z-10 text-gray-500 hover:text-gray-700 transition-colors"
-            >
-              🚚 기사 모드
-            </button>
-            <button 
-              className="flex-1 py-2 text-xs font-extrabold z-10 text-blue-600 transition-colors cursor-default"
-            >
-              🏢 사장 모드
-            </button>
+          <div className="flex items-center gap-3 shrink-0">
+            <a href="https://docs.google.com/spreadsheets/d/1hOwdwvhPIq2QAGWMNsSWXQXWa6MFUOYsp3gM8rr6ImY/edit" target="_blank" rel="noopener noreferrer" className="hidden md:flex px-4 py-2 bg-green-50 text-green-700 font-bold rounded-xl text-sm border border-green-200 hover:bg-green-100 transition-colors items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              스프레드시트 열기
+            </a>
+            <div className="flex bg-gray-100/80 p-1.5 rounded-2xl shadow-inner relative w-48 border border-gray-200 backdrop-blur-sm shrink-0">
+              <div className="absolute left-1.5 top-1.5 w-[calc(50%-6px)] bottom-1.5 bg-white rounded-xl shadow-[0_2px_8px_rgb(0,0,0,0.08)] transition-transform duration-300 translate-x-full"></div>
+              <button 
+                onClick={async () => {
+                  try {
+                    await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers/self`, {}, {
+                      headers: { Authorization: `Bearer ${authToken}` }
+                    });
+                  } catch (e: any) { /* Ignore if already exists */ }
+                  window.location.href = '/driver';
+                }}
+                className="flex-1 py-2 text-xs font-bold z-10 text-gray-500 hover:text-gray-700 transition-colors"
+              >
+                🚚 기사 모드
+              </button>
+              <button 
+                className="flex-1 py-2 text-xs font-extrabold z-10 text-blue-600 transition-colors cursor-default"
+              >
+                🏢 사장 모드
+              </button>
+            </div>
           </div>
         </div>
 
