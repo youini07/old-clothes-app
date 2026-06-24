@@ -8,9 +8,8 @@ import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 /**
  * 올클(ALL-CLEAR) 홈 화면
@@ -21,8 +20,6 @@ import axios from 'axios';
  */
 function Home() {
   const navigate = useNavigate();
-  const [seeding, setSeeding] = useState(false);
-
   // 이미 로그인된 토큰이 있으면 해당 대시보드로 즉시 리다이렉트 (PWA iOS 버그 방지용)
   useEffect(() => {
     if (localStorage.getItem('admin_token')) navigate('/super-admin');
@@ -30,19 +27,6 @@ function Home() {
     else if (localStorage.getItem('driver_token')) navigate('/driver');
     else if (localStorage.getItem('customer_token')) navigate('/status');
   }, [navigate]);
-
-  const handleSeedData = async () => {
-    try {
-      setSeeding(true);
-      alert('라이브 서버에 80건의 테스트 데이터를 꽂아넣습니다. 잠시만 기다려주세요...');
-      await axios.post(`${import.meta.env.VITE_API_URL}/admin/debug/seed-suwon`);
-      alert('성공! 80건의 테스트 데이터가 들어갔습니다. 이제 데모 로그인으로 확인해보세요.');
-    } catch (e) {
-      alert('데이터 생성에 실패했습니다.');
-    } finally {
-      setSeeding(false);
-    }
-  };
 
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6]">
