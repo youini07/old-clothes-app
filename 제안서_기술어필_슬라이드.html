@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>핵심 기술 어필 슬라이드</title>
+  <!-- Pretendard Font -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+    }
+
+    body {
+      background-color: #111;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    .slide-container {
+      position: relative;
+      width: 1280px;
+      height: 720px;
+      background-image: url('file:///C:/Users/youin/.gemini/antigravity-ide/brain/1c2ea83f-93e9-4e4b-b6d7-9e33d9d5483e/vrp_tsp_base_map_1782275783626.png');
+      background-size: cover;
+      background-position: center;
+      border-radius: 20px;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    /* 왼쪽에 어두운 그라데이션 오버레이를 주어 텍스트 가독성 극대화 */
+    .overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 55%;
+      height: 100%;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(15, 23, 42, 0.85) 60%, rgba(15, 23, 42, 0) 100%);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 60px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, #3b82f6 0%, #2dd4bf 100%);
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+      letter-spacing: 2px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      align-self: flex-start;
+      box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+    }
+
+    h1 {
+      color: #ffffff;
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.3;
+      margin-bottom: 30px;
+      word-break: keep-all;
+    }
+
+    .highlight {
+      color: #38bdf8;
+      position: relative;
+    }
+
+    .highlight::after {
+      content: '';
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+      width: 100%;
+      height: 8px;
+      background-color: rgba(56, 189, 248, 0.3);
+      z-index: -1;
+    }
+
+    .features {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .feature-item {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      padding: 24px;
+      border-radius: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    .feature-item:hover {
+      transform: translateX(10px);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .feature-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #f8fafc;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .feature-icon {
+      font-size: 24px;
+    }
+
+    .feature-desc {
+      color: #cbd5e1;
+      font-size: 16px;
+      line-height: 1.6;
+      word-break: keep-all;
+    }
+
+    .stats-container {
+      margin-top: 40px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .stat-box {
+      flex: 1;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.05) 100%);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      padding: 20px;
+      border-radius: 12px;
+      text-align: center;
+    }
+
+    .stat-value {
+      color: #10b981;
+      font-size: 32px;
+      font-weight: 900;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    .stat-box.secondary {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.15) 0%, rgba(2, 132, 199, 0.05) 100%);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+    }
+
+    .stat-box.secondary .stat-value {
+      color: #38bdf8;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="slide-container">
+    <div class="overlay">
+      <div class="badge">CORE TECHNOLOGY</div>
+      <h1>조 단위 대기업이 사용하는<br><span class="highlight">VRP & TSP 하이브리드 엔진</span> 이식</h1>
+      
+      <div class="features">
+        <div class="feature-item">
+          <div class="feature-title">
+            <span class="feature-icon">🧠</span> 자체 로직화를 통한 종속성 탈피
+          </div>
+          <div class="feature-desc">
+            배달의 민족, 쿠팡 등이 억대 비용을 지불하며 사용하는 'B2B 다중 경유지 경로 최적화 API'를 자체 로직화 하였습니다. 외부 API 종속 없이 <b>호출 비용 0원 (평생 무료)</b>으로 구동됩니다.
+          </div>
+        </div>
+
+        <div class="feature-item">
+          <div class="feature-title">
+            <span class="feature-icon">📍</span> 실시간 GPS 기반 자동 정렬
+          </div>
+          <div class="feature-desc">
+            기사님의 [현재 위치]부터 [최종 퇴근 주소지]까지, 오늘 할당받은 수십 곳의 수거처를 카카오 모빌리티 데이터와 결합된 TSP 알고리즘이 <b>가장 짧고 빠른 순서로 0.1초 만에 자동 정렬</b>합니다.
+          </div>
+        </div>
+      </div>
+
+      <div class="stats-container">
+        <div class="stat-box">
+          <div class="stat-value">최소 20%↓</div>
+          <div class="stat-label">유류비 매월 절감액 (약 10~15만원)</div>
+        </div>
+        <div class="stat-box secondary">
+          <div class="stat-value">1시간 이상↓</div>
+          <div class="stat-label">일 평균 도로에서 낭비되는 시간</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</body>
+</html>

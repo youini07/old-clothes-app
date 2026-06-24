@@ -136,7 +136,8 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
             });
           });
 
-          // 4. 선 그리기
+          // 4. 선 그리기 (안정성 및 시연을 위해 라인 생략, 핀만 표시)
+          /*
           if (linePath.length > 1) {
             const polyline = new kakao.maps.Polyline({
               path: linePath,
@@ -147,6 +148,7 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
             });
             polyline.setMap(map);
           }
+          */
 
           // 5. 범위 재설정
           if (validResults.length > 0 || (currentLat && currentLng)) {

@@ -413,19 +413,17 @@ export default function DriverDashboard() {
                 </>
               ) : '📍 현위치 기반 최적 동선 짜기'}
             </button>
-            {/* 임시 숨김 (시연용 완성도를 위해 지도 기능 보류)
             <button 
               onClick={() => setShowMap(!showMap)}
               className="w-full bg-teal-50 text-teal-700 border border-teal-200 font-bold py-3 rounded-xl shadow-sm hover:bg-teal-100 flex items-center justify-center gap-2 transition-all"
             >
-              🗺️ {showMap ? '지도 숨기기' : '전체 동선 지도에서 보기'}
+              🗺️ {showMap ? '지도 숨기기' : '전체 수거지 지도에서 보기'}
             </button>
             {showMap && (
               <div className="mt-2">
                 <DriverMap requests={filteredRequests} />
               </div>
             )}
-            */}
           </div>
 
           {/* Tab Bar */}

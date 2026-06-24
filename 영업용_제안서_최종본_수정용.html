@@ -8,50 +8,71 @@
     
     body {
       font-family: 'Pretendard', sans-serif;
-      line-height: 1.6;
-      color: #333;
-      max-width: 800px;
+      line-height: 1.75;
+      color: #2d3748;
+      max-width: 850px;
       margin: 0 auto;
-      padding: 40px;
+      padding: 50px;
       background-color: #fff;
     }
     
     h1 {
       color: #1a365d;
-      font-size: 2.2rem;
-      border-bottom: 3px solid #2b6cb0;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
+      font-size: 2.4rem;
+      border-bottom: 4px solid #2b6cb0;
+      padding-bottom: 20px;
+      margin-top: 20px;
+      margin-bottom: 30px;
+      line-height: 1.4;
     }
     
     h2 {
       color: #2b6cb0;
-      font-size: 1.6rem;
-      margin-top: 40px;
-      border-left: 5px solid #4299e1;
-      padding-left: 15px;
+      font-size: 1.8rem;
+      margin-top: 60px;
+      margin-bottom: 25px;
+      border-left: 6px solid #4299e1;
+      padding-left: 18px;
     }
     
     h3 {
       color: #2d3748;
-      font-size: 1.3rem;
-      margin-top: 30px;
+      font-size: 1.4rem;
+      margin-top: 40px;
+      margin-bottom: 20px;
       background-color: #f7fafc;
-      padding: 10px 15px;
+      padding: 12px 20px;
       border-radius: 8px;
+    }
+
+    p {
+      margin-bottom: 18px;
+      font-size: 1.05rem;
+      word-break: keep-all;
+    }
+    
+    ul {
+      margin-bottom: 20px;
+    }
+    
+    li {
+      margin-bottom: 10px;
+      font-size: 1.05rem;
+      line-height: 1.7;
     }
     
     .subtitle {
-      font-size: 1.2rem;
+      font-size: 1.25rem;
       color: #4a5568;
       font-weight: 600;
-      margin-bottom: 40px;
+      margin-bottom: 50px;
       text-align: center;
+      line-height: 1.8;
     }
     
     .tech-point {
-      margin-bottom: 25px;
-      padding-left: 15px;
+      margin-bottom: 35px;
+      padding-left: 10px;
     }
     
     .highlight {
@@ -111,16 +132,47 @@
     
     /* 프린트 최적화 */
     @media print {
-      body {
-        padding: 0;
-        max-width: 100%;
+      @page {
+        margin: 15mm;
       }
+      body {
+        padding: 20mm 15mm; /* 사용자가 여백 없음을 선택해도 내부 여백 유지 */
+        max-width: 100%;
+        margin: 0;
+      }
+      
+      /* 큰 챕터가 시작될 때마다 항상 새로운 페이지에서 시작하게 하여 브로셔처럼 보이게 함 */
+      h2:nth-of-type(n+2) {
+        page-break-before: always;
+        margin-top: 0;
+        padding-top: 20px;
+      }
+      
       .image-placeholder {
         border: none;
         background: transparent;
+        padding: 0;
+        margin: 30px 0;
       }
-      /* 비어있는 플레이스홀더는 프린트 시 숨기려면 주석 해제하세요 */
-      /* .image-placeholder:empty { display: none; } */
+      /* 텍스트(안내문구)는 프린트 시 숨김 */
+      .image-placeholder p, .image-placeholder span {
+        display: none;
+      }
+      .image-placeholder img {
+        max-width: 100%;
+        max-height: 25cm; /* A4 한 장을 넘지 않도록 제한 */
+        object-fit: contain;
+        page-break-inside: avoid;
+        display: block;
+        margin: 0 auto;
+        box-shadow: none; /* 프린트 시 그림자는 보통 제거하는 것이 깔끔함 */
+      }
+      h1, h2, h3 {
+        page-break-after: avoid;
+      }
+      p, ul, .tech-point {
+        page-break-inside: avoid;
+      }
     }
   </style>
 </head>
@@ -180,7 +232,7 @@
     <h3>① ⭐ [AI 기반 최적 경로 안내 버튼 (핵심 기술)] ⭐</h3>
     <ul>
       <li><strong>적용 기술:</strong> <strong>자체 개발 VRP (Vehicle Routing Problem) 및 TSP (외판원 알고리즘) 하이브리드 엔진.</strong></li>
-      <li><strong>혁신 포인트 (매우 중요):</strong> 배달의 민족, 쿠팡 등 조 단위 대기업들만 B2B 계약으로 억대 비용을 내고 사용하는 <strong>'다중 경유지 경로 최적화 API'</strong>를 자체 로직화하여 이식했습니다. 기사님의 <strong>[현재 GPS 위치]</strong>부터 마지막 <strong>[퇴근 주소지]</strong>까지를 계산하여, 카카오 모빌리티와 결합된 TSP 알고리즘이 오늘 배당받은 수십 곳의 수거처를 <strong>가장 빠르고 기름을 적게 먹는 최적의 순서</strong>로 자동 정렬해 줍니다.</li>
+      <li><strong>혁신 포인트 (매우 중요):</strong> 배달의 민족, 쿠팡 등 대기업들만 B2B 계약으로 억대 비용을 내고 사용하는 <strong>'다중 경유지 경로 최적화 API'</strong>를 자체 로직화하여 이식했습니다. 기사님의 <strong>[현재 GPS 위치]</strong>부터 마지막 <strong>[퇴근 주소지]</strong>까지를 계산하여, 카카오 모빌리티와 결합된 TSP 알고리즘이 오늘 배당받은 수십 곳의 수거처를 <strong>가장 빠르고 기름을 적게 먹는 최적의 순서</strong>로 자동 정렬해 줍니다.</li>
       <li><strong>비용/시간 절감:</strong> 대기업 유료 API 사용료(월 수백만 원) 없이 <strong>평생 무료</strong>로 이용. 기사님 1인당 길에서 버리는 시간을 <strong>하루 평균 1시간 이상, 한 달 유류비를 최소 20% 이상 (약 10~15만 원) 무조건 절약</strong>하게 해주는 핵심 무기입니다.</li>
     </ul>
   </div>
