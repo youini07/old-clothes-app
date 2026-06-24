@@ -413,6 +413,7 @@ export default function DriverDashboard() {
                 </>
               ) : '📍 현위치 기반 최적 동선 짜기'}
             </button>
+            {/* 임시 숨김 (시연용 완성도를 위해 지도 기능 보류)
             <button 
               onClick={() => setShowMap(!showMap)}
               className="w-full bg-teal-50 text-teal-700 border border-teal-200 font-bold py-3 rounded-xl shadow-sm hover:bg-teal-100 flex items-center justify-center gap-2 transition-all"
@@ -424,6 +425,7 @@ export default function DriverDashboard() {
                 <DriverMap requests={filteredRequests} />
               </div>
             )}
+            */}
           </div>
 
           {/* Tab Bar */}
