@@ -65,6 +65,7 @@ export default function AdminDashboard() {
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([]);
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<string[]>([]);
+  const [selectedAssignedIds, setSelectedAssignedIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
 
   // 권역별 보기 탭
@@ -554,6 +555,26 @@ export default function AdminDashboard() {
       fetchData();
     } catch (error: any) {
       const msg = error?.response?.data?.error || '일괄 취소에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    }
+  };
+
+  // 일괄 배정 취소 핸들러
+  const handleBatchUnassign = async () => {
+    if (selectedAssignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    if (!window.confirm(`선택한 ${selectedAssignedIds.length}건의 배정을 일괄 취소하시겠습니까?`)) return;
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/batch-unassign`, {
+        ids: selectedAssignedIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedAssignedIds.length}건의 배정이 한 번에 취소되었습니다.`);
+      setSelectedAssignedIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 배정 취소에 실패했습니다.';
       alert(msg);
       fetchData();
     }
@@ -1156,7 +1177,37 @@ export default function AdminDashboard() {
                         </span>
                       )}
                     </div>
-                    <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm mt-1">{driverRequests.length}건 대기</span>
+                    <div className="flex flex-col items-end gap-2 shrink-0">
+                      <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm mt-1">{driverRequests.length}건 대기</span>
+                      {driverRequests.length > 0 && (
+                        <div className="flex items-center gap-1.5">
+                          <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer hover:text-gray-900">
+                            <input
+                              type="checkbox"
+                              checked={driverRequests.every(r => selectedAssignedIds.includes(r.id))}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  const idsToAdd = driverRequests.map(r => r.id).filter(id => !selectedAssignedIds.includes(id));
+                                  setSelectedAssignedIds(prev => [...prev, ...idsToAdd]);
+                                } else {
+                                  setSelectedAssignedIds(prev => prev.filter(id => !driverRequests.find(r => r.id === id)));
+                                }
+                              }}
+                              className="w-3.5 h-3.5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                            />
+                            전체 선택
+                          </label>
+                          {driverRequests.some(r => selectedAssignedIds.includes(r.id)) && (
+                            <button
+                              onClick={handleBatchUnassign}
+                              className="text-[10px] px-2 py-1 bg-red-100 text-red-700 rounded-md font-bold hover:bg-red-200"
+                            >
+                              일괄 취소
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                   
                   <div className="flex-1 space-y-4">
@@ -1172,8 +1223,23 @@ export default function AdminDashboard() {
                           onDragStart={(e) => handleDragStart(e, req.id)}
                           className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] cursor-grab active:cursor-grabbing transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
                         >
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold shrink-0 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
-                            {index + 1}
+                          <div className="flex flex-col items-center gap-2 shrink-0">
+                            <input
+                              type="checkbox"
+                              checked={selectedAssignedIds.includes(req.id)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setSelectedAssignedIds(prev => [...prev, req.id]);
+                                } else {
+                                  setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
+                                }
+                              }}
+                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                              onClick={e => e.stopPropagation()}
+                            />
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
+                              {index + 1}
+                            </div>
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">

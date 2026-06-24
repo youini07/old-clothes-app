@@ -594,6 +594,49 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
   }
 });
 
+// 4-1. 일괄 배정 취소
+router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) {
+    return res.status(400).json({ error: '취소할 수거 건을 선택해주세요.' });
+  }
+
+  try {
+    const partnerId = req.user!.userId;
+    
+    // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+    const requests = await prisma.request.findMany({
+      where: { id: { in: ids }, partnerId }
+    });
+
+    if (requests.length === 0) {
+      return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+    }
+
+    const validIds = requests.map(r => r.id);
+
+    const updatedResult = await prisma.request.updateMany({
+      where: { id: { in: validIds } },
+      data: {
+        driverId: null,
+        status: 'ASSIGNED',
+        confirmedDate: null,
+        etaMinutes: null
+      }
+    });
+
+    // 구글 시트 비동기 업데이트 (각각 실행)
+    validIds.forEach(id => {
+      updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패:', err));
+    });
+
+    res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
+  } catch (error) {
+    console.error('일괄 배정 취소 에러:', error);
+    res.status(500).json({ error: '일괄 배정 취소 중 오류가 발생했습니다.' });
+  }
+});
+
 // 5. 사장님 본인을 기사로 자동 등록 (원클릭)
 router.post('/drivers/self', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
