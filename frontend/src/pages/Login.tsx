@@ -89,7 +89,7 @@ export default function Login() {
             className="flex items-center text-sm text-white/70 hover:text-white transition-colors mb-4"
           >
             <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
-            홈으로 돌아가기
+            고객 로그인 페이지로 가기
           </button>
           <h1 className="text-3xl font-extrabold text-white relative z-10 tracking-tight">
             헌옷수거 통합 로그인
