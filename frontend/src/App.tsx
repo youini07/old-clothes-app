@@ -22,8 +22,8 @@ function Home() {
   const navigate = useNavigate();
   // 이미 로그인된 토큰이 있으면 해당 대시보드로 즉시 리다이렉트 (PWA iOS 버그 방지용)
   useEffect(() => {
-    if (localStorage.getItem('admin_token')) navigate('/super-admin');
-    else if (localStorage.getItem('partner_token')) navigate('/admin');
+    if (localStorage.getItem('superadmin_token')) navigate('/super-admin');
+    else if (localStorage.getItem('admin_token')) navigate('/admin');
     else if (localStorage.getItem('driver_token')) navigate('/driver');
     else if (localStorage.getItem('customer_token')) navigate('/status');
   }, [navigate]);
