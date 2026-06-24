@@ -182,22 +182,22 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
   }, [requests, currentLat, currentLng]);
 
   return (
-    <div className="relative w-full h-[300px] bg-gray-100 rounded-2xl overflow-hidden shadow-sm border border-gray-200">
+    <div className="relative w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200" style={{ height: '300px' }}>
       {loadingCoords && (
-        <div className="absolute inset-0 z-10 bg-white/70 flex items-center justify-center">
-          <div className="text-primary-600 font-bold flex items-center gap-2">
-            <div className="w-5 h-5 border-4 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-            경로 그리는 중...
-          </div>
+        <div className="absolute inset-0 z-20 bg-white/80 backdrop-blur-sm flex flex-col items-center justify-center">
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-500 mb-2"></div>
+          <p className="text-teal-700 font-bold animate-pulse">최적 동선 계산 중...</p>
         </div>
       )}
+
       {errorMsg && (
         <div className="absolute inset-0 z-20 bg-white flex flex-col items-center justify-center p-4 text-center">
           <div className="text-red-500 font-bold mb-2">⚠️ 오류 발생</div>
           <p className="text-gray-600 text-sm">{errorMsg}</p>
         </div>
       )}
-      <div ref={mapContainer} className="w-full h-full" style={{ minHeight: '300px' }} />
+
+      <div ref={mapContainer} style={{ width: '100%', height: '300px' }} />
     </div>
   );
 }
