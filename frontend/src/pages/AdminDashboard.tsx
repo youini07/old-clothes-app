@@ -1213,7 +1213,7 @@ export default function AdminDashboard() {
                   <div className="flex-1 space-y-4">
                     {driverRequests.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-primary-400 font-medium pb-10">
-                        여기로 카드를 드래그하여 배정하세요
+                        배정된 수거 요청이 없습니다
                       </div>
                     ) : (
                       driverRequests.map((req, index) => (

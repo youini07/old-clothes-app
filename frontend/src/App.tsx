@@ -62,7 +62,7 @@ function Home() {
       <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none flex flex-col justify-end pb-8">
         
         {/* 버튼 1: 카카오 로그인 (배경화면 텍스트의 '위쪽' 빈 공간) */}
-        <div className="px-8 pointer-events-auto mb-6">
+        <div className="px-8 pointer-events-auto mb-10">
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
@@ -77,21 +77,13 @@ function Home() {
           </a>
         </div>
 
-        {/* 버튼 2: 관계자 로그인 및 데이터 생성 */}
-        <div className="text-center pointer-events-auto mt-auto pb-4 flex flex-col gap-4 items-center">
+        {/* 버튼 2: 관계자 로그인 */}
+        <div className="text-center pointer-events-auto mb-4">
           <button 
             onClick={() => navigate('/staff-login')}
             className="text-xs font-medium text-gray-500 opacity-60 hover:opacity-100 transition-opacity underline underline-offset-4"
           >
             기사님 및 파트너 로그인
-          </button>
-          
-          <button 
-            onClick={handleSeedData}
-            disabled={seeding}
-            className="text-[10px] bg-black/20 text-white px-3 py-1.5 rounded-full hover:bg-black/40 transition-colors backdrop-blur-sm"
-          >
-            {seeding ? '데이터 꽂는 중...' : '🛠️ 테스트 데이터 80건 자동 생성'}
           </button>
         </div>
 
