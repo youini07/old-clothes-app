@@ -341,12 +341,12 @@ export default function DriverDashboard() {
       )}
       
       {/* Header */}
-      <div className="bg-white px-6 py-5 shadow-sm sticky top-0 z-20 flex justify-between items-center">
-        <div>
+      <div className="bg-white px-4 md:px-6 py-4 shadow-sm sticky top-0 z-20 flex flex-wrap justify-between items-center gap-y-3 gap-x-2">
+        <div className="shrink-0 mr-2">
           <h1 className="text-xl font-extrabold text-gray-900">{'오늘의 수거 동선 🚚'}</h1>
-          <p className="text-sm text-gray-500 mt-1">안전 운전하세요!</p>
+          <p className="text-sm text-gray-500 mt-0.5">안전 운전하세요!</p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {isLargeText ? (
             <button onClick={() => setIsLargeText(false)} className="px-2.5 py-2 bg-gray-200 text-gray-800 font-bold rounded-xl text-xs hover:bg-gray-300 transition-colors whitespace-nowrap flex-shrink-0">
               🔍 기본

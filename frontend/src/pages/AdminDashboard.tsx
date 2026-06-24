@@ -1137,15 +1137,15 @@ export default function AdminDashboard() {
                   onDrop={(e) => handleDrop(e, driver.id)}
                   onDragOver={handleDragOver}
                 >
-                  <div className="flex justify-between items-center mb-6 pb-4 border-b border-primary-200">
-                    <div className="flex flex-col">
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-lg font-extrabold text-gray-800">🚚 {driver.user?.name || driver.name}</h2>
-                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold">수정</button>
+                  <div className="flex justify-between items-start mb-6 pb-4 border-b border-primary-200 gap-2">
+                    <div className="flex flex-col flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-extrabold text-gray-800 break-keep">🚚 {driver.user?.name || driver.name}</h2>
+                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
                       </div>
                       {driver.customRegion ? (
-                        <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block">
-                          {driver.customRegion.name} ({driver.customRegion.areas.join(', ')})
+                        <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block break-keep leading-tight">
+                          {driver.customRegion.name} ({Array.from(new Set(driver.customRegion.areas.map(a => a.split(' ')[0]))).join(', ')})
                         </span>
                       ) : (
                         <span className="text-xs font-medium text-gray-400 mt-1.5 inline-block">할당된 권역 없음</span>
@@ -1156,7 +1156,7 @@ export default function AdminDashboard() {
                         </span>
                       )}
                     </div>
-                    <span className="bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1 rounded-full text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기중</span>
+                    <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm mt-1">{driverRequests.length}건 대기</span>
                   </div>
                   
                   <div className="flex-1 space-y-4">
