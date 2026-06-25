@@ -31,22 +31,19 @@ function Home() {
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6] flex items-center justify-center">
       
-      {/* 폰 형태의 컨테이너 (웹에서는 가운데 폰처럼 보이고, 모바일에서는 꽉 참) */}
-      <div className="relative w-full h-full sm:h-[850px] sm:max-h-[90vh] max-w-[450px] sm:rounded-[40px] sm:shadow-2xl overflow-hidden bg-white">
-        
-        {/* 1. 배경 화면 전체 채우기 */}
-        <div 
-          className="absolute inset-0 w-full h-full"
-          style={{
-            backgroundImage: 'url(/allclear-logo.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center center',
-            backgroundRepeat: 'no-repeat',
-          }}
-        />
+      {/* 1. 배경 화면 컨테이너 (웹에서는 가로로 늘어나지 않도록 세로 길이에 맞춤: contain) */}
+      <div 
+        className="absolute inset-0 w-full h-full"
+        style={{
+          backgroundImage: 'url(/allclear-logo.png)',
+          backgroundSize: 'contain', /* 가로 꽉채우기가 아닌 원본 비율 유지 */
+          backgroundPosition: 'center center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      />
 
-        {/* 2. 플로팅 버튼 컨테이너 */}
-        <div className="absolute inset-0 w-full h-full pointer-events-none flex flex-col justify-end pb-8">
+      {/* 2. 플로팅 버튼 컨테이너 (중앙 하단 정렬) */}
+      <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none flex flex-col justify-end pb-8">
           
           {/* 버튼 1: 카카오 로그인 */}
           <div className="px-8 pointer-events-auto mb-[85px]">
