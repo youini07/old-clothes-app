@@ -207,8 +207,8 @@ export default function SuperAdminDashboard() {
           <div className="flex space-x-4 items-center">
             <button 
               onClick={() => {
-                localStorage.removeItem('superadmin_token');
-                window.location.href = '/login';
+                localStorage.clear();
+                window.location.href = '/staff-login';
               }}
               className="flex items-center px-4 py-2 text-sm text-gray-500 bg-gray-100 font-bold rounded-xl hover:bg-gray-200 transition-all"
             >

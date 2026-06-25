@@ -191,7 +191,7 @@ export default function AdminDashboard() {
       setIsPasswordModalOpen(false);
       setPasswordForm({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
       localStorage.clear();
-      window.location.href = '/login';
+      window.location.href = '/staff-login';
     } catch (error: any) {
       alert(error.response?.data?.error || '비밀번호 변경 실패');
     }
@@ -844,8 +844,8 @@ export default function AdminDashboard() {
                 </button>
                 <button 
                   onClick={() => {
-                    localStorage.removeItem('admin_token');
-                    window.location.href = '/login';
+                    localStorage.clear();
+                    window.location.href = '/staff-login';
                   }}
                   className="flex-1 py-4 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all active:scale-95"
                 >

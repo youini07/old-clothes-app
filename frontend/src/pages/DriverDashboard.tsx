@@ -382,7 +382,7 @@ export default function DriverDashboard() {
             </div>
           )}
           {!authToken && <button onClick={handleDemoLogin} className="px-3 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-lg shadow-sm hover:bg-yellow-500 text-xs whitespace-nowrap flex-shrink-0">데모 로그인</button>}
-          <button onClick={() => { localStorage.removeItem('driver_token'); localStorage.removeItem('admin_token'); localStorage.removeItem('auth_token'); window.location.href = '/login'; }} className="flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all flex-shrink-0">
+          <button onClick={() => { localStorage.clear(); window.location.href = '/staff-login'; }} className="flex items-center justify-center w-8 h-8 text-gray-500 bg-gray-100 font-bold rounded-lg hover:bg-gray-200 transition-all flex-shrink-0">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
           </button>
         </div>
