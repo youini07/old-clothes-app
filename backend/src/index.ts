@@ -14,21 +14,8 @@ const app = express();
 const port = process.env.PORT || 5000;
 
 // CORS 설정 강화
-const allowedOrigins = [
-  'http://localhost:5173', // 로컬 웹 테스트
-  'http://127.0.0.1:5173',
-  process.env.FRONTEND_URL // 실제 운영 도메인
-].filter(Boolean);
-
 app.use(cors({
-  origin: function (origin, callback) {
-    // 모바일 앱 등 origin이 없는 요청이나 allowedOrigins에 포함된 경우 허용
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS 정책에 의해 차단되었습니다.'));
-    }
-  },
+  origin: true, // 임시로 모든 도메인 허용 (배포된 프론트엔드 도메인에서 접속 가능하도록)
   credentials: true
 }));
 
