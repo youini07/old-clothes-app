@@ -171,7 +171,7 @@ export default function CustomerDashboard() {
 
       alert('포장 사진이 업로드되었습니다.');
       // 리스트 갱신
-      fetchMyRequests(token || '');
+      fetchMyRequests(token || '', page);
     } catch (error) {
       console.error('사진 업로드 실패:', error);
       alert('사진 업로드 중 오류가 발생했습니다.');
