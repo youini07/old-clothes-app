@@ -31,36 +31,42 @@ function Home() {
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6] flex items-center justify-center">
       
-      {/* 1. 배경 화면 컨테이너 (웹에서는 가로로 늘어나지 않도록 세로 길이에 맞춤: contain) */}
-      <div 
-        className="absolute inset-0 w-full h-full"
-        style={{
-          backgroundImage: 'url(/allclear-logo.png)',
-          backgroundSize: 'contain', /* 가로 꽉채우기가 아닌 원본 비율 유지 */
-          backgroundPosition: 'center center',
-          backgroundRepeat: 'no-repeat',
-        }}
-      />
+      {/* 모바일 화면 크기의 중앙 컨테이너 */}
+      <div className="relative w-full max-w-[450px] h-full shadow-2xl flex flex-col justify-end pb-8">
+        
+        {/* 배경 이미지 */}
+        <div 
+          className="absolute inset-0 w-full h-full"
+          style={{
+            backgroundImage: 'url(/allclear-logo.png)',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+          }}
+        />
 
-      {/* 2. 플로팅 버튼 컨테이너 (중앙 하단 정렬) */}
-      <div className="absolute inset-0 w-full max-w-[450px] mx-auto pointer-events-none flex flex-col justify-end pb-8">
-          
-          {/* 버튼 1: 카카오 로그인 */}
-          <div className="px-8 pointer-events-auto mb-[85px]">
-            <a
-              href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
-              className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
-              style={{ background: '#FEE500' }}
-            >
-              <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-                <ellipse cx="11" cy="10" rx="9" ry="7.5" fill="#3C1E1E"/>
-                <path d="M6 14l1.5-3.5" stroke="#FEE500" strokeWidth="1.2" strokeLinecap="round"/>
-              </svg>
-              카카오로 3초만에 시작하기
-            </a>
-          </div>
-
+        {/* 카카오 로그인 버튼 */}
+        <div className="relative z-10 px-8 mb-[85px]">
+          <a
+            href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
+            className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
+            style={{ background: '#FEE500' }}
+          >
+            <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+              <ellipse cx="11" cy="10" rx="9" ry="7.5" fill="#3C1E1E"/>
+              <path d="M6 14l1.5-3.5" stroke="#FEE500" strokeWidth="1.2" strokeLinecap="round"/>
+            </svg>
+            카카오로 3초만에 시작하기
+          </a>
         </div>
+
+        {/* 사장님/기사님 로그인 링크 */}
+        <div className="relative z-10 text-center mb-[20px] pointer-events-auto">
+          <a href="/staff-login" onClick={(e) => { e.preventDefault(); navigate('/staff-login'); }} className="text-gray-500 text-sm font-medium hover:text-gray-700 underline underline-offset-2">
+            사장님 / 기사님 로그인
+          </a>
+        </div>
+      </div>
     </div>
   );
 }

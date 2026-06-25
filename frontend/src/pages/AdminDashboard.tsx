@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import AdminMapDispatch from '../components/AdminMapDispatch';
 
 interface RequestItem {
   id: string;
@@ -46,7 +47,7 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'dispatch' | 'stats' | 'settings'>('dispatch');
+  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean } | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -69,6 +70,9 @@ export default function AdminDashboard() {
   const [selectedUnassignedIds, setSelectedUnassignedIds] = useState<string[]>([]);
   const [selectedAssignedIds, setSelectedAssignedIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
+
+  // 지도 배정용 상태
+  const [selectedMapRequestIds, setSelectedMapRequestIds] = useState<string[]>([]);
 
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
@@ -671,6 +675,7 @@ export default function AdminDashboard() {
         {/* 탭 전환 */}
         <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
           <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차 관리</button>
+          <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도 배정</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산/통계</button>
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 환경 설정</button>
         </div>
@@ -857,6 +862,16 @@ export default function AdminDashboard() {
             </div>
 
           </div>
+        )}
+
+        {/* 지도 배정 뷰 */}
+        {activeView === 'mapDispatch' && (
+          <AdminMapDispatch 
+            requests={requests} 
+            drivers={drivers} 
+            onAssigned={() => fetchData(page)} 
+            authToken={authToken} 
+          />
         )}
 
         {/* 정산/통계 뷰 */}

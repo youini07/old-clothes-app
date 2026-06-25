@@ -560,6 +560,54 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
   }
 });
 
+// 3-1. 기사에게 수거 신청건 다중 일괄 배정 (지도 기반 등)
+router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  const { requestIds, driverId } = req.body;
+  if (!Array.isArray(requestIds) || requestIds.length === 0) {
+    return res.status(400).json({ error: '배정할 수거 건을 선택해주세요.' });
+  }
+
+  try {
+    const partnerId = req.user!.userId;
+
+    // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+    const requests = await prisma.request.findMany({
+      where: { id: { in: requestIds }, partnerId }
+    });
+
+    if (requests.length === 0) {
+      return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+    }
+
+    const validIds = requests.map(r => r.id);
+
+    // 각 요청에 대해 orderIndex를 순차적으로 부여 (전달된 requestIds 순서 기준)
+    const updatePromises = requestIds.map((id, index) => {
+      if (!validIds.includes(id)) return null;
+      return prisma.request.update({
+        where: { id },
+        data: {
+          driverId,
+          status: getStatusForAction.onDriverAssigned(),
+          orderIndex: index + 1
+        }
+      });
+    }).filter(Boolean);
+
+    await prisma.$transaction(updatePromises as any);
+
+    // 구글 시트 비동기 업데이트
+    validIds.forEach(id => {
+      updateRequestStatusInSheet(id, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
+    });
+
+    res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
+  } catch (error) {
+    console.error('일괄 기사 배정 에러:', error);
+    res.status(500).json({ error: '일괄 기사 배정 중 오류가 발생했습니다.' });
+  }
+});
+
 // 4. 배정 취소 (기사에게 배정한 수거건 다시 회수)
 router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { id } = req.params;

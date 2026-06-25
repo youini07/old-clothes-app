@@ -10,6 +10,7 @@ export default function RequestForm() {
   const [address, setAddress] = useState('');
   const [detailAddress, setDetailAddress] = useState('');
   const [zipCode, setZipCode] = useState('');
+  const [estimatedWeight, setEstimatedWeight] = useState('');
   const [estimatedVolume, setEstimatedVolume] = useState('');
   const [desiredDate, setDesiredDate] = useState('');
   const [regionInfo, setRegionInfo] = useState({ province: '', city: '', town: '' });
@@ -69,7 +70,7 @@ export default function RequestForm() {
         detailAddress,
         zipCode: zipCode || '00000',
         desiredDate,
-        estimatedVolume,
+        estimatedVolume: estimatedWeight ? `${estimatedWeight}kg - ${estimatedVolume}` : estimatedVolume,
         regionInfo
       }, {
         headers: token ? { Authorization: `Bearer ${token}` } : {}
@@ -175,13 +176,21 @@ export default function RequestForm() {
 
           {/* 예상 물품량 */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">예상 수거량</label>
+            <label className="block text-sm font-medium text-gray-700">대략적인 헌옷 무게 (kg)</label>
+            <input
+              type="number"
+              value={estimatedWeight}
+              onChange={(e) => setEstimatedWeight(e.target.value)}
+              placeholder="예: 20 (숫자만 입력)"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              required
+            />
+            <label className="block text-sm font-medium text-gray-700 mt-2">상세 품목 메모 (선택)</label>
             <textarea
               value={estimatedVolume}
               onChange={(e) => setEstimatedVolume(e.target.value)}
-              placeholder="예: 헌옷 10kg, 신발 2켤레 (대략적으로 적어주세요)"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none h-24 resize-none"
-              required
+              placeholder="예: 헌옷 외 신발 2켤레, 가방 1개 등 추가 메모"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none"
             ></textarea>
           </div>
 
