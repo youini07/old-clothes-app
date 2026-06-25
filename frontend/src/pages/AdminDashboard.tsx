@@ -341,22 +341,7 @@ export default function AdminDashboard() {
     }
   };
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, requestId: string) => {
-    e.dataTransfer.setData('requestId', requestId);
-  };
 
-  const handleDrop = async (e: React.DragEvent, targetDriverId: string | null) => {
-    e.preventDefault();
-    const requestId = e.dataTransfer.getData('requestId');
-    if (requestId) {
-      await assignDriver(requestId, targetDriverId);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // 드롭 허용
-  };
 
   // 권역 매칭 헬퍼 함수
   const matchesRegion = (req: RequestItem, areas: string[]) => {
@@ -616,8 +601,8 @@ export default function AdminDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-24">
+      <div className="w-full max-w-[1800px] mx-auto space-y-8">
         
         {/* Header Section */}
         <div className="glass p-6 md:p-8 rounded-3xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -625,7 +610,7 @@ export default function AdminDashboard() {
             <h1 className="text-2xl md:text-3xl font-extrabold text-gray-900">
               지역 파트너 <span className="text-gradient">배차 대시보드</span>
             </h1>
-            <p className="text-gray-500 mt-2 font-medium text-sm md:text-base">우리 지역에 접수된 수거 요청을 기사님들께 드래그 앤 드롭으로 배정하세요.</p>
+            <p className="text-gray-500 mt-2 font-medium text-sm md:text-base">우리 지역에 접수된 수거 요청을 체크하여 기사님들께 일괄 배정하세요.</p>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <a href="https://docs.google.com/spreadsheets/d/1hOwdwvhPIq2QAGWMNsSWXQXWa6MFUOYsp3gM8rr6ImY/edit" target="_blank" rel="noopener noreferrer" className="hidden md:flex px-4 py-2 bg-green-50 text-green-700 font-bold rounded-xl text-sm border border-green-200 hover:bg-green-100 transition-colors items-center gap-2">
@@ -960,8 +945,6 @@ export default function AdminDashboard() {
           {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
             className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto"
-            onDrop={(e) => handleDrop(e, null)}
-            onDragOver={handleDragOver}
           >
             {/* 권역별 탭 */}
             <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
@@ -1108,10 +1091,8 @@ export default function AdminDashboard() {
                 {unassignedRequests.map(req => (
                   <div 
                     key={req.id} 
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, req.id)}
                     onClick={() => setSelectedRequestIdForAssign(req.id)}
-                    className={`p-4 sm:p-5 border rounded-2xl shadow-sm cursor-pointer lg:cursor-grab active:cursor-grabbing transition-all flex items-start gap-3 ${
+                    className={`p-4 sm:p-5 border rounded-2xl shadow-sm cursor-pointer transition-all flex items-start gap-3 ${
                       selectedRequestIdForAssign === req.id ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200' : 
                       selectedUnassignedIds.includes(req.id) ? 'bg-gray-50 border-gray-400' : 'bg-white border-gray-200 hover:border-primary-400'
                     }`}
@@ -1174,8 +1155,6 @@ export default function AdminDashboard() {
                 <div 
                   key={driver.id} 
                   className="bg-gray-50/50 border border-gray-200 rounded-3xl p-6 min-h-[500px] flex flex-col shadow-sm"
-                  onDrop={(e) => handleDrop(e, driver.id)}
-                  onDragOver={handleDragOver}
                 >
                   <div className="flex justify-between items-start mb-6 pb-4 border-b border-primary-200 gap-2">
                     <div className="flex flex-col flex-1">
@@ -1238,9 +1217,7 @@ export default function AdminDashboard() {
                       driverRequests.map((req, index) => (
                         <div 
                           key={req.id} 
-                          draggable
-                          onDragStart={(e) => handleDragStart(e, req.id)}
-                          className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] cursor-grab active:cursor-grabbing transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
+                          className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
                         >
                           <div className="flex flex-col items-center gap-2 shrink-0">
                             <input
