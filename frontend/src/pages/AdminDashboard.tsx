@@ -654,6 +654,17 @@ export default function AdminDashboard() {
                 🏢 사장 모드
               </button>
             </div>
+            {/* 우측 상단 로그아웃 버튼 추가 */}
+            <button 
+              onClick={() => {
+                localStorage.clear();
+                window.location.href = '/staff-login';
+              }}
+              className="flex items-center justify-center px-4 py-2 text-sm text-red-500 bg-red-50 font-bold rounded-xl hover:bg-red-100 border border-red-100 transition-all shrink-0 ml-1"
+              title="로그아웃"
+            >
+              로그아웃
+            </button>
           </div>
         </div>
 
@@ -841,15 +852,6 @@ export default function AdminDashboard() {
                   className="flex-1 py-4 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all active:scale-95"
                 >
                   비밀번호 변경
-                </button>
-                <button 
-                  onClick={() => {
-                    localStorage.clear();
-                    window.location.href = '/staff-login';
-                  }}
-                  className="flex-1 py-4 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-all active:scale-95"
-                >
-                  로그아웃
                 </button>
               </div>
             </div>
