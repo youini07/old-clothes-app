@@ -7,6 +7,8 @@ export default function CustomerDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<{name: string, role: string} | null>(null);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   // Tab State
   const [activeTab, setActiveTab] = useState<'requests' | 'profile'>('requests');
@@ -33,16 +35,17 @@ export default function CustomerDashboard() {
       setUserInfo(JSON.parse(userStr));
     }
 
-    fetchMyRequests(token);
-    fetchMyProfile(token);
-  }, [navigate]);
+    fetchMyRequests(token, page);
+    if (page === 1) fetchMyProfile(token);
+  }, [navigate, page]);
 
-  const fetchMyRequests = async (token: string) => {
+  const fetchMyRequests = async (token: string, currentPage: number) => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/me`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/me?page=${currentPage}&limit=20`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRequests(res.data.requests);
+      setTotalPages(res.data.totalPages || 1);
     } catch (error) {
       console.error('내 신청내역 조회 에러:', error);
       alert('신청 내역을 불러오는데 실패했습니다.');
@@ -359,6 +362,29 @@ export default function CustomerDashboard() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {/* Pagination UI */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+                  <button
+                    disabled={page === 1}
+                    onClick={() => setPage(p => p - 1)}
+                    className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
+                  >
+                    이전
+                  </button>
+                  <span className="px-4 py-2 text-sm font-bold text-gray-900 bg-gray-100 rounded-xl">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    disabled={page === totalPages}
+                    onClick={() => setPage(p => p + 1)}
+                    className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
+                  >
+                    다음
+                  </button>
                 </div>
               )}
             </div>

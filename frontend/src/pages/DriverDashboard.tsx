@@ -88,10 +88,12 @@ export default function DriverDashboard() {
   const [scalePhoto, setScalePhoto] = useState<string | null>(null);
   const [extraPhoto, setExtraPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    if (authToken) { fetchDriverRequests(); } else { setLoading(false); }
-  }, [authToken]);
+    if (authToken) { fetchDriverRequests(page); } else { setLoading(false); }
+  }, [authToken, page]);
 
   const handleDemoLogin = async () => {
     try {
@@ -102,12 +104,13 @@ export default function DriverDashboard() {
     } catch { alert('데모 로그인 실패'); setLoading(false); }
   };
 
-  const fetchDriverRequests = async () => {
+  const fetchDriverRequests = async (currentPage = page) => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests`, {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&limit=50`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setRequests(res.data.requests || []);
+      setTotalPages(res.data.totalPages || 1);
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
         setAuthToken(null); localStorage.removeItem('driver_token');
@@ -493,6 +496,29 @@ export default function DriverDashboard() {
                   )}
                 </div>
               ))
+            )}
+
+            {/* Pagination UI */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-8 pb-12">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
+                >
+                  이전
+                </button>
+                <span className="px-4 py-2 text-sm font-bold text-gray-900 bg-gray-100 rounded-xl">
+                  {page} / {totalPages}
+                </span>
+                <button
+                  disabled={page === totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
+                >
+                  다음
+                </button>
+              </div>
             )}
           </div>
         </>

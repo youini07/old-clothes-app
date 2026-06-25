@@ -31,9 +31,9 @@ function Home() {
   return (
     <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6]">
       
-      {/* 1. 배경 화면 전체 채우기 */}
+      {/* 1. 배경 화면 전체 채우기 (웹에서는 폰 사이즈로 중앙 정렬) */}
       <div 
-        className="absolute inset-0 w-full h-full"
+        className="absolute inset-0 w-full max-w-[450px] mx-auto h-full shadow-2xl bg-white"
         style={{
           backgroundImage: 'url(/allclear-logo.png)',
           backgroundSize: 'cover',

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Loader2 } from 'lucide-react';
 
 export default function RequestForm() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ export default function RequestForm() {
   const [estimatedVolume, setEstimatedVolume] = useState('');
   const [desiredDate, setDesiredDate] = useState('');
   const [regionInfo, setRegionInfo] = useState({ province: '', city: '', town: '' });
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -55,6 +57,9 @@ export default function RequestForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLoading) return; // 중복 제출 방지
+    setIsLoading(true);
+
     try {
       const token = localStorage.getItem('auth_token');
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/requests`, {
@@ -74,12 +79,27 @@ export default function RequestForm() {
     } catch (error) {
       console.error(error);
       alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+      setIsLoading(false); // 에러 발생 시에만 로딩 해제 (성공 시 페이지 이동하므로 유지)
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 pb-20">
-      <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 space-y-8">
+    <>
+      {/* 로딩 오버레이 (Glassmorphism & Spinner) */}
+      {isLoading && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/40 backdrop-blur-sm transition-opacity">
+          <div className="flex flex-col items-center p-8 bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/50 animate-in fade-in zoom-in duration-300">
+            <Loader2 className="w-14 h-14 text-blue-600 animate-spin mb-5" />
+            <h3 className="text-xl font-bold text-gray-900 mb-2">수거 접수 중...</h3>
+            <p className="text-sm text-gray-500 text-center leading-relaxed">
+              고객님의 정보를 안전하게 저장하고<br/>최적의 수거 기사님을 찾고 있습니다.
+            </p>
+          </div>
+        </div>
+      )}
+
+      <div className="min-h-screen bg-gray-50 p-4 pb-20">
+        <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 space-y-8">
         <div>
           <button
             onClick={() => navigate('/status')}
@@ -180,12 +200,16 @@ export default function RequestForm() {
           {/* 제출 버튼 */}
           <button
             type="submit"
-            className="w-full py-4 text-lg font-bold text-white bg-blue-600 rounded-xl shadow-lg hover:bg-blue-700 active:scale-95 transition-all"
+            disabled={isLoading}
+            className={`w-full py-4 text-lg font-bold text-white rounded-xl shadow-lg transition-all ${
+              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+            }`}
           >
-            신청 완료하기
+            {isLoading ? '신청 처리 중...' : '신청 완료하기'}
           </button>
         </form>
       </div>
     </div>
+    </>
   );
 }

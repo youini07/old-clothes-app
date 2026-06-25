@@ -59,6 +59,10 @@ const router = express.Router();
 router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
     const userId = req.user!.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50; // 기사는 동선 정렬을 위해 기본 50건
+    const skip = (page - 1) * limit;
+
     // 기사 프로필 찾기
     const driverProfile = await prisma.driverProfile.findUnique({
       where: { userId }
@@ -68,12 +72,17 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
       return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
     }
 
+    const whereCondition = { driverId: driverProfile.id };
+    const totalCount = await prisma.request.count({ where: whereCondition });
     const requests = await prisma.request.findMany({
-      where: { driverId: driverProfile.id },
-      orderBy: { orderIndex: 'asc' } // 동선 순서대로 정렬
+      where: whereCondition,
+      orderBy: { orderIndex: 'asc' }, // 동선 순서대로 정렬
+      skip,
+      take: limit
     });
 
-    res.json({ requests });
+    const totalPages = Math.ceil(totalCount / limit);
+    res.json({ requests, totalPages, currentPage: page, totalCount });
   } catch (error) {
     res.status(500).json({ error: '수거 일정 조회 실패' });
   }

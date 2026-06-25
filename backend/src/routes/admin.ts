@@ -210,6 +210,9 @@ router.patch('/partners/:id/biz-message', authenticate, requireRole(['SUPER_ADMI
 router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
     const partnerId = req.user!.userId;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 20;
+    const skip = (page - 1) * limit;
     
     // 파트너가 담당하는 권역 정보 가져오기
     const coverages = await prisma.coverage.findMany({
@@ -218,54 +221,49 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
     });
 
     let requests;
+    let totalCount = 0;
 
     if (coverages.length === 0) {
       // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
+      const whereCondition = {
+        OR: [
+          { partnerId: null, status: 'PENDING' },
+          { partnerId: partnerId }
+        ]
+      };
+      
+      totalCount = await prisma.request.count({ where: whereCondition });
       requests = await prisma.request.findMany({
-        where: {
-          OR: [
-            { partnerId: null, status: 'PENDING' },   // 아직 아무도 수락하지 않은 건
-            { partnerId: partnerId }                    // 이미 본인이 수락한 건
-          ]
-        },
-        include: {
-          driver: { include: { user: true } }
-        },
-        orderBy: { createdAt: 'desc' }
+        where: whereCondition,
+        include: { driver: { include: { user: true } } },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
       });
     } else {
       // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 본인 배정 건
-      // 권역에서 city 목록 추출 (예: ['평택시', '안성시'])
       const cities = coverages.map((c: any) => c.region.city);
+      const cityFilters = cities.map((city: string) => ({ address: { contains: city } }));
       
-      // 모든 미배정 요청을 가져온 후, 주소에 해당 city가 포함된 것만 필터링
-      const allPending = await prisma.request.findMany({
-        where: { partnerId: null, status: 'PENDING' },
-        include: { driver: { include: { user: true } } },
-        orderBy: { createdAt: 'desc' }
-      });
-      
-      // 주소에서 시(city) 매칭 필터링
-      const matchedPending = allPending.filter((r: any) => {
-        return cities.some((city: string) => r.address.includes(city));
-      });
+      const whereCondition = {
+        OR: [
+          { partnerId: null, status: 'PENDING', OR: cityFilters },
+          { partnerId: partnerId }
+        ]
+      };
 
-      // 본인에게 이미 배정된 건도 포함
-      const myRequests = await prisma.request.findMany({
-        where: { partnerId: partnerId },
+      totalCount = await prisma.request.count({ where: whereCondition });
+      requests = await prisma.request.findMany({
+        where: whereCondition,
         include: { driver: { include: { user: true } } },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit
       });
-
-      // 중복 제거 후 합치기
-      const requestMap = new Map();
-      [...matchedPending, ...myRequests].forEach((r: any) => requestMap.set(r.id, r));
-      requests = Array.from(requestMap.values()).sort(
-        (a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
     }
     
-    res.json({ requests });
+    const totalPages = Math.ceil(totalCount / limit);
+    res.json({ requests, totalPages, currentPage: page, totalCount });
   } catch (error) {
     console.error('수거 신청 목록 조회 실패:', error);
     res.status(500).json({ error: '수거 신청 목록 조회 실패' });
