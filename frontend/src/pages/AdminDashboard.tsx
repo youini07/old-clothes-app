@@ -49,8 +49,7 @@ export default function AdminDashboard() {
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean } | null>(null);
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
@@ -89,7 +88,7 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (authToken) {
-      fetchData(page);
+      fetchData();
       if (page === 1) { // 1페이지일 때만 한 번 호출
         fetchStats();
         fetchSettings();
@@ -154,16 +153,15 @@ export default function AdminDashboard() {
   };
 
 
-  const fetchData = async (currentPage = page) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
       const [reqsRes, driversRes] = await Promise.all([
-        axios.get(`${import.meta.env.VITE_API_URL}/admin/requests?page=${currentPage}&limit=20`, { headers }),
+        axios.get(`${import.meta.env.VITE_API_URL}/admin/requests?limit=9999`, { headers }),
         axios.get(`${import.meta.env.VITE_API_URL}/admin/drivers`, { headers })
       ]);
       setRequests(reqsRes.data.requests || []);
-      setTotalPages(reqsRes.data.totalPages || 1);
       setDrivers(driversRes.data.drivers || []);
     } catch (error) {
       console.error('데이터 조회 실패:', error);
@@ -677,28 +675,7 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 환경 설정</button>
         </div>
 
-        {/* Pagination UI */}
-        {activeView === 'dispatch' && totalPages > 1 && (
-          <div className="flex justify-center items-center gap-2 mt-8 mb-12">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(p => p - 1)}
-              className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
-            >
-              이전
-            </button>
-            <span className="px-4 py-2 text-sm font-bold text-gray-900 bg-gray-100 rounded-xl">
-              {page} / {totalPages}
-            </span>
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
-            >
-              다음
-            </button>
-          </div>
-        )}
+        {/* Pagination UI removed */}
 
         {/* 환경 설정 뷰 */}
         {activeView === 'settings' && settings && (
@@ -866,7 +843,7 @@ export default function AdminDashboard() {
           <AdminMapDispatch 
             requests={requests} 
             drivers={drivers} 
-            onAssigned={() => fetchData(page)} 
+            onAssigned={() => fetchData()} 
             authToken={authToken} 
           />
         )}
@@ -982,7 +959,7 @@ export default function AdminDashboard() {
           
           {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
-            className="lg:col-span-1 bg-white rounded-3xl p-6 min-h-[500px] border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+            className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto"
             onDrop={(e) => handleDrop(e, null)}
             onDragOver={handleDragOver}
           >
