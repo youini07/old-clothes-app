@@ -103,15 +103,23 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
 router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const userId = req.user.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        const whereCondition = { customerId: userId };
+        const totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
         const requests = yield prisma_1.prisma.request.findMany({
-            where: { customerId: userId },
+            where: whereCondition,
             orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit,
             include: {
                 driver: { include: { user: true } },
                 partner: { select: { businessName: true, name: true, phone: true } }
             }
         });
-        res.json({ requests });
+        const totalPages = Math.ceil(totalCount / limit);
+        res.json({ requests, totalPages, currentPage: page, totalCount });
     }
     catch (error) {
         console.error('고객 신청 내역 조회 오류:', error);
@@ -121,10 +129,17 @@ router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0,
 // 관리자용 - 모든 신청 내역 조회 (인증 필수)
 router.get('/', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
+        const totalCount = yield prisma_1.prisma.request.count();
         const requests = yield prisma_1.prisma.request.findMany({
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            skip,
+            take: limit
         });
-        res.json({ requests });
+        const totalPages = Math.ceil(totalCount / limit);
+        res.json({ requests, totalPages, currentPage: page, totalCount });
     }
     catch (error) {
         res.status(500).json({ error: '목록 조회 실패' });

@@ -17,6 +17,7 @@ exports.updateRequestStatusInSheet = exports.addRequestToSheet = void 0;
 const google_spreadsheet_1 = require("google-spreadsheet");
 const google_auth_library_1 = require("google-auth-library");
 const dotenv_1 = __importDefault(require("dotenv"));
+const prisma_1 = require("../lib/prisma");
 dotenv_1.default.config();
 // Initialize auth - see https://theoephraim.github.io/node-google-spreadsheet/#/guides/authentication
 const serviceAccountAuth = new google_auth_library_1.JWT({
@@ -32,7 +33,7 @@ const addRequestToSheet = (requestData) => __awaiter(void 0, void 0, void 0, fun
         yield doc.loadInfo(); // 문서 로드
         const sheet = doc.sheetsByIndex[0]; // 첫 번째 시트 선택
         // 시트의 헤더(첫 번째 행)를 자동으로 설정합니다.
-        yield sheet.setHeaderRow(['ID', '신청인', '연락처', '기본주소', '상세주소', '희망일', '수거량', '상태', '신청일시', '실제수거무게(kg)', '특이사항']);
+        yield sheet.setHeaderRow(['ID', '신청인', '연락처', '기본주소', '상세주소', '희망일', '기사배정일시', '수거량', '상태', '신청일시', '실제수거무게(kg)', '정산금액(원)', '고객포장사진', '물품사진', '저울사진', '특이사항사진', '특이사항']);
         yield sheet.addRow({
             'ID': requestData.id,
             '신청인': requestData.userName,
@@ -60,13 +61,29 @@ const updateRequestStatusInSheet = (requestId, status, actualWeight, driverNote)
         const rows = yield sheet.getRows();
         const targetRow = rows.find(row => row.get('ID') === requestId);
         if (targetRow) {
-            targetRow.assign({
-                '상태': status,
-            });
-            if (actualWeight !== undefined)
-                targetRow.assign({ '실제수거무게(kg)': actualWeight.toString() });
-            if (driverNote !== undefined)
-                targetRow.assign({ '특이사항': driverNote });
+            const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id: requestId } });
+            if (existingRequest) {
+                targetRow.assign({
+                    '상태': status,
+                    '기사배정일시': existingRequest.confirmedDate ? existingRequest.confirmedDate.toLocaleString('ko-KR') : '',
+                    '실제수거무게(kg)': existingRequest.actualWeight ? existingRequest.actualWeight.toString() : (actualWeight ? actualWeight.toString() : ''),
+                    '정산금액(원)': existingRequest.totalPrice ? existingRequest.totalPrice.toString() : '',
+                    '고객포장사진': existingRequest.customerPackedPhotoUrl || '',
+                    '물품사진': existingRequest.itemPhotoUrl || '',
+                    '저울사진': existingRequest.scalePhotoUrl || '',
+                    '특이사항사진': existingRequest.extraPhotoUrl || '',
+                    '특이사항': driverNote || existingRequest.driverNote || ''
+                });
+            }
+            else {
+                targetRow.assign({
+                    '상태': status,
+                });
+                if (actualWeight !== undefined)
+                    targetRow.assign({ '실제수거무게(kg)': actualWeight.toString() });
+                if (driverNote !== undefined)
+                    targetRow.assign({ '특이사항': driverNote });
+            }
             yield targetRow.save();
             console.log(`✅ 구글 시트 데이터 업데이트 성공 (ID: ${requestId})`);
         }

@@ -1,6 +1,12 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { MapPin, CheckSquare, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+
+declare global {
+  interface Window {
+    kakao: any;
+  }
+}
 
 function extractKg(volumeStr: string): number {
   if (!volumeStr) return 0;
@@ -66,6 +72,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
   useEffect(() => {
     const unassigned = requests.filter(r => r.status === 'ASSIGNED' && !r.driverId);
     setUnassignedRequests(unassigned);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [requests]);
 
   // 카카오맵 스크립트 로드 확인
@@ -118,7 +125,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     let boundsExtended = false;
     let loadedCount = 0;
 
-    unassignedRequests.forEach((req, index) => {
+    unassignedRequests.forEach((req) => {
       // 이미 좌표가 있다면
       if (req.lat && req.lng) {
         createMarker(req, req.lat, req.lng);
@@ -140,7 +147,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       }
     });
 
-    function createMarker(req: RequestItem, lat: number, lng: number) {
+    function createMarker(req: RequestItem & { lat?: number; lng?: number; marker?: any }, lat: number, lng: number) {
       const position = new window.kakao.maps.LatLng(lat, lng);
       
       const isSelected = selectedIds.includes(req.id);
@@ -148,14 +155,20 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
 
       const estimatedKg = extractKg(req.estimatedVolume);
       
+      const markerBg = isSelected ? 'bg-orange-500' : 'bg-white';
+      const markerBorder = isSelected ? 'border-white' : 'border-orange-500';
+      const markerText = isSelected ? 'text-white' : 'text-orange-600';
+      const pointerBg = isSelected ? 'bg-orange-500' : 'bg-white';
+      const pointerBorder = isSelected ? 'border-white' : 'border-orange-500';
+
       // 커스텀 오버레이 내용 구성
       const content = document.createElement('div');
       content.className = `relative cursor-pointer transform hover:scale-110 transition-transform flex flex-col items-center ${isSelected ? 'z-50' : 'z-10'}`;
       content.innerHTML = `
-        <div class="flex items-center justify-center w-8 h-8 rounded-full shadow-lg border-2 ${isSelected ? 'bg-orange-500 border-white text-white' : 'bg-white border-orange-500 text-orange-600'}">
+        <div class="flex items-center justify-center w-8 h-8 rounded-full shadow-lg border-2 ${markerBg} ${markerBorder} ${markerText}">
           <span class="text-sm font-bold">${isSelected ? orderIndex : '?'}</span>
         </div>
-        <div class="w-2 h-2 bg-${isSelected ? 'orange-500' : 'white'} rotate-45 border-r-2 border-b-2 border-${isSelected ? 'white' : 'orange-500'} -mt-1 z-0"></div>
+        <div class="w-2 h-2 ${pointerBg} rotate-45 border-r-2 border-b-2 ${pointerBorder} -mt-1 z-0"></div>
         <div class="mt-0.5 px-1.5 py-0.5 bg-white/90 backdrop-blur-sm rounded text-[10px] font-bold text-gray-700 shadow-sm border border-gray-100 whitespace-nowrap">
           ${estimatedKg > 0 ? estimatedKg + 'kg' : req.estimatedVolume || '무게 미상'}
         </div>
@@ -280,6 +293,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
           </button>
         </div>
 
+        <div className="border-t border-gray-200 pt-4">
           <div className="mb-2 flex justify-between items-center">
             <span className="text-sm font-bold text-gray-700">선택됨</span>
             <span className="text-lg font-black text-orange-600">{selectedIds.length}건</span>
@@ -303,7 +317,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
                 )}
                 {totalEstimatedKg < 800 && totalEstimatedKg > 0 && (
                   <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2">
-                    <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: \`\${Math.min((totalEstimatedKg / 800) * 100, 100)}%\` }}></div>
+                    <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: `${Math.min((totalEstimatedKg / 800) * 100, 100)}%` }}></div>
                   </div>
                 )}
               </div>

@@ -71,9 +71,6 @@ export default function AdminDashboard() {
   const [selectedAssignedIds, setSelectedAssignedIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
 
-  // 지도 배정용 상태
-  const [selectedMapRequestIds, setSelectedMapRequestIds] = useState<string[]>([]);
-
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
 

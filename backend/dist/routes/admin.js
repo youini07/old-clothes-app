@@ -19,6 +19,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const statusService_1 = require("../services/statusService");
 const notificationService_1 = require("../services/notificationService");
+const googleSheets_1 = require("../services/googleSheets");
 const router = express_1.default.Router();
 // ==========================================
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
@@ -203,53 +204,54 @@ router.patch('/partners/:id/biz-message', authMiddleware_1.authenticate, (0, aut
 router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const partnerId = req.user.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
         // 파트너가 담당하는 권역 정보 가져오기
         const coverages = yield prisma_1.prisma.coverage.findMany({
             where: { partnerId },
             include: { region: true }
         });
         let requests;
+        let totalCount = 0;
         if (coverages.length === 0) {
             // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
+            const whereCondition = {
+                OR: [
+                    { partnerId: null, status: 'PENDING' },
+                    { partnerId: partnerId }
+                ]
+            };
+            totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             requests = yield prisma_1.prisma.request.findMany({
-                where: {
-                    OR: [
-                        { partnerId: null, status: 'PENDING' }, // 아직 아무도 수락하지 않은 건
-                        { partnerId: partnerId } // 이미 본인이 수락한 건
-                    ]
-                },
-                include: {
-                    driver: { include: { user: true } }
-                },
-                orderBy: { createdAt: 'desc' }
+                where: whereCondition,
+                include: { driver: { include: { user: true } } },
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
             });
         }
         else {
             // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 본인 배정 건
-            // 권역에서 city 목록 추출 (예: ['평택시', '안성시'])
             const cities = coverages.map((c) => c.region.city);
-            // 모든 미배정 요청을 가져온 후, 주소에 해당 city가 포함된 것만 필터링
-            const allPending = yield prisma_1.prisma.request.findMany({
-                where: { partnerId: null, status: 'PENDING' },
+            const cityFilters = cities.map((city) => ({ address: { contains: city } }));
+            const whereCondition = {
+                OR: [
+                    { partnerId: null, status: 'PENDING', OR: cityFilters },
+                    { partnerId: partnerId }
+                ]
+            };
+            totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
+            requests = yield prisma_1.prisma.request.findMany({
+                where: whereCondition,
                 include: { driver: { include: { user: true } } },
-                orderBy: { createdAt: 'desc' }
+                orderBy: { createdAt: 'desc' },
+                skip,
+                take: limit
             });
-            // 주소에서 시(city) 매칭 필터링
-            const matchedPending = allPending.filter((r) => {
-                return cities.some((city) => r.address.includes(city));
-            });
-            // 본인에게 이미 배정된 건도 포함
-            const myRequests = yield prisma_1.prisma.request.findMany({
-                where: { partnerId: partnerId },
-                include: { driver: { include: { user: true } } },
-                orderBy: { createdAt: 'desc' }
-            });
-            // 중복 제거 후 합치기
-            const requestMap = new Map();
-            [...matchedPending, ...myRequests].forEach((r) => requestMap.set(r.id, r));
-            requests = Array.from(requestMap.values()).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         }
-        res.json({ requests });
+        const totalPages = Math.ceil(totalCount / limit);
+        res.json({ requests, totalPages, currentPage: page, totalCount });
     }
     catch (error) {
         console.error('수거 신청 목록 조회 실패:', error);
@@ -284,6 +286,8 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
             },
             include: { partner: true }
         });
+        // 구글 시트 상태 연동
+        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         // 업체 배정 안내 알림톡 발송 (비동기)
         if (updated.partner && updated.partner.useBizMessage) {
             (0, notificationService_1.sendAssignmentToCustomer)(updated.phone, updated.userName, updated.partner.businessName || updated.partner.name, updated.partner.useBizMessage).catch(err => console.error('배정 안내 알림톡 전송 실패:', err));
@@ -324,6 +328,8 @@ router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMidd
                 status: 'PENDING'
             }
         });
+        // 구글 시트 상태 연동
+        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'PENDING').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         res.json({ message: '수락이 취소되었습니다.', request: updated });
     }
     catch (error) {
@@ -478,6 +484,8 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
             },
             include: { partner: true }
         });
+        // 구글 시트 상태 연동
+        (0, googleSheets_1.updateRequestStatusInSheet)(requestId, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         // 일정 확정 안내 알림톡 발송 (비동기)
         if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
             let driverPhone = undefined;
@@ -493,6 +501,47 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
     }
     catch (error) {
         res.status(500).json({ error: '기사 배정 실패' });
+    }
+}));
+// 3-1. 기사에게 수거 신청건 다중 일괄 배정 (지도 기반 등)
+router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { requestIds, driverId } = req.body;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+        return res.status(400).json({ error: '배정할 수거 건을 선택해주세요.' });
+    }
+    try {
+        const partnerId = req.user.userId;
+        // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: { id: { in: requestIds }, partnerId }
+        });
+        if (requests.length === 0) {
+            return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+        }
+        const validIds = requests.map(r => r.id);
+        // 각 요청에 대해 orderIndex를 순차적으로 부여 (전달된 requestIds 순서 기준)
+        const updatePromises = requestIds.map((id, index) => {
+            if (!validIds.includes(id))
+                return null;
+            return prisma_1.prisma.request.update({
+                where: { id },
+                data: {
+                    driverId,
+                    status: statusService_1.getStatusForAction.onDriverAssigned(),
+                    orderIndex: index + 1
+                }
+            });
+        }).filter(Boolean);
+        yield prisma_1.prisma.$transaction(updatePromises);
+        // 구글 시트 비동기 업데이트
+        validIds.forEach(id => {
+            (0, googleSheets_1.updateRequestStatusInSheet)(id, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
+        });
+        res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
+    }
+    catch (error) {
+        console.error('일괄 기사 배정 에러:', error);
+        res.status(500).json({ error: '일괄 기사 배정 중 오류가 발생했습니다.' });
     }
 }));
 // 4. 배정 취소 (기사에게 배정한 수거건 다시 회수)
@@ -514,11 +563,49 @@ router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMid
                 etaMinutes: null
             }
         });
+        // 구글 시트 상태 연동
+        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
     }
     catch (error) {
         console.error('배정 취소 에러:', error);
         res.status(500).json({ error: '배정 취소 중 오류가 발생했습니다.' });
+    }
+}));
+// 4-1. 일괄 배정 취소
+router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ error: '취소할 수거 건을 선택해주세요.' });
+    }
+    try {
+        const partnerId = req.user.userId;
+        // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: { id: { in: ids }, partnerId }
+        });
+        if (requests.length === 0) {
+            return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+        }
+        const validIds = requests.map(r => r.id);
+        const updatedResult = yield prisma_1.prisma.request.updateMany({
+            where: { id: { in: validIds } },
+            data: {
+                driverId: null,
+                status: 'ASSIGNED',
+                confirmedDate: null,
+                etaMinutes: null
+            }
+        });
+        // 구글 시트 비동기 업데이트 (각각 실행)
+        validIds.forEach(id => {
+            (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패:', err));
+        });
+        res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
+    }
+    catch (error) {
+        console.error('일괄 배정 취소 에러:', error);
+        res.status(500).json({ error: '일괄 배정 취소 중 오류가 발생했습니다.' });
     }
 }));
 // 5. 사장님 본인을 기사로 자동 등록 (원클릭)
