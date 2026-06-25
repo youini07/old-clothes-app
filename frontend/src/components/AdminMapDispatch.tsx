@@ -112,6 +112,18 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
         disableClickZoom: true
       });
       clustererRef.current = clusterer;
+
+      // 클러스터 클릭 시 포함된 마커들 모두 선택
+      window.kakao.maps.event.addListener(clusterer, 'clusterclick', function(cluster: any) {
+        const markers = cluster.getMarkers();
+        const newIds = markers.map((m: any) => m.requestId).filter(Boolean);
+        
+        setSelectedIds(prev => {
+          const prevSet = new Set(prev);
+          newIds.forEach((id: string) => prevSet.add(id));
+          return Array.from(prevSet);
+        });
+      });
     }
 
     const map = mapRef.current;
@@ -165,11 +177,11 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       const content = document.createElement('div');
       content.className = `relative cursor-pointer transform hover:scale-110 transition-transform flex flex-col items-center ${isSelected ? 'z-50' : 'z-10'}`;
       content.innerHTML = `
-        <div class="flex items-center justify-center w-8 h-8 rounded-full shadow-lg border-2 ${markerBg} ${markerBorder} ${markerText}">
-          <span class="text-sm font-bold">${isSelected ? orderIndex : '?'}</span>
+        <div class="flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 ${markerBg} ${markerBorder} ${markerText}">
+          <span class="text-xl font-black">${isSelected ? orderIndex : '?'}</span>
         </div>
-        <div class="w-2 h-2 ${pointerBg} rotate-45 border-r-2 border-b-2 ${pointerBorder} -mt-1 z-0"></div>
-        <div class="mt-0.5 px-1.5 py-0.5 bg-white/90 backdrop-blur-sm rounded text-[10px] font-bold text-gray-700 shadow-sm border border-gray-100 whitespace-nowrap">
+        <div class="w-3 h-3 ${pointerBg} rotate-45 border-r-4 border-b-4 ${pointerBorder} -mt-1.5 z-0"></div>
+        <div class="mt-1 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-lg text-xs font-extrabold text-gray-800 shadow-lg border-2 border-gray-200 whitespace-nowrap">
           ${estimatedKg > 0 ? estimatedKg + 'kg' : req.estimatedVolume || '무게 미상'}
         </div>
       `;
@@ -190,6 +202,9 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
         content: content,
         yAnchor: 1
       });
+      
+      // 클러스터 클릭 시 ID를 가져오기 위해 커스텀 프로퍼티 추가
+      (customOverlay as any).requestId = req.id;
 
       customOverlay.setMap(map);
       req.marker = customOverlay; // 나중에 지우기 위해 참조 저장
