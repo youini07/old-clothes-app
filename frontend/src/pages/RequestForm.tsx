@@ -210,10 +210,11 @@ export default function RequestForm() {
           <button
             type="submit"
             disabled={isLoading}
-            className={`w-full py-4 text-lg font-bold text-white rounded-xl shadow-lg transition-all ${
+            className={`w-full flex justify-center items-center gap-2 py-4 text-lg font-bold text-white rounded-xl shadow-lg transition-all ${
               isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
             }`}
           >
+            {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
             {isLoading ? '신청 처리 중...' : '신청 완료하기'}
           </button>
         </form>

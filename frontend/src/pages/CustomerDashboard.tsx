@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-
+import Spinner from '../components/Spinner';
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
@@ -212,7 +212,12 @@ export default function CustomerDashboard() {
   };
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center">로딩중...</div>;
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50">
+        <Spinner className="w-10 h-10 text-blue-600 mb-4" />
+        <p className="text-gray-500 font-medium">데이터를 불러오는 중입니다...</p>
+      </div>
+    );
   }
 
   return (
@@ -323,7 +328,8 @@ export default function CustomerDashboard() {
                               </label>
                             </div>
                           ) : (
-                            <label className={`block w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition-colors ${uploadingReqId === req.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                            <label className={`block w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 ${uploadingReqId === req.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                              {uploadingReqId === req.id && <Spinner className="w-4 h-4 text-gray-500" />}
                               <span className="text-sm font-bold text-gray-500">
                                 {uploadingReqId === req.id ? '업로드 중...' : '📷 사진 촬영 또는 앨범 선택'}
                               </span>
@@ -455,10 +461,11 @@ export default function CustomerDashboard() {
                 <button
                   type="submit"
                   disabled={savingProfile}
-                  className={`w-full py-4 text-lg font-bold text-white rounded-xl shadow-md transition-all ${
+                  className={`w-full flex items-center justify-center gap-2 py-4 text-lg font-bold text-white rounded-xl shadow-md transition-all ${
                     savingProfile ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
                   }`}
                 >
+                  {savingProfile && <Spinner className="w-5 h-5 text-white" />}
                   {savingProfile ? '저장 중...' : '정보 저장하기'}
                 </button>
               </div>

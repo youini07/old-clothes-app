@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminMapDispatch from '../components/AdminMapDispatch';
+import Spinner from '../components/Spinner';
 
 interface RequestItem {
   id: string;
@@ -58,6 +59,7 @@ export default function AdminDashboard() {
   const [customRegions, setCustomRegions] = useState<CustomRegion[]>([]);
   const [newRegionForm, setNewRegionForm] = useState<{ name: string; selectedAreas: string[]; exceptions: Record<string, string> }>({ name: '', selectedAreas: [], exceptions: {} });
   const [isAddingRegion, setIsAddingRegion] = useState(false);
+  const [deletingRegionId, setDeletingRegionId] = useState<string | null>(null);
 
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
@@ -285,6 +287,7 @@ export default function AdminDashboard() {
 
   const handleDeleteRegion = async (id: string) => {
     if (!confirm('정말 이 권역을 삭제하시겠습니까? 할당된 기사님들의 권역이 해제됩니다.')) return;
+    setDeletingRegionId(id);
     try {
       await axios.delete(`${import.meta.env.VITE_API_URL}/admin/custom-regions/${id}`, {
         headers: { Authorization: `Bearer ${authToken}` }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import MapRegionSelector from '../components/MapRegionSelector';
+import Spinner from '../components/Spinner';
 
 interface Partner {
   id: string;
@@ -16,6 +17,7 @@ export default function SuperAdminDashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('superadmin_token'));
+  const [deletingRegionId, setDeletingRegionId] = useState<string | null>(null);
 
   // 파트너 등록 모달 상태
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,6 +123,7 @@ export default function SuperAdminDashboard() {
   const handleDeleteRegion = async (regionId: string) => {
     if (!authToken || !selectedPartnerForRegion) return;
     if (!window.confirm('해당 권역을 삭제하시겠습니까?')) return;
+    setDeletingRegionId(regionId);
 
     try {
       await axios.delete(`${import.meta.env.VITE_API_URL}/admin/partners/${selectedPartnerForRegion.id}/coverage/${regionId}`, {
@@ -140,6 +143,8 @@ export default function SuperAdminDashboard() {
     } catch (error) {
       console.error(error);
       alert('권역 삭제 중 오류가 발생했습니다.');
+    } finally {
+      setDeletingRegionId(null);
     }
   };
 
@@ -524,10 +529,11 @@ export default function SuperAdminDashboard() {
                       </span>
                       <button 
                         onClick={() => handleDeleteRegion(r.regionId)}
-                        className="px-3 py-2 bg-blue-100 hover:bg-red-500 hover:text-white transition-colors text-blue-900 font-bold"
-                        title="권역 삭제"
+                        disabled={deletingRegionId === r.regionId}
+                        className="text-red-500 hover:text-red-700 text-sm font-bold flex items-center gap-1 disabled:opacity-50 px-3 py-2 bg-blue-100 transition-colors"
                       >
-                        ✕
+                        {deletingRegionId === r.regionId && <Spinner className="w-3 h-3 text-red-500" />}
+                        {deletingRegionId === r.regionId ? '삭제중' : '✕'}
                       </button>
                     </div>
                   ))

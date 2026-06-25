@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DriverMap from '../components/DriverMap';
+import Spinner from '../components/Spinner';
 
 interface RequestItem {
   id: string;
@@ -20,6 +21,7 @@ interface RequestItem {
 const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   const [profile, setProfile] = useState({ name: '', phone: '', vehicleInfo: '' });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { fetchProfile(); }, []);
 
@@ -36,10 +38,12 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   };
 
   const handleSave = async () => {
+    setSaving(true);
     try {
       await axios.patch(`${import.meta.env.VITE_API_URL}/driver/me`, profile, { headers: { Authorization: `Bearer ${authToken}` } });
       alert('프로필이 성공적으로 업데이트되었습니다.');
     } catch { alert('프로필 수정 중 오류가 발생했습니다.'); }
+    finally { setSaving(false); }
   };
 
   if (loading) return <div className="text-center py-10 text-gray-500">불러오는 중...</div>;
@@ -59,8 +63,9 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
         <label className="block text-sm font-bold text-gray-700 mb-2">차량 정보</label>
         <input type="text" value={profile.vehicleInfo} onChange={e => setProfile({ ...profile, vehicleInfo: e.target.value })} placeholder="예: 1톤 탑차 (12가 3456)" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
       </div>
-      <button onClick={handleSave} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl mt-4 active:scale-95 transition-transform shadow-md">
-        저장하기
+      <button onClick={handleSave} disabled={saving} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-xl mt-4 active:scale-95 transition-transform shadow-md disabled:opacity-50">
+        {saving && <Spinner className="w-5 h-5 text-white" />}
+        {saving ? '저장 중...' : '저장하기'}
       </button>
     </div>
   );
@@ -600,7 +605,8 @@ export default function DriverDashboard() {
                 </div>
                 <div className="flex gap-3">
                   <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">{'<'} 이전</button>
-                  <button type="button" onClick={submitComplete} disabled={submitting} className={`flex-1 py-3 font-bold rounded-xl ${submitting ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white shadow-lg'}`}>
+                  <button type="button" onClick={submitComplete} disabled={submitting} className={`flex flex-1 items-center justify-center gap-2 py-3 font-bold rounded-xl ${submitting ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white shadow-lg'}`}>
+                    {submitting && <Spinner className="w-5 h-5 text-current" />}
                     {submitting ? '처리 중...' : '수거 완료!'}
                   </button>
                 </div>
