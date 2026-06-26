@@ -442,7 +442,7 @@ export default function DriverDashboard() {
                 <p className="text-gray-500 font-medium">해당하는 수거 건이 없습니다.</p>
               </div>
             ) : (
-              filteredRequests.map((req, index) => (
+              filteredRequests.map((req) => (
                 <div key={req.id} className="bg-white p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-100 relative mb-4">
                   {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-9 h-9 flex items-center justify-center rounded-br-2xl rounded-tl-3xl font-extrabold">{req.displayId}</div>}
                   <div className="ml-6">
