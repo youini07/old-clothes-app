@@ -283,86 +283,115 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       {/* 맵 컨테이너 */}
       <div id="admin-dispatch-map" className="w-full h-full bg-gray-100 z-0"></div>
 
-      {/* 우측 상단 컨트롤 패널 (모바일 최적화) */}
-      <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 bg-white/95 backdrop-blur-md p-3 sm:p-4 rounded-2xl shadow-lg border border-gray-100 z-10 w-auto sm:w-80 max-h-[45vh] sm:max-h-[80vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-2 sm:mb-4">
-          <h3 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2">
-            <MapPin className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-            지도 배정
-          </h3>
-          <p className="text-xs sm:text-sm text-gray-600">
-            미배정: <strong className="text-orange-600">{unassignedRequests.length}</strong>건
-          </p>
-        </div>
+      {/* 우측 상단 컨트롤 패널 (모바일 극강 최적화) */}
+      <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 bg-white/95 backdrop-blur-md p-2 sm:p-4 rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 z-10 w-auto sm:w-80 max-h-[35vh] sm:max-h-[80vh] overflow-y-auto">
         
-        <div className="flex gap-2 mb-2 sm:mb-4">
-          <button 
-            onClick={handleSelectAll}
-            className="flex-1 text-[11px] sm:text-xs font-bold py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-200 flex items-center justify-center gap-1"
-          >
-            <CheckSquare className="w-3 h-3" /> 전체 선택
-          </button>
-          <button 
-            onClick={handleClearSelection}
-            className="flex-1 text-[11px] sm:text-xs font-bold py-1.5 sm:py-2 bg-gray-100 text-gray-700 rounded-lg sm:rounded-xl hover:bg-gray-200 flex items-center justify-center gap-1"
-          >
-            <Trash2 className="w-3 h-3" /> 선택 해제
-          </button>
+        {/* 상단: 타이틀 및 기본 버튼 */}
+        <div className="flex flex-col sm:flex-col gap-1.5 sm:gap-4 mb-1 sm:mb-4">
+          <div className="flex justify-between items-center">
+            {/* 데스크탑 타이틀 */}
+            <h3 className="hidden sm:flex text-lg font-bold text-gray-900 items-center gap-2">
+              <MapPin className="w-5 h-5 text-orange-500" />
+              지도 배정
+            </h3>
+            {/* 데스크탑 미배정 건수 */}
+            <p className="hidden sm:block text-sm text-gray-600">
+              미배정: <strong className="text-orange-600">{unassignedRequests.length}</strong>건
+            </p>
+
+            {/* 모바일 타이틀 + 미배정 건수 */}
+            <div className="sm:hidden flex items-center gap-1 text-[11px] font-bold text-gray-800">
+              <MapPin className="w-3 h-3 text-orange-500" />
+              미배정 <span className="text-orange-600">{unassignedRequests.length}</span>건
+            </div>
+            
+            {/* 모바일 전체선택/해제 버튼 */}
+            <div className="flex sm:hidden gap-1">
+              <button onClick={handleSelectAll} className="px-2 py-1 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-lg border border-gray-200 active:bg-gray-200">
+                전체선택
+              </button>
+              <button onClick={handleClearSelection} className="px-2 py-1 bg-gray-100 text-gray-700 text-[10px] font-bold rounded-lg border border-gray-200 active:bg-gray-200">
+                선택해제
+              </button>
+            </div>
+          </div>
+          
+          {/* 데스크탑 전체선택/해제 버튼 */}
+          <div className="hidden sm:flex gap-2">
+            <button onClick={handleSelectAll} className="flex-1 text-xs font-bold py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 flex items-center justify-center gap-1">
+              <CheckSquare className="w-3 h-3" /> 전체 선택
+            </button>
+            <button onClick={handleClearSelection} className="flex-1 text-xs font-bold py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 flex items-center justify-center gap-1">
+              <Trash2 className="w-3 h-3" /> 선택 해제
+            </button>
+          </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-2 sm:pt-4">
-          <div className="mb-2 flex justify-between items-center">
-            <span className="text-xs sm:text-sm font-bold text-gray-700">선택됨</span>
-            <span className="text-base sm:text-lg font-black text-orange-600">{selectedIds.length}건</span>
-          </div>
+        {selectedIds.length > 0 && (
+          <div className="border-t border-gray-200 pt-1.5 sm:pt-4">
+            {/* 데스크탑 선택됨 건수 */}
+            <div className="hidden sm:flex mb-2 justify-between items-center">
+              <span className="text-sm font-bold text-gray-700">선택됨</span>
+              <span className="text-lg font-black text-orange-600">{selectedIds.length}건</span>
+            </div>
 
-          {selectedIds.length > 0 && (
-            <div className="mb-2 sm:mb-4 space-y-2 sm:space-y-3">
+            <div className="space-y-1.5 sm:space-y-3">
               {/* 예상 무게 요약 */}
-              <div className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border ${totalEstimatedKg >= 800 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
-                <div className="flex justify-between items-center mb-0.5 sm:mb-1">
-                  <span className="text-[10px] sm:text-xs font-bold text-gray-600">총 예상 무게</span>
-                  <span className={`text-xs sm:text-sm font-black ${totalEstimatedKg >= 800 ? 'text-red-600' : 'text-gray-800'}`}>
+              <div className={`p-1.5 sm:p-3 rounded-lg sm:rounded-xl border flex sm:block items-center justify-between ${totalEstimatedKg >= 800 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                {/* 모바일 텍스트 */}
+                <div className="sm:hidden text-[10px] font-bold text-gray-700">
+                  선택: <span className="text-orange-600">{selectedIds.length}</span>건 (약 {totalEstimatedKg}kg)
+                </div>
+                
+                {/* 데스크탑 텍스트 */}
+                <div className="hidden sm:flex justify-between items-center mb-1 w-full">
+                  <span className="text-xs font-bold text-gray-600">총 예상 무게</span>
+                  <span className={`text-sm font-black ${totalEstimatedKg >= 800 ? 'text-red-600' : 'text-gray-800'}`}>
                     약 {totalEstimatedKg}kg
                   </span>
                 </div>
+                
                 {totalEstimatedKg >= 800 && (
-                  <div className="flex items-center gap-1 text-[10px] sm:text-[11px] font-bold text-red-500 mt-1">
-                    <AlertTriangle className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                  <div className="hidden sm:flex items-center gap-1 text-[11px] font-bold text-red-500 mt-1">
+                    <AlertTriangle className="w-3 h-3" />
                     <span>권장 적재량(800kg) 초과 예상!</span>
                   </div>
                 )}
                 {totalEstimatedKg < 800 && totalEstimatedKg > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-1 sm:h-1.5 mt-1.5 sm:mt-2">
-                    <div className="bg-orange-400 h-1 sm:h-1.5 rounded-full" style={{ width: `${Math.min((totalEstimatedKg / 800) * 100, 100)}%` }}></div>
+                  <div className="hidden sm:block w-full bg-gray-200 rounded-full h-1.5 mt-2">
+                    <div className="bg-orange-400 h-1.5 rounded-full" style={{ width: `${Math.min((totalEstimatedKg / 800) * 100, 100)}%` }}></div>
                   </div>
                 )}
               </div>
-              <select
-                value={selectedDriverId}
-                onChange={(e) => setSelectedDriverId(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-lg sm:rounded-xl py-1.5 sm:py-2 px-2 sm:px-3 text-xs sm:text-sm font-bold text-gray-800 focus:ring-2 focus:ring-orange-500 outline-none"
-              >
-                <option value="" disabled>배정할 기사 선택...</option>
-                {drivers.map(d => (
-                  <option key={d.id} value={d.id}>{d.user?.name || d.name} 기사님</option>
-                ))}
-              </select>
-            </div>
-          )}
+              
+              {/* 기사 선택 및 배정 버튼 (모바일 가로 배치) */}
+              <div className="flex flex-row sm:flex-col gap-1.5 sm:gap-3">
+                <select
+                  value={selectedDriverId}
+                  onChange={(e) => setSelectedDriverId(e.target.value)}
+                  className="flex-1 sm:w-full bg-white sm:bg-gray-50 border border-gray-300 sm:border-gray-200 rounded-lg sm:rounded-xl py-1 sm:py-2 px-1.5 sm:px-3 text-[11px] sm:text-sm font-bold text-gray-800 focus:ring-2 focus:ring-orange-500 outline-none"
+                >
+                  <option value="" disabled>기사 선택...</option>
+                  {drivers.map(d => (
+                    <option key={d.id} value={d.id}>{d.user?.name || d.name}</option>
+                  ))}
+                </select>
 
-          <button
-            onClick={handleBatchAssign}
-            disabled={selectedIds.length === 0 || !selectedDriverId || isAssigning}
-            className="w-full py-2 sm:py-3 text-sm sm:text-base bg-orange-500 text-white font-bold rounded-lg sm:rounded-xl disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5 sm:gap-2 mt-2 sm:mt-0"
-          >
-            {isAssigning ? '배정 중...' : (
-              <>
-                <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> 일괄 배정하기
-              </>
-            )}
-          </button>
-        </div>
+                <button
+                  onClick={handleBatchAssign}
+                  disabled={selectedIds.length === 0 || !selectedDriverId || isAssigning}
+                  className="whitespace-nowrap px-3 py-1 sm:w-full sm:py-3 text-[11px] sm:text-base bg-orange-500 text-white font-bold rounded-lg sm:rounded-xl disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors flex items-center justify-center gap-1 sm:gap-2"
+                >
+                  {isAssigning ? '배정중..' : (
+                    <>
+                      <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">일괄 </span>배정
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
