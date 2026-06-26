@@ -106,6 +106,7 @@ export default function AdminDashboard() {
       if (page === 1) { // 1페이지일 때만 한 번 호출
         fetchStats();
         fetchSettings();
+        fetchGlobalSettings();
         fetchCustomRegions();
       }
     } else {
@@ -146,6 +147,17 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchGlobalSettings = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setGlobalSettings(res.data);
+    } catch (error) {
+      console.error('전역 설정 조회 실패:', error);
+    }
+  };
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!settings) return;
@@ -159,6 +171,16 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setSettings(res.data.settings);
+
+      if (globalSettings) {
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
+          globalNotice: globalSettings.globalNotice,
+          noticeIsActive: globalSettings.noticeIsActive
+        }, {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+      }
+
       alert('설정이 성공적으로 저장되었습니다.');
     } catch (error: any) {
       alert(error.response?.data?.error || '설정 저장 중 오류가 발생했습니다.');
