@@ -7,7 +7,7 @@ import { validatePartner, validateDriver } from '../middleware/validateMiddlewar
 import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
 import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
-import { updateRequestStatusInSheet } from '../services/googleSheets';
+import { updateRequestStatusInSheet, addRequestToSheet } from '../services/googleSheets';
 
 const router = express.Router();
 

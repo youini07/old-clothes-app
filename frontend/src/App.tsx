@@ -24,7 +24,7 @@ function Home() {
     if (localStorage.getItem('superadmin_token')) navigate('/super-admin');
     else if (localStorage.getItem('admin_token')) navigate('/admin');
     else if (localStorage.getItem('driver_token')) navigate('/driver');
-    else if (localStorage.getItem('customer_token')) navigate('/status');
+    else if (localStorage.getItem('customer_token') && localStorage.getItem('auth_token')) navigate('/status');
   }, [navigate]);
 
   return (

@@ -226,6 +226,7 @@ export default function CustomerDashboard() {
         <button
           onClick={() => {
             localStorage.removeItem('auth_token');
+            localStorage.removeItem('customer_token');
             localStorage.removeItem('user_info');
             navigate('/');
           }}
