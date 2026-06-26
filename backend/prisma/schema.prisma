@@ -155,5 +155,6 @@ model GlobalSettings {
   id              String   @id @default("global")
   globalNotice    String?
   noticeIsActive  Boolean  @default(false)
+  globalNoticeDetail String?
   updatedAt       DateTime @updatedAt
 }

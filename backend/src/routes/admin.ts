@@ -1285,7 +1285,7 @@ router.get('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMI
     let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
     if (!settings) {
       settings = await prisma.globalSettings.create({
-        data: { id: 'global', globalNotice: '', noticeIsActive: false }
+        data: { id: 'global', globalNotice: '', noticeIsActive: false, globalNoticeDetail: '' }
       });
     }
     res.json(settings);
@@ -1297,19 +1297,21 @@ router.get('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMI
 
 // 전역 공지사항 설정 업데이트
 router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
-  const { globalNotice, noticeIsActive } = req.body;
+  const { globalNotice, noticeIsActive, globalNoticeDetail } = req.body;
   
   try {
     const updatedSettings = await prisma.globalSettings.upsert({
       where: { id: 'global' },
       update: { 
         globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
-        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined
+        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined,
+        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined
       },
       create: {
         id: 'global',
         globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
-        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false
+        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false,
+        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : ''
       }
     });
     

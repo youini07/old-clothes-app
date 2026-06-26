@@ -60,7 +60,7 @@ app.use('/api/driver', driverRouter);
 app.get('/api/public/global-settings', async (req, res) => {
   try {
     const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
-    res.json(settings || { globalNotice: null, noticeIsActive: false });
+    res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null });
   } catch (error) {
     res.status(500).json({ message: '서버 오류' });
   }

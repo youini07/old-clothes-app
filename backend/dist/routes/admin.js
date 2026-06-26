@@ -1152,7 +1152,7 @@ router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware
         let settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
         if (!settings) {
             settings = yield prisma_1.prisma.globalSettings.create({
-                data: { id: 'global', globalNotice: '', noticeIsActive: false }
+                data: { id: 'global', globalNotice: '', noticeIsActive: false, globalNoticeDetail: '' }
             });
         }
         res.json(settings);
@@ -1164,18 +1164,20 @@ router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware
 }));
 // 전역 공지사항 설정 업데이트
 router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { globalNotice, noticeIsActive } = req.body;
+    const { globalNotice, noticeIsActive, globalNoticeDetail } = req.body;
     try {
         const updatedSettings = yield prisma_1.prisma.globalSettings.upsert({
             where: { id: 'global' },
             update: {
                 globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
-                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined
+                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined,
+                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined
             },
             create: {
                 id: 'global',
                 globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
-                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false
+                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false,
+                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : ''
             }
         });
         res.json({ message: '공지사항이 저장되었습니다.', settings: updatedSettings });

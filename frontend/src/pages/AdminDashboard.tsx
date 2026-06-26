@@ -50,7 +50,7 @@ export default function AdminDashboard() {
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -175,7 +175,8 @@ export default function AdminDashboard() {
       if (globalSettings) {
         await axios.patch(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
           globalNotice: globalSettings.globalNotice,
-          noticeIsActive: globalSettings.noticeIsActive
+          noticeIsActive: globalSettings.noticeIsActive,
+          globalNoticeDetail: globalSettings.globalNoticeDetail || ''
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
@@ -758,12 +759,23 @@ export default function AdminDashboard() {
                       명절 휴무, 긴급 안내 등 <strong>고객과 기사님을 포함한 앱 전체 화면 최상단</strong>에 띄울 공지를 작성합니다.
                     </p>
 
-                    <div className="relative">
+                    <div className="relative mb-4">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">배너 텍스트 (간략히)</label>
                       <textarea
                         value={globalSettings.globalNotice}
                         onChange={(e) => setGlobalSettings({...globalSettings, globalNotice: e.target.value})}
                         placeholder="공지사항 내용을 입력하세요... (예: 설 연휴 2/9~2/12 수거 휴무 안내)"
-                        rows={3}
+                        rows={2}
+                        className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none z-10 relative"
+                      />
+                    </div>
+                    <div className="relative">
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">상세 내용 (클릭 시 팝업, 선택사항)</label>
+                      <textarea
+                        value={globalSettings.globalNoticeDetail || ''}
+                        onChange={(e) => setGlobalSettings({...globalSettings, globalNoticeDetail: e.target.value})}
+                        placeholder="상세 내용을 입력하세요. (입력 시 배너를 클릭하면 상세 내용 팝업이 뜹니다)"
+                        rows={4}
                         className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none z-10 relative"
                       />
                     </div>
