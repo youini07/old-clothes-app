@@ -74,7 +74,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
   useEffect(() => {
     const unassigned = requests.filter(r => r.status === 'ASSIGNED' && !r.driverId);
     setUnassignedRequests(unassigned);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [requests]);
 
   // 카카오맵 스크립트 로드 확인
