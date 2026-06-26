@@ -16,8 +16,9 @@ export default function GlobalNoticeBanner() {
             setNotice(res.data.globalNotice);
             setDetail(res.data.globalNoticeDetail || null);
             
-            const dismissedNoticeText = sessionStorage.getItem('dismissed_notice_text');
-            if (dismissedNoticeText === res.data.globalNotice) {
+            const currentHash = res.data.globalNotice + (res.data.globalNoticeDetail || '');
+            const dismissedHash = sessionStorage.getItem('dismissed_notice_hash');
+            if (dismissedHash === currentHash) {
               setIsVisible(false);
             } else {
               setIsVisible(true);
@@ -47,7 +48,7 @@ export default function GlobalNoticeBanner() {
     e.stopPropagation(); // prevent opening the modal
     setIsVisible(false);
     if (notice) {
-      sessionStorage.setItem('dismissed_notice_text', notice);
+      sessionStorage.setItem('dismissed_notice_hash', notice + (detail || ''));
     }
   };
 
