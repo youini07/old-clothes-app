@@ -289,7 +289,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
   }, 0);
 
   return (
-    <div className="flex flex-col h-[700px] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden relative">
+    <div className="flex flex-col h-[450px] md:h-[700px] bg-white rounded-3xl shadow-sm border border-gray-200 overflow-hidden relative">
       {/* 맵 컨테이너 */}
       <div id="admin-dispatch-map" className="w-full h-full bg-gray-100 z-0"></div>
 
