@@ -188,7 +188,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       content.className = `relative cursor-pointer transform hover:scale-110 transition-transform flex flex-col items-center ${isSelected ? 'z-50' : 'z-10'}`;
       content.innerHTML = `
         <div class="flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 ${markerBg} ${markerBorder} ${markerText}">
-          <span class="text-xl font-black">${isSelected ? orderIndex : '?'}</span>
+          <span class="${isSelected ? 'text-xl' : 'text-[11px] tracking-tighter'} font-black">${isSelected ? orderIndex : '미배정'}</span>
         </div>
         <div class="w-3 h-3 ${pointerBg} rotate-45 border-r-4 border-b-4 ${pointerBorder} -mt-1.5 z-0"></div>
         <div class="mt-1 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-lg text-xs font-extrabold text-gray-800 shadow-lg border-2 border-gray-200 whitespace-nowrap">
