@@ -675,6 +675,11 @@ export default function AdminDashboard() {
       alert('선택된 항목에 유효한 전화번호가 없습니다.');
       return;
     }
+
+    if (phones.length > 20) {
+      alert(`스마트폰 스팸 방지 제한으로 인해 한 번에 최대 20명까지만 발송 가능합니다.\n현재 ${phones.length}명이 선택되었습니다. 20명 이하로 나누어서 발송해 주세요.`);
+      return;
+    }
     
     // 안드로이드/아이폰 등 다양한 기기 호환을 위해 콤마로 연결
     const phoneString = phones.join(',');
