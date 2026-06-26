@@ -55,6 +55,16 @@ app.use('/api/requests', requestsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/driver', driverRouter);
 
+// 공개(Public) API - 공지사항 등
+app.get('/api/public/global-settings', async (req, res) => {
+  try {
+    const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    res.json(settings || { globalNotice: null, noticeIsActive: false });
+  } catch (error) {
+    res.status(500).json({ message: '서버 오류' });
+  }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running!' });
 });

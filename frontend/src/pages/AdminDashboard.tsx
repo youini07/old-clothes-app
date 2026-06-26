@@ -50,6 +50,7 @@ export default function AdminDashboard() {
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -712,6 +713,40 @@ export default function AdminDashboard() {
               <p className="text-gray-500 mb-8">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
 
               <form onSubmit={handleSaveSettings} className="space-y-8">
+                {/* 전역 공지사항 설정 */}
+                {globalSettings && (
+                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/30 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                    
+                    <div className="flex justify-between items-center mb-4">
+                      <label className="block text-lg font-bold text-gray-900">📢 전역 공지사항 (앱 전체 띠 배너)</label>
+                      
+                      {/* Toggle Button */}
+                      <button 
+                        type="button"
+                        onClick={() => setGlobalSettings({...globalSettings, noticeIsActive: !globalSettings.noticeIsActive})}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${globalSettings.noticeIsActive ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${globalSettings.noticeIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    
+                    <p className="text-sm text-indigo-900/80 mb-4">
+                      명절 휴무, 긴급 안내 등 <strong>고객과 기사님을 포함한 앱 전체 화면 최상단</strong>에 띄울 공지를 작성합니다.
+                    </p>
+
+                    <div className="relative">
+                      <textarea
+                        value={globalSettings.globalNotice}
+                        onChange={(e) => setGlobalSettings({...globalSettings, globalNotice: e.target.value})}
+                        placeholder="공지사항 내용을 입력하세요... (예: 설 연휴 2/9~2/12 수거 휴무 안내)"
+                        rows={3}
+                        className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none z-10 relative"
+                      />
+                    </div>
+                  </div>
+                )}
+
                 {/* 단가 설정 */}
                 <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                   <div className="flex justify-between items-start mb-2">

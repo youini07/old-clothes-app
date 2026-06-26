@@ -64,10 +64,13 @@ function Home() {
   );
 }
 
+import GlobalNoticeBanner from './components/GlobalNoticeBanner';
+
 function App() {
   return (
     <Router>
       <div className="min-h-screen bg-gray-50 text-gray-900 font-sans selection:bg-primary-100">
+        <GlobalNoticeBanner />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/staff-login" element={<Login />} />

@@ -1274,8 +1274,49 @@ router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']),
     
     res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
   } catch (error) {
-    console.error('환경 설정 업데이트 에러:', error);
-    res.status(500).json({ error: '환경 설정 업데이트에 실패했습니다.' });
+    console.error('환경 설정 저장 오류:', error);
+    res.status(500).json({ message: '설정 저장 중 오류가 발생했습니다.' });
+  }
+});
+
+// 전역 공지사항 설정 가져오기
+router.get('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    if (!settings) {
+      settings = await prisma.globalSettings.create({
+        data: { id: 'global', globalNotice: '', noticeIsActive: false }
+      });
+    }
+    res.json(settings);
+  } catch (error) {
+    console.error('전역 설정 가져오기 오류:', error);
+    res.status(500).json({ message: '전역 설정 로드 중 오류가 발생했습니다.' });
+  }
+});
+
+// 전역 공지사항 설정 업데이트
+router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { globalNotice, noticeIsActive } = req.body;
+  
+  try {
+    const updatedSettings = await prisma.globalSettings.upsert({
+      where: { id: 'global' },
+      update: { 
+        globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
+        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined
+      },
+      create: {
+        id: 'global',
+        globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
+        noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false
+      }
+    });
+    
+    res.json({ message: '공지사항이 저장되었습니다.', settings: updatedSettings });
+  } catch (error) {
+    console.error('전역 설정 저장 오류:', error);
+    res.status(500).json({ message: '공지사항 저장 중 오류가 발생했습니다.' });
   }
 });
 
