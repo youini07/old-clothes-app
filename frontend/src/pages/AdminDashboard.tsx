@@ -179,6 +179,7 @@ export default function AdminDashboard() {
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
+        window.dispatchEvent(new Event('globalNoticeUpdated'));
       }
 
       alert('설정이 성공적으로 저장되었습니다.');

@@ -7,29 +7,45 @@ export default function GlobalNoticeBanner() {
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    // Check if the user has dismissed the notice recently
-    const checkDismissal = () => {
-      const dismissed = sessionStorage.getItem('notice_dismissed');
-      if (dismissed === 'true') {
-        setIsVisible(false);
-      }
+    const fetchNotice = () => {
+      axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
+        .then(res => {
+          if (res.data?.noticeIsActive && res.data?.globalNotice) {
+            setNotice(res.data.globalNotice);
+            
+            // Check if THIS EXACT notice was dismissed
+            const dismissedNoticeText = sessionStorage.getItem('dismissed_notice_text');
+            if (dismissedNoticeText === res.data.globalNotice) {
+              setIsVisible(false);
+            } else {
+              setIsVisible(true);
+            }
+          } else {
+            setNotice(null);
+            setIsVisible(false);
+          }
+        })
+        .catch(err => console.error('공지사항 불러오기 실패:', err));
     };
-    checkDismissal();
 
-    axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
-      .then(res => {
-        if (res.data?.noticeIsActive && res.data?.globalNotice) {
-          setNotice(res.data.globalNotice);
-        } else {
-          setNotice(null);
-        }
-      })
-      .catch(err => console.error('공지사항 불러오기 실패:', err));
+    fetchNotice();
+
+    // Listen for instant updates from Admin Dashboard
+    const handleUpdate = () => {
+      fetchNotice();
+    };
+    window.addEventListener('globalNoticeUpdated', handleUpdate);
+    
+    return () => {
+      window.removeEventListener('globalNoticeUpdated', handleUpdate);
+    };
   }, []);
 
   const handleDismiss = () => {
     setIsVisible(false);
-    sessionStorage.setItem('notice_dismissed', 'true');
+    if (notice) {
+      sessionStorage.setItem('dismissed_notice_text', notice);
+    }
   };
 
   if (!notice || !isVisible) return null;
