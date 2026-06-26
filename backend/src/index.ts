@@ -59,8 +59,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running!' });
 });
 
+import { initCrmCron } from './jobs/crmCron';
+
 // 글로벌 에러 핸들러 (반드시 모든 라우트 아래에 위치)
 app.use(globalErrorHandler);
+
+// 스케줄러 초기화
+initCrmCron();
 
 app.listen(port, () => {
   console.log(`Server is running on port ${port}`);

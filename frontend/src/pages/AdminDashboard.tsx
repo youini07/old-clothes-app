@@ -49,7 +49,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
-  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean } | null>(null);
+  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -152,7 +152,8 @@ export default function AdminDashboard() {
     try {
       const res = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/settings`, {
         pricePerKg: settings.pricePerKg,
-        useBizMessage: settings.useBizMessage
+        useBizMessage: settings.useBizMessage,
+        useCrmAutomation: settings.useCrmAutomation
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -763,6 +764,47 @@ export default function AdminDashboard() {
                       <div>
                         <strong>알림톡 발송 기능이 꺼져 있습니다.</strong><br/>
                         고객에게 수거 안내 카카오톡이 발송되지 않습니다.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* CRM 자동화 (유료 서비스) 설정 */}
+                <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 p-6 rounded-2xl shadow-sm border border-orange-200 mt-6 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200/30 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                  
+                  <div className="flex justify-between items-center mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xl">🎯</span>
+                      <h3 className="text-lg font-bold text-gray-900">CRM 자동화 (유료 서비스)</h3>
+                      <span className="px-2.5 py-1 bg-orange-600 text-white text-[10px] font-black rounded-full shadow-sm ml-1">PREMIUM</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => setSettings({...settings, useCrmAutomation: !settings.useCrmAutomation})}
+                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 shadow-inner ${settings.useCrmAutomation ? 'bg-orange-500' : 'bg-gray-300'}`}
+                    >
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow ${settings.useCrmAutomation ? 'translate-x-8' : 'translate-x-1'}`} />
+                    </button>
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed mb-4 pr-10">
+                    수거 완료 후 <strong>정확히 3개월(90일)이 지난 고객</strong>에게 자동으로 옷장 정리 안내 및 재수거 유도 알림톡을 발송하여 <strong className="text-orange-700">단골 고객을 확보</strong>합니다.
+                  </p>
+                  
+                  {settings.useCrmAutomation ? (
+                    <div className="bg-white/80 backdrop-blur-sm text-orange-800 p-4 rounded-xl text-sm font-medium border border-orange-200 flex gap-3 items-start shadow-sm">
+                      <span className="text-xl">✨</span>
+                      <div>
+                        <strong>CRM 자동화가 활성화되었습니다.</strong><br/>
+                        <span className="text-orange-600/80 mt-1 block">과거 90일 전 수거 완료 고객에게 매일 아침 재수거 안내 알림톡이 자동으로 발송됩니다.</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="bg-white/50 text-gray-500 p-4 rounded-xl text-sm font-medium border border-gray-200 flex gap-3 items-start">
+                      <span className="text-xl opacity-50">💤</span>
+                      <div>
+                        <strong>CRM 자동화가 꺼져 있습니다.</strong><br/>
+                        <span className="mt-1 block">한 번 이용한 고객이 다른 업체를 이용하지 않도록 자동 리텐션 기능을 켜보세요!</span>
                       </div>
                     </div>
                   )}

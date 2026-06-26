@@ -28,6 +28,7 @@ model User {
   customRegions   CustomRegion[] @relation("PartnerCustomRegions")
   drivers         DriverProfile[] // 사장님이 고용한 기사들
   useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
+  useCrmAutomation Boolean @default(false) // 파트너의 3개월 리텐션 CRM 자동화 사용 여부 (유료 서비스)
   pricePerKg      Int      @default(300) // 1kg당 수거 단가 (사장님이 설정 가능)
   
   // 고객일 경우
@@ -132,6 +133,7 @@ model Request {
   driverNote      String?      // 기사가 남기는 특이사항 메모
   
   status         String        @default("PENDING")
+  crmSent        Boolean       @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
   
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt

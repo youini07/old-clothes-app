@@ -1242,7 +1242,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
     const partnerId = req.user!.userId;
     const partner = await prisma.user.findUnique({
       where: { id: partnerId },
-      select: { pricePerKg: true, useBizMessage: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
     });
     
     if (!partner) {
@@ -1259,16 +1259,17 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const partnerId = req.user!.userId;
-  const { pricePerKg, useBizMessage } = req.body;
+  const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
   
   try {
     const updatedPartner = await prisma.user.update({
       where: { id: partnerId },
       data: { 
         pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
-        useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined
+        useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
+        useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
       },
-      select: { pricePerKg: true, useBizMessage: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
     });
     
     res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
