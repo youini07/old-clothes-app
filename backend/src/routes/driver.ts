@@ -76,7 +76,10 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
     const totalCount = await prisma.request.count({ where: whereCondition });
     const requests = await prisma.request.findMany({
       where: whereCondition,
-      orderBy: { orderIndex: 'asc' }, // 동선 순서대로 정렬
+      orderBy: [
+        { orderIndex: 'asc' },
+        { createdAt: 'asc' }
+      ], // 동선 순서, 그 다음 생성일 순으로 정렬하여 순서 고정
       skip,
       take: limit
     });

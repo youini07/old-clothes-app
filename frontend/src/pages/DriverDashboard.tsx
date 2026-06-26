@@ -83,7 +83,7 @@ export default function DriverDashboard() {
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
 
   // 문자 템플릿 모달 상태
-  const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, index: number} | null>(null);
+  const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, displayId: number} | null>(null);
 
   // 수거 완료 모달 상태
   const [completeModal, setCompleteModal] = useState<{ open: boolean; requestId: string | null; step: number }>({ open: false, requestId: null, step: 1 });
@@ -291,29 +291,21 @@ export default function DriverDashboard() {
     }
   };
 
-  // 기사앱 원본 리스트(백엔드에서는 orderIndex 순으로 반환함)
-  // 번호 표시는 생성시간(createdAt) 기준으로 고정하여 매김
+  // 기사앱 원본 리스트(백엔드에서는 orderIndex -> createdAt 순으로 정렬되어 넘어옴)
+  // 배열의 전체 순서(index)가 곧 사용자의 고정된 순번이 되므로, 완료되어도 번호가 바뀌지 않음
   const requestsWithDisplayId = React.useMemo(() => {
-    const sortedForId = [...requests].sort((a, b) => {
-      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-      if (timeA === timeB) return a.id.localeCompare(b.id);
-      return timeA - timeB;
-    });
-    const idMap = new Map();
-    sortedForId.forEach((req, index) => idMap.set(req.id, index + 1));
-    return requests.map(req => ({ ...req, displayId: idMap.get(req.id) }));
+    return requests.map((req, index) => ({ ...req, displayId: index + 1 }));
   }, [requests]);
 
   const filteredRequests = requestsWithDisplayId.filter(r =>
     activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
   );
 
-  const getSmsTemplate1 = (index: number) => {
+  const getSmsTemplate1 = (displayId: number) => {
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day = tomorrow.getDate();
-    return `안녕하세요! 올클입니다.\n\n내일(${day}일) 헌옷 수거 방문 예정입니다.\n고객님의 수거 순번은 [${index + 1}번째] 입니다.\n\n수거할 옷과 물품들은 미리 포장하여 문 앞에 내놓아 주시면 감사하겠습니다!`;
+    return `안녕하세요! 올클입니다.\n\n내일(${day}일) 헌옷 수거 방문 예정입니다.\n고객님의 수거 순번은 [${displayId}번째] 입니다.\n\n수거할 옷과 물품들은 미리 포장하여 문 앞에 내놓아 주시면 감사하겠습니다!`;
   };
 
   const getSmsTemplate2 = () => {
@@ -452,13 +444,13 @@ export default function DriverDashboard() {
             ) : (
               filteredRequests.map((req, index) => (
                 <div key={req.id} className="bg-white p-5 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-100 relative mb-4">
-                  {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-9 h-9 flex items-center justify-center rounded-br-2xl rounded-tl-3xl font-extrabold">{index + 1}</div>}
+                  {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-9 h-9 flex items-center justify-center rounded-br-2xl rounded-tl-3xl font-extrabold">{req.displayId}</div>}
                   <div className="ml-6">
                     <div className="flex justify-between items-start mb-2">
                       <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
                       <div className="flex gap-2">
                         <a href={`tel:${req.phone}`} className="px-3.5 py-1.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold transition-colors hover:bg-green-100">{'📞 전화'}</a>
-                        <button onClick={() => setSelectedSmsReq({req, index})} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</button>
+                        <button onClick={() => setSelectedSmsReq({req, displayId: req.displayId})} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</button>
                       </div>
                     </div>
                     {req.status === 'IN_PROGRESS' && (
@@ -641,7 +633,7 @@ export default function DriverDashboard() {
             
             <div className="space-y-3">
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.index))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.displayId))}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
               >
