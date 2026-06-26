@@ -12,7 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendCompletionToCustomer = exports.sendScheduleConfirmedToCustomer = exports.sendAssignmentToCustomer = exports.sendNewRequestToPartner = exports.sendDepartureNotification = void 0;
+exports.sendCrmNotification = exports.sendCompletionToCustomer = exports.sendScheduleConfirmedToCustomer = exports.sendAssignmentToCustomer = exports.sendNewRequestToPartner = exports.sendDepartureNotification = void 0;
 const axios_1 = __importDefault(require("axios"));
 // 환경 변수 설정
 const ALIGO_API_KEY = process.env.ALIGO_API_KEY || 'your_aligo_api_key';
@@ -139,3 +139,9 @@ const sendCompletionToCustomer = (phone, userName, actualWeight, totalPrice, use
     return sendNotification(tplCode, phone, userName, message, '수거 완료 및 정산');
 });
 exports.sendCompletionToCustomer = sendCompletionToCustomer;
+const sendCrmNotification = (phone, userName, partnerName, link) => __awaiter(void 0, void 0, void 0, function* () {
+    const message = `[올클 - ${partnerName} 알림톡]\n${userName}님, 저번에 헌옷 수거해 주신 지 벌써 3개월이 지났습니다!\n계절이 바뀌며 옷장 정리하실 때가 되지 않으셨나요?\n이번에도 문 앞에만 쏙 내놓으시면 저희가 빠르게 수거해 가겠습니다.\n\n👉 1초 만에 수거 신청하기:\n${link}\n\n이용해 주셔서 항상 감사합니다.`;
+    const tplCode = process.env.ALIGO_TPL_CRM || 'TPL_006';
+    return sendNotification(tplCode, phone, userName, message, '재수거 안내 알림톡');
+});
+exports.sendCrmNotification = sendCrmNotification;

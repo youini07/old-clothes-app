@@ -7,6 +7,7 @@ import requestsRouter from './routes/requests';
 import adminRouter from './routes/admin';
 import driverRouter from './routes/driver';
 import { globalErrorHandler } from './middleware/errorHandler';
+import { prisma } from './lib/prisma';
 
 dotenv.config();
 

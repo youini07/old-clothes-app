@@ -1113,7 +1113,7 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         const partnerId = req.user.userId;
         const partner = yield prisma_1.prisma.user.findUnique({
             where: { id: partnerId },
-            select: { pricePerKg: true, useBizMessage: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
         });
         if (!partner) {
             return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
@@ -1128,21 +1128,61 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const partnerId = req.user.userId;
-    const { pricePerKg, useBizMessage } = req.body;
+    const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
     try {
         const updatedPartner = yield prisma_1.prisma.user.update({
             where: { id: partnerId },
             data: {
                 pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
-                useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined
+                useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
+                useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
             },
-            select: { pricePerKg: true, useBizMessage: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
         });
         res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
     }
     catch (error) {
-        console.error('환경 설정 업데이트 에러:', error);
-        res.status(500).json({ error: '환경 설정 업데이트에 실패했습니다.' });
+        console.error('환경 설정 저장 오류:', error);
+        res.status(500).json({ message: '설정 저장 중 오류가 발생했습니다.' });
+    }
+}));
+// 전역 공지사항 설정 가져오기
+router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        let settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        if (!settings) {
+            settings = yield prisma_1.prisma.globalSettings.create({
+                data: { id: 'global', globalNotice: '', noticeIsActive: false }
+            });
+        }
+        res.json(settings);
+    }
+    catch (error) {
+        console.error('전역 설정 가져오기 오류:', error);
+        res.status(500).json({ message: '전역 설정 로드 중 오류가 발생했습니다.' });
+    }
+}));
+// 전역 공지사항 설정 업데이트
+router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { globalNotice, noticeIsActive } = req.body;
+    try {
+        const updatedSettings = yield prisma_1.prisma.globalSettings.upsert({
+            where: { id: 'global' },
+            update: {
+                globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
+                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined
+            },
+            create: {
+                id: 'global',
+                globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
+                noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false
+            }
+        });
+        res.json({ message: '공지사항이 저장되었습니다.', settings: updatedSettings });
+    }
+    catch (error) {
+        console.error('전역 설정 저장 오류:', error);
+        res.status(500).json({ message: '공지사항 저장 중 오류가 발생했습니다.' });
     }
 }));
 exports.default = router;

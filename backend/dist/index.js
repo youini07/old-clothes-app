@@ -1,4 +1,13 @@
 "use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -12,6 +21,7 @@ const requests_1 = __importDefault(require("./routes/requests"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const driver_1 = __importDefault(require("./routes/driver"));
 const errorHandler_1 = require("./middleware/errorHandler");
+const prisma_1 = require("./lib/prisma");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const port = process.env.PORT || 5000;
@@ -49,11 +59,24 @@ app.use('/api/auth', auth_1.default);
 app.use('/api/requests', requests_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/driver', driver_1.default);
+// 공개(Public) API - 공지사항 등
+app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        res.json(settings || { globalNotice: null, noticeIsActive: false });
+    }
+    catch (error) {
+        res.status(500).json({ message: '서버 오류' });
+    }
+}));
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Backend is running!' });
 });
+const crmCron_1 = require("./jobs/crmCron");
 // 글로벌 에러 핸들러 (반드시 모든 라우트 아래에 위치)
 app.use(errorHandler_1.globalErrorHandler);
+// 스케줄러 초기화
+(0, crmCron_1.initCrmCron)();
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });
