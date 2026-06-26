@@ -666,6 +666,29 @@ export default function AdminDashboard() {
     }
   };
 
+  // 스마트폰 기본 문자 앱 호출 핸들러
+  const handleSendSMS = (selectedIds: string[]) => {
+    const selectedRequests = requests.filter(r => selectedIds.includes(r.id));
+    const phones = selectedRequests.map(r => r.phone.replace(/[^0-9]/g, '')).filter(Boolean);
+    
+    if (phones.length === 0) {
+      alert('선택된 항목에 유효한 전화번호가 없습니다.');
+      return;
+    }
+    
+    // 안드로이드/아이폰 등 다양한 기기 호환을 위해 콤마로 연결
+    const phoneString = phones.join(',');
+    const message = "[헌옷 수거 안내]\n안녕하세요! 내일 수거 방문 예정입니다. 감사합니다.";
+    
+    // 기기에 따라 iOS는 &body= 를 사용하는 경우도 있으나, 최신 기기들은 ?body= 가 표준입니다.
+    // 문제가 있을 경우를 대비하여 우선 가장 널리 쓰이는 표준 방식을 사용합니다.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const bodyParam = isIOS ? `&body=${encodeURIComponent(message)}` : `?body=${encodeURIComponent(message)}`;
+    const smsLink = `sms:${phoneString}${bodyParam}`;
+    
+    window.location.href = smsLink;
+  };
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-24">
@@ -1157,6 +1180,14 @@ export default function AdminDashboard() {
                         {selectedRequestIds.length}건 일괄 수락
                       </button>
                     )}
+                    {selectedRequestIds.length > 0 && (
+                      <button
+                        onClick={() => handleSendSMS(selectedRequestIds)}
+                        className="text-sm font-bold text-white bg-green-500 px-4 py-2 rounded-xl shadow-sm hover:bg-green-600 transition-all animate-fade-in flex items-center gap-1"
+                      >
+                        💬 안내문자
+                      </button>
+                    )}
                   </div>
                 </div>
                 <div className="space-y-4">
@@ -1234,6 +1265,12 @@ export default function AdminDashboard() {
                     >
                       {isBulkUnclaiming && <Spinner className="w-4 h-4 text-gray-700" />}
                       {selectedUnassignedIds.length}건 일괄 취소
+                    </button>
+                    <button
+                      onClick={() => handleSendSMS(selectedUnassignedIds)}
+                      className="text-sm font-bold text-white bg-green-500 px-4 py-2 rounded-xl hover:bg-green-600 shadow-sm transition-all animate-fade-in flex items-center gap-1"
+                    >
+                      💬 안내문자
                     </button>
                   </div>
                 )}
@@ -1365,6 +1402,14 @@ export default function AdminDashboard() {
                             >
                               {isBatchUnassigning && <Spinner className="w-3 h-3" />}
                               일괄 취소
+                            </button>
+                          )}
+                          {driverRequests.some(r => selectedAssignedIds.includes(r.id)) && (
+                            <button
+                              onClick={() => handleSendSMS(selectedAssignedIds.filter(id => driverRequests.find(r => r.id === id)))}
+                              className="text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200"
+                            >
+                              💬 안내문자
                             </button>
                           )}
                         </div>
