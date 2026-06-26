@@ -732,82 +732,70 @@ export default function AdminDashboard() {
                   </div>
                 </div>
 
-                {/* 알림톡 설정 */}
-                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-lg font-bold text-gray-900">💬 카카오 알림톡 자동 발송</label>
-                    
-                    {/* Toggle Button */}
-                    <button 
-                      type="button"
-                      onClick={() => setSettings({...settings, useBizMessage: !settings.useBizMessage})}
-                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${settings.useBizMessage ? 'bg-primary-500' : 'bg-gray-300'}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${settings.useBizMessage ? 'translate-x-8' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                    활성화 시 배정, 일정 확정, 수거 완료(영수증) 단계마다 <strong>고객의 개인 카카오톡</strong>으로 공식 알림톡이 자동 발송됩니다.
-                  </p>
+                {/* 프리미엄 유료 서비스 그룹 */}
+                <div className="bg-gradient-to-br from-orange-50/80 via-white to-orange-50/50 p-6 md:p-8 rounded-3xl shadow-sm border border-orange-200 mt-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-200/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
                   
-                  {settings.useBizMessage ? (
-                    <div className="bg-primary-50 text-primary-800 p-4 rounded-xl text-sm font-medium border border-primary-100 flex gap-3 items-start">
-                      <span className="text-xl">✅</span>
-                      <div>
-                        <strong>현재 알림톡 발송 기능이 활성화되어 있습니다.</strong><br/>
-                        수거 단계마다 자동으로 시스템 알림이 전송됩니다.
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-gray-100 text-gray-600 p-4 rounded-xl text-sm font-medium flex gap-3 items-start">
-                      <span className="text-xl">⏸️</span>
-                      <div>
-                        <strong>알림톡 발송 기능이 꺼져 있습니다.</strong><br/>
-                        고객에게 수거 안내 카카오톡이 발송되지 않습니다.
-                      </div>
-                    </div>
-                  )}
-                </div>
+                  <div className="flex items-center gap-2 mb-6">
+                    <span className="text-2xl">✨</span>
+                    <h3 className="text-xl font-bold text-gray-900">프리미엄 알림톡 서비스</h3>
+                    <span className="px-2.5 py-1 bg-gradient-to-r from-orange-600 to-red-500 text-white text-xs font-black rounded-full shadow-sm ml-2 tracking-wide">유료 서비스</span>
+                  </div>
+                  <p className="text-sm text-gray-500 mb-8 border-b border-orange-100 pb-6">
+                    파트너님의 수거 단가를 높이고, 재이용률을 극대화하는 카카오 알림톡 기반의 프리미엄 자동화 기능입니다.
+                  </p>
 
-                {/* CRM 자동화 (유료 서비스) 설정 */}
-                <div className="bg-gradient-to-r from-orange-50 to-orange-100/50 p-6 rounded-2xl shadow-sm border border-orange-200 mt-6 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-32 h-32 bg-orange-200/30 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
-                  
-                  <div className="flex justify-between items-center mb-2">
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">🎯</span>
-                      <h3 className="text-lg font-bold text-gray-900">CRM 자동화 (유료 서비스)</h3>
-                      <span className="px-2.5 py-1 bg-orange-600 text-white text-[10px] font-black rounded-full shadow-sm ml-1">PREMIUM</span>
+                  <div className="space-y-6">
+                    {/* 1. 카카오 알림톡 자동 발송 */}
+                    <div className="bg-white p-5 rounded-2xl border border-orange-100 shadow-sm relative">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-lg font-bold text-gray-900">💬 기본 알림톡 자동 발송</label>
+                        
+                        <button 
+                          type="button"
+                          onClick={() => setSettings({...settings, useBizMessage: !settings.useBizMessage})}
+                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.useBizMessage ? 'bg-orange-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useBizMessage ? 'translate-x-8' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                        배정, 일정 확정, 수거 완료(영수증) 단계마다 고객의 <strong>개인 카카오톡</strong>으로 공식 알림톡이 발송되어 브랜드 신뢰도를 높입니다.
+                      </p>
+                      
+                      {settings.useBizMessage && (
+                        <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs font-bold flex gap-2 items-center">
+                          <span className="text-base">✅</span>
+                          <span>기본 알림톡 기능이 활성화되었습니다.</span>
+                        </div>
+                      )}
                     </div>
-                    <button 
-                      type="button"
-                      onClick={() => setSettings({...settings, useCrmAutomation: !settings.useCrmAutomation})}
-                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 shadow-inner ${settings.useCrmAutomation ? 'bg-orange-500' : 'bg-gray-300'}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow ${settings.useCrmAutomation ? 'translate-x-8' : 'translate-x-1'}`} />
-                    </button>
+
+                    {/* 2. CRM 자동화 */}
+                    <div className="bg-white p-5 rounded-2xl border border-orange-100 shadow-sm relative">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-lg font-bold text-gray-900">🎯 CRM 리텐션 자동화</label>
+                        
+                        <button 
+                          type="button"
+                          onClick={() => setSettings({...settings, useCrmAutomation: !settings.useCrmAutomation})}
+                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.useCrmAutomation ? 'bg-orange-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useCrmAutomation ? 'translate-x-8' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                        수거 완료 후 <strong>정확히 3개월(90일)이 지난 고객</strong>에게 자동으로 옷장 정리 안내 및 재수거 유도 알림톡을 발송하여 단골 고객을 확보합니다.
+                      </p>
+                      
+                      {settings.useCrmAutomation && (
+                        <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs font-bold flex gap-2 items-center">
+                          <span className="text-base">✅</span>
+                          <span>과거 90일 전 수거 완료 고객에게 매일 아침 안내가 발송됩니다.</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600 leading-relaxed mb-4 pr-10">
-                    수거 완료 후 <strong>정확히 3개월(90일)이 지난 고객</strong>에게 자동으로 옷장 정리 안내 및 재수거 유도 알림톡을 발송하여 <strong className="text-orange-700">단골 고객을 확보</strong>합니다.
-                  </p>
-                  
-                  {settings.useCrmAutomation ? (
-                    <div className="bg-white/80 backdrop-blur-sm text-orange-800 p-4 rounded-xl text-sm font-medium border border-orange-200 flex gap-3 items-start shadow-sm">
-                      <span className="text-xl">✨</span>
-                      <div>
-                        <strong>CRM 자동화가 활성화되었습니다.</strong><br/>
-                        <span className="text-orange-600/80 mt-1 block">과거 90일 전 수거 완료 고객에게 매일 아침 재수거 안내 알림톡이 자동으로 발송됩니다.</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="bg-white/50 text-gray-500 p-4 rounded-xl text-sm font-medium border border-gray-200 flex gap-3 items-start">
-                      <span className="text-xl opacity-50">💤</span>
-                      <div>
-                        <strong>CRM 자동화가 꺼져 있습니다.</strong><br/>
-                        <span className="mt-1 block">한 번 이용한 고객이 다른 업체를 이용하지 않도록 자동 리텐션 기능을 켜보세요!</span>
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="pt-4 flex justify-end">
