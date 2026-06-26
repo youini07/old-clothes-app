@@ -1516,9 +1516,11 @@ export default function AdminDashboard() {
             <div className="space-y-3 max-h-[60vh] overflow-y-auto">
               <button
                 onClick={() => handleBulkAssign('AUTO')}
-                className="w-full text-center p-4 bg-primary-100 hover:bg-primary-200 rounded-2xl border border-primary-300 transition-all mb-4"
+                disabled={isBulkAssigning}
+                className={`w-full text-center p-4 rounded-2xl border transition-all mb-4 ${isBulkAssigning ? 'bg-primary-50 border-primary-100 opacity-70 cursor-not-allowed' : 'bg-primary-100 hover:bg-primary-200 border-primary-300'}`}
               >
-                <div className="font-extrabold text-primary-900 text-lg">
+                <div className="font-extrabold text-primary-900 text-lg flex items-center justify-center gap-2">
+                  {isBulkAssigning && <Spinner className="w-5 h-5 text-primary-600" />}
                   ✨ 권역별 기사님께 자동 배정
                 </div>
                 <p className="text-sm text-primary-700 mt-1">각 수거건의 주소에 맞는 담당 기사님을 찾아 자동으로 일괄 배정합니다.</p>
@@ -1532,8 +1534,10 @@ export default function AdminDashboard() {
                 <button
                   key={driver.id}
                   onClick={() => handleBulkAssign(driver.id)}
-                  className="w-full text-left p-4 bg-gray-50 hover:bg-primary-50 rounded-2xl border border-gray-100 hover:border-primary-200 transition-all"
+                  disabled={isBulkAssigning}
+                  className={`w-full text-left p-4 rounded-2xl border transition-all flex items-center gap-2 ${isBulkAssigning ? 'bg-gray-50 border-gray-100 opacity-70 cursor-not-allowed' : 'bg-gray-50 hover:bg-primary-50 border-gray-100 hover:border-primary-200'}`}
                 >
+                  {isBulkAssigning && <Spinner className="w-5 h-5 text-gray-500" />}
                   <div className="font-bold text-gray-900 text-lg">
                     {driver.user?.name || driver.name} 기사님
                   </div>
