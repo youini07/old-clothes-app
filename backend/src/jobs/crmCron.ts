@@ -1,5 +1,5 @@
 import cron from 'node-cron';
-import prisma from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { sendCrmNotification } from '../services/notificationService';
 
 // 매일 오전 10시에 실행
