@@ -104,26 +104,7 @@ router.post('/demo', async (req, res) => {
         }
       });
       
-      // 권역 추가 (용인시)
-      const region = await prisma.region.upsert({
-        where: { id: 'demo-region-1' },
-        update: {},
-        create: {
-          id: 'demo-region-1',
-          province: '경기도',
-          city: '용인시'
-        }
-      });
-      
-      // Coverage 연결
-      const coverageExists = await prisma.coverage.findFirst({
-        where: { partnerId: user.id, regionId: region.id }
-      });
-      if (!coverageExists) {
-        await prisma.coverage.create({
-          data: { partnerId: user.id, regionId: region.id }
-        });
-      }
+      // 데모 파트너는 권역 제한 없이 모든 미배정 건(80개)을 볼 수 있도록 권역 할당 로직을 제거했습니다.
       
       // 파트너에 소속된 데모 기사 생성
       const driverUser = await prisma.user.upsert({
