@@ -32,13 +32,13 @@ export default function ProtectedRoute({ children, allowedRoles, redirectTo = '/
       
       // 역할별 필수 토큰 체크
       if (userInfo.role === 'PARTNER' && !localStorage.getItem('admin_token')) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/staff-login" replace />;
       }
       if (userInfo.role === 'DRIVER' && !localStorage.getItem('driver_token')) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/staff-login" replace />;
       }
       if (userInfo.role === 'SUPER_ADMIN' && !localStorage.getItem('superadmin_token')) {
-        return <Navigate to="/login" replace />;
+        return <Navigate to="/staff-login" replace />;
       }
     } catch {
       return <Navigate to={redirectTo} replace />;

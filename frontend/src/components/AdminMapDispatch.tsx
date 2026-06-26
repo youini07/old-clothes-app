@@ -68,6 +68,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [failedRequests, setFailedRequests] = useState<RequestItem[]>([]);
 
   // 미배정 건 필터링
   useEffect(() => {
@@ -133,6 +134,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
 
     // 기존 마커 제거
     clusterer.clear();
+    setFailedRequests([]);
 
     const bounds = new window.kakao.maps.LatLngBounds();
     let boundsExtended = false;
@@ -151,6 +153,13 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
             req.lat = lat;
             req.lng = lng;
             createMarker(req, lat, lng);
+          } else {
+            setFailedRequests(prev => {
+              if (!prev.find(r => r.id === req.id)) {
+                return [...prev, req];
+              }
+              return prev;
+            });
           }
           loadedCount++;
           if (loadedCount === unassignedRequests.length && boundsExtended) {
@@ -296,14 +305,26 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
               지도 배정
             </h3>
             {/* 데스크탑 미배정 건수 */}
-            <p className="hidden sm:block text-sm text-gray-600">
+            <div className="hidden sm:block text-sm text-gray-600">
               미배정: <strong className="text-orange-600">{unassignedRequests.length}</strong>건
-            </p>
+              {failedRequests.length > 0 && (
+                <span className="ml-2 text-xs text-red-500 font-bold bg-red-50 px-2 py-0.5 rounded-md" title="잘못된 주소로 지도에 표시되지 않은 건수입니다.">
+                  위치 오류: {failedRequests.length}건
+                </span>
+              )}
+            </div>
 
             {/* 모바일 타이틀 + 미배정 건수 */}
-            <div className="sm:hidden flex items-center gap-1 text-[11px] font-bold text-gray-800">
-              <MapPin className="w-3 h-3 text-orange-500" />
-              미배정 <span className="text-orange-600">{unassignedRequests.length}</span>건
+            <div className="sm:hidden flex flex-col items-start gap-1">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-gray-800">
+                <MapPin className="w-3 h-3 text-orange-500" />
+                미배정 <span className="text-orange-600">{unassignedRequests.length}</span>건
+              </div>
+              {failedRequests.length > 0 && (
+                <div className="text-[10px] text-red-500 font-bold bg-red-50 px-1.5 py-0.5 rounded">
+                  위치 오류 {failedRequests.length}건
+                </div>
+              )}
             </div>
             
             {/* 모바일 전체선택/해제 버튼 */}

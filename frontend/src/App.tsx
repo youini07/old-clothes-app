@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import RequestForm from './pages/RequestForm';
 import Login from './pages/Login';
 import AdminDashboard from './pages/AdminDashboard';
@@ -16,7 +16,6 @@ import { useNavigate } from 'react-router-dom';
  * - 전체 배경: 올클 로고 이미지 (/allclear-logo.png) 꽉 채우기
  * - 하단 버튼 2개:
  *   1) 카카오 로그인 버튼 (이미지 하단 "모두 비우고" 위 공간)
- *   2) 관리자/사장님/기사님 로그인 링크 (최하단)
  */
 function Home() {
   const navigate = useNavigate();
@@ -60,12 +59,6 @@ function Home() {
           </a>
         </div>
 
-        {/* 사장님/기사님 로그인 링크 */}
-        <div className="relative z-10 text-center mb-[20px] pointer-events-auto">
-          <a href="/staff-login" onClick={(e) => { e.preventDefault(); navigate('/staff-login'); }} className="text-gray-500 text-sm font-medium hover:text-gray-700 underline underline-offset-2">
-            사장님 / 기사님 로그인
-          </a>
-        </div>
       </div>
     </div>
   );
@@ -78,7 +71,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/staff-login" element={<Login />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<Navigate to="/staff-login" replace />} />
           <Route path="/request" element={<RequestForm />} />
           <Route path="/login-success" element={<LoginSuccess />} />
           <Route path="/status" element={<ProtectedRoute allowedRoles={['CUSTOMER']}><CustomerDashboard /></ProtectedRoute>} />
