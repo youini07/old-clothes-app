@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import AdminMapDispatch from '../components/AdminMapDispatch';
+import Spinner from '../components/Spinner';
 
 interface RequestItem {
   id: string;
@@ -62,6 +63,18 @@ export default function AdminDashboard() {
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
+
+  // 로딩 스피너/비활성화를 위한 상태 추가
+  const [isSavingDriver, setIsSavingDriver] = useState(false);
+  const [isSubmittingRegion, setIsSubmittingRegion] = useState(false);
+  const [deletingRegionId, setDeletingRegionId] = useState<string | null>(null);
+  const [isBatchUnassigning, setIsBatchUnassigning] = useState(false);
+  const [unassigningReqId, setUnassigningReqId] = useState<string | null>(null);
+  const [isBulkClaiming, setIsBulkClaiming] = useState(false);
+  const [isBulkUnclaiming, setIsBulkUnclaiming] = useState(false);
+  const [isBulkAssigning, setIsBulkAssigning] = useState(false);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [unclaimingId, setUnclaimingId] = useState<string | null>(null);
 
   // 모바일/클릭 배정용 상태
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
@@ -198,6 +211,8 @@ export default function AdminDashboard() {
 
   const handleAddDriver = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSavingDriver) return;
+    setIsSavingDriver(true);
     try {
       if (editingDriverId) {
         await axios.patch(`${import.meta.env.VITE_API_URL}/admin/drivers/${editingDriverId}`, {
@@ -221,11 +236,15 @@ export default function AdminDashboard() {
       fetchData(); // 새 기사님 목록 불러오기
     } catch (error: any) {
       alert(error.response?.data?.error || '기사 저장 중 오류가 발생했습니다.');
+    } finally {
+      setIsSavingDriver(false);
     }
   };
 
   const handleAddRegion = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRegion) return;
+    setIsSubmittingRegion(true);
     try {
       const areas = newRegionForm.selectedAreas.map(area => {
         const exception = newRegionForm.exceptions[area];
@@ -251,6 +270,8 @@ export default function AdminDashboard() {
       fetchCustomRegions();
     } catch (error: any) {
       alert(error.response?.data?.error || '권역 추가 실패');
+    } finally {
+      setIsSubmittingRegion(false);
     }
   };
 
@@ -285,6 +306,7 @@ export default function AdminDashboard() {
 
   const handleDeleteRegion = async (id: string) => {
     if (!confirm('정말 이 권역을 삭제하시겠습니까? 할당된 기사님들의 권역이 해제됩니다.')) return;
+    setDeletingRegionId(id);
     try {
       await axios.delete(`${import.meta.env.VITE_API_URL}/admin/custom-regions/${id}`, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -294,6 +316,8 @@ export default function AdminDashboard() {
       fetchData();
     } catch (error: any) {
       alert(error.response?.data?.error || '권역 삭제 실패');
+    } finally {
+      setDeletingRegionId(null);
     }
   };
 
@@ -432,7 +456,7 @@ export default function AdminDashboard() {
   const handleBulkAssign = async (targetDriverId: string | 'AUTO') => {
     if (!authToken) return alert('로그인이 필요합니다.');
     
-    setLoading(true);
+    setIsBulkAssigning(true);
     let successCount = 0;
     let failCount = 0;
 
@@ -470,6 +494,7 @@ export default function AdminDashboard() {
 
     await Promise.all(updates);
     
+    setIsBulkAssigning(false);
     alert(`${successCount}건 배정 성공` + (failCount > 0 ? `, ${failCount}건 실패 (권역 미스매치 또는 오류)` : ''));
     setSelectedUnassignedIds([]);
     setIsBulkAssignModalOpen(false);
@@ -513,6 +538,7 @@ export default function AdminDashboard() {
   // 일괄 수락 핸들러
   const handleBulkClaim = async () => {
     if (selectedRequestIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    setIsBulkClaiming(true);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-claim`, {
         requestIds: selectedRequestIds
@@ -526,6 +552,8 @@ export default function AdminDashboard() {
       const msg = error?.response?.data?.error || '일괄 수락에 실패했습니다.';
       alert(msg);
       fetchData();
+    } finally {
+      setIsBulkClaiming(false);
     }
   };
 
@@ -533,6 +561,7 @@ export default function AdminDashboard() {
   const handleBulkUnclaim = async () => {
     if (selectedUnassignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
     if (!window.confirm(`선택한 ${selectedUnassignedIds.length}건의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.`)) return;
+    setIsBulkUnclaiming(true);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-unclaim`, {
         requestIds: selectedUnassignedIds
@@ -546,6 +575,8 @@ export default function AdminDashboard() {
       const msg = error?.response?.data?.error || '일괄 취소에 실패했습니다.';
       alert(msg);
       fetchData();
+    } finally {
+      setIsBulkUnclaiming(false);
     }
   };
 
@@ -553,6 +584,8 @@ export default function AdminDashboard() {
   const handleBatchUnassign = async () => {
     if (selectedAssignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
     if (!window.confirm(`선택한 ${selectedAssignedIds.length}건의 배정을 일괄 취소하시겠습니까?`)) return;
+    if (isBatchUnassigning) return;
+    setIsBatchUnassigning(true);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/batch-unassign`, {
         ids: selectedAssignedIds
@@ -566,11 +599,14 @@ export default function AdminDashboard() {
       const msg = error?.response?.data?.error || '일괄 배정 취소에 실패했습니다.';
       alert(msg);
       fetchData();
+    } finally {
+      setIsBatchUnassigning(false);
     }
   };
 
   // 수거 요청 수락 핸들러 (단일 건)
   const handleClaim = async (requestId: string) => {
+    setClaimingId(requestId);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/claim`, {}, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -581,12 +617,15 @@ export default function AdminDashboard() {
       const msg = error?.response?.data?.error || '수락에 실패했습니다.';
       alert(msg);
       fetchData();
+    } finally {
+      setClaimingId(null);
     }
   };
 
   // 수거 요청 수락 취소 핸들러
   const handleUnclaim = async (requestId: string) => {
     if (!window.confirm('이 요청의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.')) return;
+    setUnclaimingId(requestId);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/unclaim`, {}, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -596,6 +635,8 @@ export default function AdminDashboard() {
     } catch (error: any) {
       const msg = error?.response?.data?.error || '수락 취소에 실패했습니다.';
       alert(msg);
+    } finally {
+      setUnclaimingId(null);
     }
   };
 
@@ -750,7 +791,14 @@ export default function AdminDashboard() {
                       <span className="font-bold text-gray-900 text-lg mr-3">{cr.name}</span>
                       <span className="text-sm text-gray-600">{cr.areas.join(', ')}</span>
                     </div>
-                    <button onClick={() => handleDeleteRegion(cr.id)} className="text-red-500 text-sm font-bold bg-red-50 px-3 py-1.5 rounded-lg hover:bg-red-100 transition-colors">삭제</button>
+                    <button 
+                      disabled={deletingRegionId === cr.id}
+                      onClick={() => handleDeleteRegion(cr.id)} 
+                      className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${deletingRegionId === cr.id ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                    >
+                      {deletingRegionId === cr.id && <Spinner className="w-3 h-3 text-current" />}
+                      삭제
+                    </button>
                   </div>
                 ))}
                 {isAddingRegion ? (
@@ -792,7 +840,14 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex gap-2 justify-end pt-2">
                       <button onClick={() => setIsAddingRegion(false)} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg text-sm hover:bg-gray-300 transition-colors">취소</button>
-                      <button onClick={handleAddRegion} className="px-4 py-2 bg-primary-600 text-white font-bold rounded-lg text-sm shadow-sm hover:bg-primary-700 transition-colors">저장하기</button>
+                      <button 
+                        disabled={isSubmittingRegion}
+                        onClick={handleAddRegion} 
+                        className={`px-4 py-2 text-white font-bold rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2 ${isSubmittingRegion ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
+                      >
+                        {isSubmittingRegion && <Spinner className="w-4 h-4" />}
+                        {isSubmittingRegion ? '저장 중...' : '저장하기'}
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -995,8 +1050,10 @@ export default function AdminDashboard() {
                     {selectedRequestIds.length > 0 && (
                       <button
                         onClick={handleBulkClaim}
-                        className="text-sm font-bold text-white bg-orange-600 px-4 py-2 rounded-xl hover:bg-orange-700 shadow-sm transition-all animate-fade-in"
+                        disabled={isBulkClaiming}
+                        className={`text-sm font-bold text-white bg-orange-600 px-4 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-2 ${isBulkClaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-700'}`}
                       >
+                        {isBulkClaiming && <Spinner className="w-4 h-4 text-white" />}
                         {selectedRequestIds.length}건 일괄 수락
                       </button>
                     )}
@@ -1029,9 +1086,10 @@ export default function AdminDashboard() {
                           {!selectedRequestIds.includes(req.id) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
-                              className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-bold rounded-xl transition-all active:scale-95 shadow-sm"
+                              disabled={claimingId === req.id}
+                              className={`px-4 py-2 bg-orange-500 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center gap-1 ${claimingId === req.id ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-600 active:scale-95'}`}
                             >
-                              ✋ 수락
+                              {claimingId === req.id ? <Spinner className="w-4 h-4" /> : '✋'} 수락
                             </button>
                           )}
                         </div>
@@ -1071,8 +1129,10 @@ export default function AdminDashboard() {
                     </button>
                     <button
                       onClick={handleBulkUnclaim}
-                      className="text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl hover:bg-gray-300 shadow-sm transition-all animate-fade-in"
+                      disabled={isBulkUnclaiming}
+                      className={`text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-2 ${isBulkUnclaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-300'}`}
                     >
+                      {isBulkUnclaiming && <Spinner className="w-4 h-4 text-gray-700" />}
                       {selectedUnassignedIds.length}건 일괄 취소
                     </button>
                   </div>
@@ -1120,8 +1180,10 @@ export default function AdminDashboard() {
                         {!selectedUnassignedIds.includes(req.id) && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
-                            className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs font-bold rounded-lg transition-colors active:scale-95"
+                            disabled={unclaimingId === req.id}
+                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 active:scale-95'}`}
                           >
+                            {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
                             수락 취소
                           </button>
                         )}
@@ -1197,9 +1259,11 @@ export default function AdminDashboard() {
                           </label>
                           {driverRequests.some(r => selectedAssignedIds.includes(r.id)) && (
                             <button
+                              disabled={isBatchUnassigning}
                               onClick={handleBatchUnassign}
-                              className="text-[10px] px-2 py-1 bg-red-100 text-red-700 rounded-md font-bold hover:bg-red-200"
+                              className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${isBatchUnassigning ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
                             >
+                              {isBatchUnassigning && <Spinner className="w-3 h-3" />}
                               일괄 취소
                             </button>
                           )}
@@ -1248,9 +1312,11 @@ export default function AdminDashboard() {
                                 )}
                               </div>
                               <button
+                                disabled={unassigningReqId === req.id}
                                 onClick={async (e) => {
                                   e.stopPropagation();
                                   if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                  setUnassigningReqId(req.id);
                                   try {
                                     await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
                                       headers: { Authorization: `Bearer ${authToken}` }
@@ -1258,11 +1324,14 @@ export default function AdminDashboard() {
                                     fetchData();
                                   } catch (error) {
                                     alert('배정 취소에 실패했습니다.');
+                                  } finally {
+                                    setUnassigningReqId(null);
                                   }
                                 }}
-                                className="px-2 py-1 text-[10px] font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
+                                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100'}`}
                               >
-                                배정 취소
+                                {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
+                                취소
                               </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{req.address}</p>
@@ -1394,9 +1463,11 @@ export default function AdminDashboard() {
               <div className="pt-4">
                 <button 
                   type="submit" 
-                  className="w-full py-4 bg-primary-600 text-white font-bold rounded-xl shadow-lg hover:bg-primary-700 transition-colors"
+                  disabled={isSavingDriver}
+                  className={`w-full py-4 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${isSavingDriver ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
                 >
-                  {editingDriverId ? '수정 완료하기' : '등록 완료하기'}
+                  {isSavingDriver && <Spinner className="w-5 h-5" />}
+                  {isSavingDriver ? '저장 중...' : (editingDriverId ? '수정 완료하기' : '등록 완료하기')}
                 </button>
               </div>
             </form>

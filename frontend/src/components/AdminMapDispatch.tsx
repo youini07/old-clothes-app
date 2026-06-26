@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { MapPin, CheckSquare, Trash2, CheckCircle, AlertTriangle } from 'lucide-react';
+import Spinner from './Spinner';
 
 declare global {
   interface Window {
@@ -382,6 +383,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
                   disabled={selectedIds.length === 0 || !selectedDriverId || isAssigning}
                   className="whitespace-nowrap px-3 py-1 sm:w-full sm:py-3 text-[11px] sm:text-base bg-orange-500 text-white font-bold rounded-lg sm:rounded-xl disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-orange-600 transition-colors flex items-center justify-center gap-1 sm:gap-2"
                 >
+                  {isAssigning && <Spinner className="w-4 h-4 text-white" />}
                   {isAssigning ? '배정중..' : (
                     <>
                       <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" /> <span className="hidden sm:inline">일괄 </span>배정
