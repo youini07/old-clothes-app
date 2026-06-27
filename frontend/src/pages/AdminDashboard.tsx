@@ -1209,36 +1209,36 @@ export default function AdminDashboard() {
                     <h2 className="text-xl font-extrabold text-gray-800">🔔 신규 수거 요청 {activeRegionTab !== 'ALL' && <span className="text-sm text-gray-400 font-medium">({activeRegionTab === 'UNCLASSIFIED' ? '미분류' : customRegions.find(c => c.id === activeRegionTab)?.name})</span>}</h2>
                     <span className="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm">{pendingRequests.length}건</span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={handleToggleAllPending}
-                      className="text-sm font-bold text-gray-600 bg-gray-100 px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+                      className="bg-gray-100 p-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center"
+                      title="전체 선택"
                     >
                       <input 
                         type="checkbox" 
                         checked={selectedRequestIds.length > 0 && selectedRequestIds.length === pendingRequests.length} 
                         readOnly 
-                        className="w-4 h-4 rounded text-orange-500 cursor-pointer"
+                        className="w-5 h-5 rounded text-orange-500 cursor-pointer"
                       />
-                      전체선택
                     </button>
                     {selectedRequestIds.length > 0 && (
-                      <button
-                        onClick={handleBulkClaim}
-                        disabled={isBulkClaiming}
-                        className={`text-sm font-bold text-white bg-orange-600 px-4 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-2 ${isBulkClaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-700'}`}
-                      >
-                        {isBulkClaiming && <Spinner className="w-4 h-4 text-white" />}
-                        {selectedRequestIds.length}건 일괄 수락
-                      </button>
-                    )}
-                    {selectedRequestIds.length > 0 && (
-                      <button
-                        onClick={() => handleSendSMS(selectedRequestIds)}
-                        className="text-sm font-bold text-white bg-green-500 px-4 py-2 rounded-xl shadow-sm hover:bg-green-600 transition-all animate-fade-in flex items-center gap-1"
-                      >
-                        💬 안내문자
-                      </button>
+                      <>
+                        <button
+                          onClick={handleBulkClaim}
+                          disabled={isBulkClaiming}
+                          className={`text-sm font-bold text-white bg-orange-600 px-3 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-1 ${isBulkClaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-700'}`}
+                        >
+                          {isBulkClaiming && <Spinner className="w-4 h-4 text-white" />}
+                          {selectedRequestIds.length}건 일괄 수락
+                        </button>
+                        <button
+                          onClick={() => handleSendSMS(selectedRequestIds)}
+                          className="text-sm font-bold text-white bg-green-500 px-3 py-2 rounded-xl shadow-sm hover:bg-green-600 transition-all animate-fade-in flex items-center gap-1"
+                        >
+                          💬 안내문자
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
@@ -1289,42 +1289,42 @@ export default function AdminDashboard() {
                 <h2 className="text-xl font-extrabold text-gray-800">대기중인 수거</h2>
                 <span className="bg-gray-100 text-gray-700 px-3 py-1 rounded-full text-sm font-bold shadow-sm">{unassignedRequests.length}건</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleToggleAllUnassigned}
-                  className="text-sm font-bold text-gray-600 bg-gray-100 px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors flex items-center gap-2"
+                  className="bg-gray-100 p-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center"
+                  title="전체 선택"
                 >
                   <input 
                     type="checkbox" 
                     checked={selectedUnassignedIds.length > 0 && selectedUnassignedIds.length === unassignedRequests.length} 
                     readOnly 
-                    className="w-4 h-4 rounded text-gray-500 cursor-pointer"
+                    className="w-5 h-5 rounded text-primary-600 cursor-pointer"
                   />
-                  전체선택
                 </button>
                 {selectedUnassignedIds.length > 0 && (
-                  <div className="flex gap-2">
+                  <>
                     <button
                       onClick={() => setIsBulkAssignModalOpen(true)}
-                      className="text-sm font-bold text-white bg-primary-600 px-4 py-2 rounded-xl hover:bg-primary-700 shadow-sm transition-all animate-fade-in"
+                      className="text-sm font-bold text-white bg-primary-600 px-3 py-2 rounded-xl hover:bg-primary-700 shadow-sm transition-all animate-fade-in"
                     >
-                      {selectedUnassignedIds.length}건 일괄 배정
+                      {selectedUnassignedIds.length}건 배정
                     </button>
                     <button
                       onClick={handleBulkUnclaim}
                       disabled={isBulkUnclaiming}
-                      className={`text-sm font-bold text-gray-700 bg-gray-200 px-4 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-2 ${isBulkUnclaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-300'}`}
+                      className={`text-sm font-bold text-gray-700 bg-gray-200 px-3 py-2 rounded-xl shadow-sm transition-all animate-fade-in flex items-center gap-1 ${isBulkUnclaiming ? 'opacity-70 cursor-not-allowed' : 'hover:bg-gray-300'}`}
                     >
                       {isBulkUnclaiming && <Spinner className="w-4 h-4 text-gray-700" />}
-                      {selectedUnassignedIds.length}건 일괄 취소
+                      {selectedUnassignedIds.length}건 취소
                     </button>
                     <button
                       onClick={() => handleSendSMS(selectedUnassignedIds)}
-                      className="text-sm font-bold text-white bg-green-500 px-4 py-2 rounded-xl hover:bg-green-600 shadow-sm transition-all animate-fade-in flex items-center gap-1"
+                      className="text-sm font-bold text-white bg-green-500 px-3 py-2 rounded-xl hover:bg-green-600 shadow-sm transition-all animate-fade-in flex items-center gap-1"
                     >
                       💬 안내문자
                     </button>
-                  </div>
+                  </>
                 )}
               </div>
             </div>
