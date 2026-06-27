@@ -97,6 +97,15 @@ export default function AdminDashboard() {
   // 모바일 배차 탭
   const [dispatchTab, setDispatchTab] = useState<'requests' | 'drivers'>('requests');
 
+  // 선택된 기사 (탭)
+  const [activeDriverId, setActiveDriverId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (drivers.length > 0 && !activeDriverId) {
+      setActiveDriverId(drivers[0].id);
+    }
+  }, [drivers, activeDriverId]);
+
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
   const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
@@ -1415,8 +1424,27 @@ export default function AdminDashboard() {
           </div>
 
           {/* Right Column: Drivers */}
-          <div className={`lg:col-span-2 grid-cols-1 md:grid-cols-2 gap-6 ${dispatchTab === 'drivers' ? 'grid' : 'hidden lg:grid'}`}>
-            {drivers.map(driver => {
+          <div className={`lg:col-span-2 flex-col gap-4 ${dispatchTab === 'drivers' ? 'flex' : 'hidden lg:flex'}`}>
+            {/* 기사 선택 탭 */}
+            {drivers.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                {drivers.map(driver => (
+                  <button
+                    key={`tab-${driver.id}`}
+                    onClick={() => setActiveDriverId(driver.id)}
+                    className={`shrink-0 px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 ${activeDriverId === driver.id ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                  >
+                    🚚 {driver.user?.name || driver.name}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-10 bg-white border border-gray-200 rounded-3xl text-gray-500 font-bold shadow-sm">
+                등록된 기사님이 없습니다.
+              </div>
+            )}
+
+            {drivers.filter(d => d.id === activeDriverId).map(driver => {
               const rawDriverRequests = requests.filter(r => r.driverId === driver.id);
               // createdAt(접수시간) 오름차순으로 고유 순번(displayId) 부여
               const driverRequestsWithId = [...rawDriverRequests].sort((a, b) => {
