@@ -62,14 +62,19 @@ router.post('/rooms/init', async (req, res) => {
   
   try {
     if (!partnerId) {
-      const defaultAdmin = await prisma.user.findFirst({
+      let defaultAdmin = await prisma.user.findFirst({
         where: { role: { in: ['SUPER_ADMIN', 'PARTNER'] } }
       });
-      if (defaultAdmin) {
-        partnerId = defaultAdmin.id;
-      } else {
-        return res.status(400).json({ error: 'No admin found to chat with' });
+      if (!defaultAdmin) {
+        defaultAdmin = await prisma.user.create({
+          data: {
+            name: '고객센터',
+            email: 'admin@all-cle.com',
+            role: 'SUPER_ADMIN'
+          }
+        });
       }
+      partnerId = defaultAdmin.id;
     }
 
     let room = await prisma.chatRoom.findFirst({
