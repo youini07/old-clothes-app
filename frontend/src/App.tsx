@@ -48,7 +48,7 @@ function Home() {
         />
 
         {/* 카카오 로그인 버튼 */}
-        <div className="relative z-10 px-8 mb-[85px]">
+        <div className="relative z-10 px-8 mb-[105px]">
           <a
             href={`${import.meta.env.VITE_API_URL}/auth/kakao`}
             className="flex items-center justify-center gap-2 w-full py-4 text-base font-bold text-yellow-900 rounded-2xl shadow-lg hover:brightness-95 transition-all active:scale-[0.98]"
