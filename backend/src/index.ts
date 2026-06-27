@@ -15,6 +15,7 @@ import { prisma } from './lib/prisma';
 dotenv.config();
 
 const app = express();
+app.set('trust proxy', 1); // 리버스 프록시(Railway, Vercel 등) 환경에서 클라이언트 IP를 정상적으로 가져오기 위함
 const server = http.createServer(app);
 const port = process.env.PORT || 5000;
 

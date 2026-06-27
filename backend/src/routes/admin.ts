@@ -1356,4 +1356,64 @@ router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_AD
   }
 });
 
+// 비회원 수동 접수(전화 접수) API
+router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const requestData = req.body;
+  const partnerId = req.user!.userId;
+
+  try {
+    let province = '';
+    let city = '';
+    const addressParts = (requestData.address || '').split(' ');
+    province = addressParts[0] || ''; 
+    if (province === '경기') province = '경기도'; 
+    city = addressParts[1] || '';     
+
+    let regionId = null;
+    if (province && city) {
+      const region = await prisma.region.findFirst({
+        where: { province, city }
+      });
+      if (region) {
+        regionId = region.id;
+      }
+    }
+
+    const newRequest = await prisma.request.create({
+      data: {
+        userName: requestData.userName || '비회원',
+        phone: requestData.phone || '010-0000-0000',
+        address: requestData.address,
+        detailAddress: requestData.detailAddress || '',
+        zipCode: requestData.zipCode || '00000',
+        sigungu: city,
+        bname: addressParts[2] || null,
+        desiredDate: requestData.desiredDate ? new Date(requestData.desiredDate) : new Date(),
+        estimatedVolume: requestData.estimatedVolume || '수동 접수 (상세불명)',
+        status: 'ACCEPTED', // 사장님이 직접 등록하므로 바로 수락 완료
+        partnerId,
+        regionId,
+        customerId: null, // 비회원
+      }
+    });
+
+    // 구글 시트 연동
+    addRequestToSheet({
+      id: newRequest.id,
+      userName: newRequest.userName,
+      phone: newRequest.phone,
+      address: newRequest.address,
+      detailAddress: newRequest.detailAddress,
+      desiredDate: newRequest.desiredDate.toISOString(),
+      estimatedVolume: newRequest.estimatedVolume,
+      status: newRequest.status,
+    }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
+
+    res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
+  } catch (error) {
+    console.error('수동 접수 에러:', error);
+    res.status(500).json({ error: '수동 접수 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
