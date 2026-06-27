@@ -173,7 +173,10 @@ router.post('/demo', async (req, res) => {
 router.get('/partners', async (req, res) => {
   try {
     const partners = await prisma.user.findMany({
-      where: { role: 'PARTNER' },
+      where: { 
+        role: 'PARTNER',
+        email: { not: 'demo_partner@test.com' }
+      },
       select: { id: true, businessName: true, name: true, email: true }
     });
     res.json(partners);

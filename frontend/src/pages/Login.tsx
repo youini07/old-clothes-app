@@ -138,7 +138,7 @@ export default function Login() {
     }
     
     if (registerRole === 'DRIVER' && !selectedPartnerId) {
-      return alert('소속 사장님(업체)을 선택해주세요.');
+      return alert('소속 업체를 선택해주세요.');
     }
 
     setLoading(true);
@@ -330,14 +330,14 @@ export default function Login() {
 
               {registerRole === 'DRIVER' && (
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">소속 사장님(업체) 선택</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">소속 업체 선택</label>
                   <select
                     required
                     value={selectedPartnerId}
                     onChange={(e) => setSelectedPartnerId(e.target.value)}
                     className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-sky-500 focus:bg-white transition-colors outline-none text-sm"
                   >
-                    <option value="">-- 소속 사장님을 선택하세요 --</option>
+                    <option value="">-- 소속 업체를 선택하세요 --</option>
                     {partnerOptions.map(p => (
                       <option key={p.id} value={p.id}>
                         {p.businessName ? `${p.businessName} (${p.name})` : p.name}
