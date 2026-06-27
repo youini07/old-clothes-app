@@ -15,7 +15,7 @@ interface Partner {
 
 export default function SuperAdminDashboard() {
   const [partners, setPartners] = useState<Partner[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!localStorage.getItem('superadmin_token'));
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('superadmin_token'));
   const [deletingRegionId, setDeletingRegionId] = useState<string | null>(null);
 
@@ -43,12 +43,11 @@ export default function SuperAdminDashboard() {
     if (authToken) {
       fetchPartners();
       fetchMonitoring();
-    } else {
-      setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken]);
 
-  const fetchMonitoring = async () => {
+  async function fetchMonitoring() {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/monitoring`, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -57,7 +56,7 @@ export default function SuperAdminDashboard() {
     } catch (error) {
       console.error('모니터링 데이터 조회 실패:', error);
     }
-  };
+  }
 
   const handleDemoLogin = async () => {
     try {
@@ -148,7 +147,7 @@ export default function SuperAdminDashboard() {
     }
   };
 
-  const fetchPartners = async () => {
+  async function fetchPartners() {
     try {
       setLoading(true);
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/partners`, {
@@ -165,7 +164,7 @@ export default function SuperAdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const approvePartner = async (partnerId: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');

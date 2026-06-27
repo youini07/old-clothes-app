@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DriverMap from '../components/DriverMap';
 import Spinner from '../components/Spinner';
+import { Camera, X } from 'lucide-react';
 
 interface RequestItem {
   id: string;
@@ -23,9 +24,9 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => { fetchProfile(); }, []);
 
-  const fetchProfile = async () => {
+
+  async function fetchProfile() {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/me`, { headers: { Authorization: `Bearer ${authToken}` } });
       setProfile({
@@ -36,6 +37,8 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
     } catch { alert('프로필을 불러올 수 없습니다.'); }
     finally { setLoading(false); }
   };
+
+  useEffect(() => { fetchProfile(); }, []);
 
   const handleSave = async () => {
     setSaving(true);
@@ -71,6 +74,23 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   );
 };
 
+const PhotoUpload = ({ photo, setter, label, color, handlePhotoChange }: { photo: string | null; setter: (v: string | null) => void; label: string; color: string; handlePhotoChange: (e: React.ChangeEvent<HTMLInputElement>, setter: (v: string | null) => void) => void }) => (
+  photo ? (
+    <div className="relative">
+      <img src={photo} alt="Upload" className="w-full h-48 object-cover rounded-xl" />
+      <button type="button" onClick={() => setter(null)} className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-black/70">
+        <X size={20} />
+      </button>
+    </div>
+  ) : (
+    <label className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-${color}-300 rounded-xl bg-${color}-50 hover:bg-${color}-100 cursor-pointer transition-colors`}>
+      <Camera size={32} className={`text-${color}-500 mb-2`} />
+      <span className={`text-sm font-bold text-${color}-700`}>{label}</span>
+      <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoChange(e, setter)} />
+    </label>
+  )
+);
+
 export default function DriverDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,9 +116,7 @@ export default function DriverDashboard() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    if (authToken) { fetchDriverRequests(page); } else { setLoading(false); }
-  }, [authToken, page]);
+
 
   const handleDemoLogin = async () => {
     try {
@@ -109,7 +127,7 @@ export default function DriverDashboard() {
     } catch { alert('데모 로그인 실패'); setLoading(false); }
   };
 
-  const fetchDriverRequests = async (currentPage = page) => {
+  async function fetchDriverRequests(currentPage = page) {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&limit=50`, {
         headers: { Authorization: `Bearer ${authToken}` }
@@ -123,6 +141,11 @@ export default function DriverDashboard() {
       setRequests([]);
     } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    if (authToken) { fetchDriverRequests(page); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken, page]);
 
   const [optimizing, setOptimizing] = useState(false);
   const [returnToStart, setReturnToStart] = useState(true);
@@ -274,13 +297,13 @@ export default function DriverDashboard() {
     const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
 
     if (isAndroid) {
-      // 안드로이드 크롬: T맵 앱 강제 실행
+      // Android: T맵 인텐트 호출
       const fallbackUrl = `https://play.google.com/store/apps/details?id=com.skt.tmap.ku`;
       const intentUrl = `intent://search?name=${encodedAddress}#Intent;scheme=tmap;package=com.skt.tmap.ku;S.browser_fallback_url=${encodeURIComponent(fallbackUrl)};end;`;
-      window.location.href = intentUrl;
+      window.location.assign(intentUrl);
     } else if (isIOS) {
       // iOS: T맵 스킴 호출
-      window.location.href = `tmap://search?name=${encodedAddress}`;
+      window.location.assign(`tmap://search?name=${encodedAddress}`);
       // 앱이 없는 경우 앱스토어로 유도
       setTimeout(() => {
         window.open(`https://apps.apple.com/kr/app/id431589174`, '_blank');
@@ -317,21 +340,6 @@ export default function DriverDashboard() {
     const price = req.totalPrice || 0;
     return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!`;
   };
-
-  const PhotoUpload = ({ photo, setter, label, color }: { photo: string | null; setter: (v: string | null) => void; label: string; color: string }) => (
-    photo ? (
-      <div className="relative">
-        <img src={photo} alt={label} className={`w-full h-48 object-cover rounded-xl border-2 border-${color}-200`} />
-        <button type="button" onClick={() => setter(null)} className="absolute top-2 right-2 bg-red-500 text-white w-7 h-7 rounded-full text-xs font-bold">X</button>
-      </div>
-    ) : (
-      <label className={`block w-full py-12 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:border-${color}-400 hover:bg-${color}-50 transition-all`}>
-        <div className="text-3xl mb-2">{'📷'}</div>
-        <span className="text-sm font-bold text-gray-500">{label}</span>
-        <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoChange(e, setter)} />
-      </label>
-    )
-  );
 
   return (
     <>
@@ -545,7 +553,7 @@ export default function DriverDashboard() {
                   <h3 className="text-lg font-bold text-gray-900">1단계: 수거 물품 촬영</h3>
                   <p className="text-sm text-gray-500 mt-1">수거할 물품의 전체 사진을 찍어주세요.</p>
                 </div>
-                <PhotoUpload photo={itemPhoto} setter={setItemPhoto} label="탭하여 사진 촬영/선택" color="blue" />
+                <PhotoUpload photo={itemPhoto} setter={setItemPhoto} label="탭하여 사진 촬영/선택" color="blue" handlePhotoChange={handlePhotoChange} />
                 <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-transform">
                   {itemPhoto ? '다음 단계' : '건너뛰기'}  {'>'}
                 </button>
@@ -560,7 +568,7 @@ export default function DriverDashboard() {
                   <h3 className="text-lg font-bold text-gray-900">2단계: 무게 측정</h3>
                   <p className="text-sm text-gray-500 mt-1">저울 사진을 찍고 실제 무게를 입력해주세요.</p>
                 </div>
-                <PhotoUpload photo={scalePhoto} setter={setScalePhoto} label="저울 사진 촬영/선택" color="green" />
+                <PhotoUpload photo={scalePhoto} setter={setScalePhoto} label="저울 사진 촬영/선택" color="green" handlePhotoChange={handlePhotoChange} />
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">실제 수거 무게 (kg) *</label>
                   <input type="number" step="0.1" value={actualWeight} onChange={(e) => setActualWeight(e.target.value)} placeholder="예: 15.5"
@@ -581,7 +589,7 @@ export default function DriverDashboard() {
                   <h3 className="text-lg font-bold text-gray-900">3단계: 특이사항</h3>
                   <p className="text-sm text-gray-500 mt-1">추가 사진이나 메모를 남겨주세요. (선택)</p>
                 </div>
-                <PhotoUpload photo={extraPhoto} setter={setExtraPhoto} label="추가 사진 (선택)" color="purple" />
+                <PhotoUpload photo={extraPhoto} setter={setExtraPhoto} label="추가 사진 (선택)" color="purple" handlePhotoChange={handlePhotoChange} />
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">기사 메모</label>
                   <textarea value={driverNote} onChange={(e) => setDriverNote(e.target.value)} placeholder="특이사항을 입력하세요"

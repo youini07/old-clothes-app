@@ -13,18 +13,24 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const http_1 = __importDefault(require("http"));
 const cors_1 = __importDefault(require("cors"));
 const dotenv_1 = __importDefault(require("dotenv"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const socket_1 = require("./socket");
 const auth_1 = __importDefault(require("./routes/auth"));
 const requests_1 = __importDefault(require("./routes/requests"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const driver_1 = __importDefault(require("./routes/driver"));
+const chat_1 = __importDefault(require("./routes/chat"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const prisma_1 = require("./lib/prisma");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+app.set('trust proxy', 1); // 리버스 프록시(Railway, Vercel 등) 환경에서 클라이언트 IP를 정상적으로 가져오기 위함
+const server = http_1.default.createServer(app);
 const port = process.env.PORT || 5000;
+(0, socket_1.initSocket)(server);
 // CORS 설정 강화
 app.use((0, cors_1.default)({
     origin: true, // 임시로 모든 도메인 허용 (배포된 프론트엔드 도메인에서 접속 가능하도록)
@@ -59,6 +65,7 @@ app.use('/api/auth', auth_1.default);
 app.use('/api/requests', requests_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/driver', driver_1.default);
+app.use('/api/chat', chat_1.default);
 // 공개(Public) API - 공지사항 등
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -77,6 +84,6 @@ const crmCron_1 = require("./jobs/crmCron");
 app.use(errorHandler_1.globalErrorHandler);
 // 스케줄러 초기화
 (0, crmCron_1.initCrmCron)();
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Server is running on port ${port}`);
 });

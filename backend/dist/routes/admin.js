@@ -20,6 +20,7 @@ const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const statusService_1 = require("../services/statusService");
 const notificationService_1 = require("../services/notificationService");
 const googleSheets_1 = require("../services/googleSheets");
+const socket_1 = require("../socket");
 const router = express_1.default.Router();
 // ==========================================
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
@@ -486,16 +487,22 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
         });
         // 구글 시트 상태 연동
         (0, googleSheets_1.updateRequestStatusInSheet)(requestId, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
+        // 기사 전화번호 및 알림톡 발송
+        let driverPhone = undefined;
+        if (request.driverId) {
+            const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true } });
+            if (driverProfile && driverProfile.user.phone) {
+                driverPhone = driverProfile.user.phone;
+            }
+        }
         // 일정 확정 안내 알림톡 발송 (비동기)
         if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
-            let driverPhone = undefined;
-            if (request.driverId) {
-                const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true } });
-                if (driverProfile && driverProfile.user.phone) {
-                    driverPhone = driverProfile.user.phone;
-                }
-            }
             (0, notificationService_1.sendScheduleConfirmedToCustomer)(request.phone, request.userName, request.confirmedDate, request.partner.useBizMessage, driverPhone).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+        }
+        // 채팅 자동 응답 발송 (비동기)
+        if (request.customerId && request.partnerId && driverPhone) {
+            // confirmedDate가 아직 null일 수 있으므로 any로 안전하게 넘기거나, schema상 Date|null로 처리
+            (0, socket_1.sendDriverAssignedSystemMessage)(request.customerId, request.partnerId, driverPhone, request.confirmedDate);
         }
         res.json({ message: '기사 배정이 완료되었습니다.', request });
     }
@@ -537,6 +544,21 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
         validIds.forEach(id => {
             (0, googleSheets_1.updateRequestStatusInSheet)(id, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
         });
+        // 채팅 자동 응답 일괄 발송
+        try {
+            const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } });
+            const driverPhone = driverProfile === null || driverProfile === void 0 ? void 0 : driverProfile.user.phone;
+            if (driverPhone) {
+                requests.forEach(req => {
+                    if (req.customerId && req.partnerId) {
+                        (0, socket_1.sendDriverAssignedSystemMessage)(req.customerId, req.partnerId, driverPhone, req.confirmedDate);
+                    }
+                });
+            }
+        }
+        catch (e) {
+            console.error('채팅 일괄 자동 발송 에러:', e);
+        }
         res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
     }
     catch (error) {
@@ -1185,6 +1207,62 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
     catch (error) {
         console.error('전역 설정 저장 오류:', error);
         res.status(500).json({ message: '공지사항 저장 중 오류가 발생했습니다.' });
+    }
+}));
+// 비회원 수동 접수(전화 접수) API
+router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const requestData = req.body;
+    const partnerId = req.user.userId;
+    try {
+        let province = '';
+        let city = '';
+        const addressParts = (requestData.address || '').split(' ');
+        province = addressParts[0] || '';
+        if (province === '경기')
+            province = '경기도';
+        city = addressParts[1] || '';
+        let regionId = null;
+        if (province && city) {
+            const region = yield prisma_1.prisma.region.findFirst({
+                where: { province, city }
+            });
+            if (region) {
+                regionId = region.id;
+            }
+        }
+        const newRequest = yield prisma_1.prisma.request.create({
+            data: {
+                userName: requestData.userName || '비회원',
+                phone: requestData.phone || '010-0000-0000',
+                address: requestData.address,
+                detailAddress: requestData.detailAddress || '',
+                zipCode: requestData.zipCode || '00000',
+                sigungu: city,
+                bname: addressParts[2] || null,
+                desiredDate: requestData.desiredDate ? new Date(requestData.desiredDate) : new Date(),
+                estimatedVolume: requestData.estimatedVolume || '수동 접수 (상세불명)',
+                status: 'ACCEPTED', // 사장님이 직접 등록하므로 바로 수락 완료
+                partnerId,
+                regionId,
+                customerId: null, // 비회원
+            }
+        });
+        // 구글 시트 연동
+        (0, googleSheets_1.addRequestToSheet)({
+            id: newRequest.id,
+            userName: newRequest.userName,
+            phone: newRequest.phone,
+            address: newRequest.address,
+            detailAddress: newRequest.detailAddress,
+            desiredDate: newRequest.desiredDate.toISOString(),
+            estimatedVolume: newRequest.estimatedVolume,
+            status: newRequest.status,
+        }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
+        res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
+    }
+    catch (error) {
+        console.error('수동 접수 에러:', error);
+        res.status(500).json({ error: '수동 접수 중 오류가 발생했습니다.' });
     }
 }));
 exports.default = router;

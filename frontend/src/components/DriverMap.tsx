@@ -12,6 +12,7 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line prefer-const
     let checkInterval: any;
 
     const initMap = () => {

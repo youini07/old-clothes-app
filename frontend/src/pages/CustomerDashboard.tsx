@@ -6,7 +6,10 @@ export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState<{name: string, role: string} | null>(null);
+  const [userInfo, setUserInfo] = useState<{name: string, role: string} | null>(() => {
+    const userStr = localStorage.getItem('user');
+    return userStr ? JSON.parse(userStr) : null;
+  });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -23,7 +26,7 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
-    const userStr = localStorage.getItem('user_info');
+
     
     if (!token) {
       alert('로그인이 필요합니다.');
@@ -31,15 +34,13 @@ export default function CustomerDashboard() {
       return;
     }
 
-    if (userStr) {
-      setUserInfo(JSON.parse(userStr));
-    }
+
 
     fetchMyRequests(token, page);
     if (page === 1) fetchMyProfile(token);
   }, [navigate, page]);
 
-  const fetchMyRequests = async (token: string, currentPage: number) => {
+  async function fetchMyRequests(token: string, currentPage: number) {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/me?page=${currentPage}&limit=20`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -54,7 +55,7 @@ export default function CustomerDashboard() {
     }
   };
 
-  const fetchMyProfile = async (token: string) => {
+  async function fetchMyProfile(token: string) {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
         headers: { Authorization: `Bearer ${token}` }

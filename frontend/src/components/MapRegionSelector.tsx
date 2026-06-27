@@ -32,6 +32,7 @@ export default function MapRegionSelector({ onRegionSelect }: MapRegionSelectorP
   }, [clickedRegion, scopeMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line prefer-const
     let checkInterval: any;
 
     const initMap = () => {

@@ -1,25 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
 
 export default function Login() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [email, setEmail] = useState(() => localStorage.getItem('auto_login') === 'true' ? localStorage.getItem('saved_email') || '' : '');
+  const [password, setPassword] = useState(() => localStorage.getItem('auto_login') === 'true' ? localStorage.getItem('saved_password') || '' : '');
   const [loading, setLoading] = useState(false);
-  const [autoLogin, setAutoLogin] = useState(true);
+  const [autoLogin, setAutoLogin] = useState(() => localStorage.getItem('auto_login') === 'true');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const savedEmail = localStorage.getItem('saved_email');
-    const savedPassword = localStorage.getItem('saved_password');
-    const isAutoLogin = localStorage.getItem('auto_login') === 'true';
-    if (isAutoLogin && savedEmail && savedPassword) {
-      setEmail(savedEmail);
-      setPassword(savedPassword);
-      setAutoLogin(true);
-    }
-  }, []);
 
   const handleDemoLogin = async (role: 'PARTNER' | 'DRIVER') => {
     setLoading(true);
@@ -27,7 +16,9 @@ export default function Login() {
       if (role === 'DRIVER') {
         try {
           await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role: 'PARTNER' });
-        } catch (e) {}
+        } catch (e) {
+          console.error(e);
+        }
       }
 
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role });

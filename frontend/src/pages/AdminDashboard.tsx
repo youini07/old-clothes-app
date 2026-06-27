@@ -104,19 +104,7 @@ export default function AdminDashboard() {
       return dateB - dateA;
     });
 
-  useEffect(() => {
-    if (authToken) {
-      fetchData();
-      if (page === 1) { // 1페이지일 때만 한 번 호출
-        fetchStats();
-        fetchSettings();
-        fetchGlobalSettings();
-        fetchCustomRegions();
-      }
-    } else {
-      setLoading(false);
-    }
-  }, [authToken, page]);
+
 
   const fetchCustomRegions = async () => {
     try {
@@ -247,6 +235,21 @@ export default function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (authToken) {
+      fetchData();
+      if (page === 1) {
+        fetchStats();
+        fetchSettings();
+        fetchGlobalSettings();
+        fetchCustomRegions();
+      }
+    } else {
+      setTimeout(() => setLoading(false), 0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken, page]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
