@@ -41,6 +41,9 @@ function Home() {
             backgroundSize: 'cover',
             backgroundPosition: 'center center',
             backgroundRepeat: 'no-repeat',
+            // AI 생성 이미지 특유의 물빠짐/흐릿함을 보정하는 CSS 필터
+            filter: 'contrast(1.2) saturate(1.15) brightness(1.02)',
+            transform: 'translateZ(0)' // 강제 하드웨어 가속으로 선명도 유지
           }}
         />
 
