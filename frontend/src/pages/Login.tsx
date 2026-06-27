@@ -187,7 +187,7 @@ export default function Login() {
             고객 로그인 페이지로 가기
           </button>
           <h1 className="text-3xl font-extrabold text-white relative z-10 tracking-tight">
-            헌옷수거 통합 파트너
+            올클 통합 파트너
           </h1>
           <p className="text-primary-100 mt-2 relative z-10 text-sm font-medium">
             사장님 / 기사님 전용 업무시스템
