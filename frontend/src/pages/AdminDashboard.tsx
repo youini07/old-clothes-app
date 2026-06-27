@@ -1187,7 +1187,7 @@ export default function AdminDashboard() {
               onClick={() => setDispatchTab('requests')} 
               className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dispatchTab === 'requests' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
             >
-              📥 수거 대기 ({pendingRequests.length + unassignedRequests.length})
+              📥 신규/미배정 ({pendingRequests.length + unassignedRequests.length})
             </button>
             <button 
               onClick={() => setDispatchTab('drivers')} 
@@ -1204,7 +1204,7 @@ export default function AdminDashboard() {
             className={`lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto ${dispatchTab === 'requests' ? 'block' : 'hidden lg:block'}`}
           >
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">수거 대기 리스트</h2>
+              <h2 className="text-xl font-bold text-gray-900">신규/미배정 리스트</h2>
               <button 
                 onClick={() => setIsManualModalOpen(true)}
                 className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow transition-colors"
