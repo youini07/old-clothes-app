@@ -159,6 +159,66 @@ router.post('/demo', (req, res) => __awaiter(void 0, void 0, void 0, function* (
         res.status(500).json({ error: '데모 로그인 실패' });
     }
 }));
+// 가입 가능한 파트너(사장님) 목록 조회 (기사 회원가입 시 필요)
+router.get('/partners', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partners = yield prisma_1.prisma.user.findMany({
+            where: { role: 'PARTNER' },
+            select: { id: true, businessName: true, name: true, email: true }
+        });
+        res.json(partners);
+    }
+    catch (error) {
+        console.error('파트너 목록 조회 실패:', error);
+        res.status(500).json({ error: '파트너 목록을 불러오는데 실패했습니다.' });
+    }
+}));
+// 사장님 및 기사님 자율 회원가입 API
+router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { role, name, phone, email, password, partnerId, vehicleInfo } = req.body;
+    if (!role || !['PARTNER', 'DRIVER'].includes(role)) {
+        return res.status(400).json({ error: '올바른 가입 유형이 아닙니다.' });
+    }
+    if (!name || !phone || !email || !password) {
+        return res.status(400).json({ error: '이름, 전화번호, 이메일, 비밀번호는 필수입니다.' });
+    }
+    if (role === 'DRIVER' && !partnerId) {
+        return res.status(400).json({ error: '기사님 가입 시 소속 파트너(사장님)를 선택해야 합니다.' });
+    }
+    try {
+        const existingUser = yield prisma_1.prisma.user.findUnique({ where: { email } });
+        if (existingUser) {
+            return res.status(409).json({ error: '이미 사용 중인 이메일입니다.' });
+        }
+        const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
+        const businessName = role === 'PARTNER' ? req.body.businessName || `${name} 업체` : null;
+        const user = yield prisma_1.prisma.user.create({
+            data: {
+                name,
+                phone,
+                email,
+                password: hashedPassword,
+                role,
+                businessName
+            }
+        });
+        if (role === 'DRIVER') {
+            yield prisma_1.prisma.driverProfile.create({
+                data: {
+                    userId: user.id,
+                    partnerId,
+                    vehicleInfo: vehicleInfo || '차량 미등록'
+                }
+            });
+        }
+        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role } });
+    }
+    catch (error) {
+        console.error('회원가입 에러:', error);
+        res.status(500).json({ error: '회원가입 처리 중 오류가 발생했습니다.' });
+    }
+}));
 // 이메일과 비밀번호 기반의 정식 로그인 API
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { email, password } = req.body;
