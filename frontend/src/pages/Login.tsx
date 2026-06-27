@@ -47,6 +47,37 @@ export default function Login() {
     }
   };
 
+  const handleDemoLogin = async (role: 'PARTNER' | 'DRIVER') => {
+    setLoading(true);
+    try {
+      if (role === 'DRIVER') {
+        try {
+          await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role: 'PARTNER' });
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role });
+      const { token, user } = res.data;
+
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user_info', JSON.stringify(user));
+
+      if (role === 'PARTNER') {
+        localStorage.setItem('admin_token', token);
+        navigate('/admin');
+      } else if (role === 'DRIVER') {
+        localStorage.setItem('driver_token', token);
+        navigate('/driver');
+      }
+    } catch (error: any) {
+      alert('데모 로그인 실패: ' + (error.response?.data?.error || '서버 오류'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -234,6 +265,33 @@ export default function Login() {
                 {loading ? '로그인 중...' : '로그인'}
               </button>
             </form>
+            
+            <div className="relative my-8">
+              <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-white text-gray-400 font-semibold">영업 및 시연용 데모 로그인</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleDemoLogin('PARTNER')}
+                type="button"
+                className="py-3 px-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+              >
+                🏢 사장님 데모
+              </button>
+              <button
+                onClick={() => handleDemoLogin('DRIVER')}
+                type="button"
+                className="py-3 px-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-950 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+              >
+                🚚 기사님 데모
+              </button>
+            </div>
+          </div>
           )}
 
           {mode === 'REGISTER' && (
