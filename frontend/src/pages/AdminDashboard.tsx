@@ -49,7 +49,7 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings' | 'chat'>('dispatch');
+  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [page] = useState(1);
@@ -792,14 +792,7 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도 배정</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산/통계</button>
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 환경 설정</button>
-          <button onClick={() => setActiveView('chat')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'chat' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>💬 고객 문의</button>
         </div>
-
-        {activeView === 'chat' && (
-          <div className="mt-4">
-            <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
-          </div>
-        )}
 
         {/* 환경 설정 뷰 */}
         {activeView === 'settings' && settings && (
@@ -1971,6 +1964,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
     </div>
   );
 }
