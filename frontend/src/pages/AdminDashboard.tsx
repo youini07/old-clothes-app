@@ -93,6 +93,9 @@ export default function AdminDashboard() {
 
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
+  
+  // 모바일 배차 탭
+  const [dispatchTab, setDispatchTab] = useState<'requests' | 'drivers'>('requests');
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[] } | null>(null);
@@ -253,6 +256,13 @@ export default function AdminDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken, page]);
+
+  // 배정 건 클릭 시 기사님 탭으로 자동 이동 (모바일 최적화)
+  useEffect(() => {
+    if (selectedRequestIdForAssign) {
+      setDispatchTab('drivers');
+    }
+  }, [selectedRequestIdForAssign]);
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1043,7 +1053,7 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* 지도 배정 뷰 */}
+        {/* 지도 기반 배정 뷰 (임시) */}
         {activeView === 'mapDispatch' && (
           <AdminMapDispatch 
             requests={requests} 
@@ -1160,11 +1170,29 @@ export default function AdminDashboard() {
         )}
 
         {/* 배차 관리 뷰 */}
-        {activeView === 'dispatch' && <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {activeView === 'dispatch' && <div className="flex flex-col gap-4">
+          
+          {/* 모바일 탭 */}
+          <div className="flex lg:hidden bg-gray-100 rounded-2xl p-1 mb-2">
+            <button 
+              onClick={() => setDispatchTab('requests')} 
+              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dispatchTab === 'requests' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+            >
+              📥 수거 대기 ({pendingRequests.length + unassignedRequests.length})
+            </button>
+            <button 
+              onClick={() => setDispatchTab('drivers')} 
+              className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dispatchTab === 'drivers' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+            >
+              🚚 기사 배차
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           
           {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
-            className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto"
+            className={`lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto ${dispatchTab === 'requests' ? 'block' : 'hidden lg:block'}`}
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">수거 대기 리스트</h2>
@@ -1384,8 +1412,10 @@ export default function AdminDashboard() {
             )}
           </div>
 
+          </div>
+
           {/* Right Column: Drivers */}
-          <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className={`lg:col-span-2 grid-cols-1 md:grid-cols-2 gap-6 ${dispatchTab === 'drivers' ? 'grid' : 'hidden lg:grid'}`}>
             {drivers.map(driver => {
               const rawDriverRequests = requests.filter(r => r.driverId === driver.id);
               // createdAt(접수시간) 오름차순으로 고유 순번(displayId) 부여
