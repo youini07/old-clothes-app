@@ -63,7 +63,7 @@ function Home() {
         </div>
 
         {/* 푸터 (회사 정보) - 하단 고정 */}
-        <div className="absolute bottom-[54px] left-0 right-0 z-10 px-4 text-center">
+        <div className="absolute bottom-[84px] left-0 right-0 z-10 px-4 text-center">
           <p className="text-[10px] text-[#A3AAB8] leading-relaxed font-medium">
             상호명 : 올클(ALL-CLEAR)<br/>
             Copyright © 올클. All rights reserved.
