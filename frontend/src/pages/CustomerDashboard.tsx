@@ -441,12 +441,12 @@ export default function CustomerDashboard() {
                     readOnly
                     onClick={handleAddressSearch}
                     placeholder="주소 검색을 눌러주세요"
-                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none cursor-pointer text-gray-700"
+                    className="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none cursor-pointer text-gray-700"
                   />
                   <button
                     type="button"
                     onClick={handleAddressSearch}
-                    className="px-6 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors whitespace-nowrap"
+                    className="px-4 py-3 bg-gray-800 text-white font-bold rounded-xl hover:bg-gray-700 transition-colors whitespace-nowrap shrink-0"
                   >
                     주소 검색
                   </button>
