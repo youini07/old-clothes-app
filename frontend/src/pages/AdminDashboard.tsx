@@ -61,6 +61,10 @@ export default function AdminDashboard() {
   const [newRegionForm, setNewRegionForm] = useState<{ name: string; selectedAreas: string[]; exceptions: Record<string, string> }>({ name: '', selectedAreas: [], exceptions: {} });
   const [isAddingRegion, setIsAddingRegion] = useState(false);
 
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+  const [manualForm, setManualForm] = useState({ userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+  const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
   const [editingDriverId, setEditingDriverId] = useState<string | null>(null);
@@ -155,6 +159,37 @@ export default function AdminDashboard() {
       setGlobalSettings(res.data);
     } catch (error) {
       console.error('전역 설정 조회 실패:', error);
+    }
+  };
+
+  const handleManualSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingManual(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/manual`, manualForm, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setIsManualModalOpen(false);
+      setManualForm({ userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+      fetchData();
+      alert('수동 접수가 완료되었습니다.');
+    } catch (error) {
+      console.error('수동 접수 실패:', error);
+      alert('접수 처리 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmittingManual(false);
+    }
+  };
+
+  const handleAddressSearch = () => {
+    if ((window as any).daum && (window as any).daum.Postcode) {
+      new (window as any).daum.Postcode({
+        oncomplete: function(data: any) {
+          setManualForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
+        }
+      }).open();
+    } else {
+      alert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
@@ -1129,6 +1164,16 @@ export default function AdminDashboard() {
           <div 
             className="lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto"
           >
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900">수거 대기 리스트</h2>
+              <button 
+                onClick={() => setIsManualModalOpen(true)}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow transition-colors"
+              >
+                + 비회원(전화) 접수
+              </button>
+            </div>
+            
             {/* 권역별 탭 */}
             <div className="flex gap-2 overflow-x-auto pb-4 mb-2 scrollbar-hide">
               <button 
@@ -1813,6 +1858,106 @@ export default function AdminDashboard() {
               ✕
             </button>
             <img src={enlargedImage} alt="확대된 증빙 사진" className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" onClick={(e) => e.stopPropagation()} />
+          </div>
+        </div>
+      )}
+
+      {/* 비회원 수동 접수 모달 */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="bg-blue-600 text-white p-4">
+              <h3 className="font-bold text-lg">비회원 수동 접수</h3>
+              <p className="text-sm opacity-80">전화로 요청받은 수거 건을 직접 등록합니다.</p>
+            </div>
+            <form onSubmit={handleManualSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">고객명</label>
+                  <input type="text" required value={manualForm.userName} onChange={e => setManualForm({...manualForm, userName: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 김철수" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">연락처</label>
+                  <input type="text" required value={manualForm.phone} onChange={e => setManualForm({...manualForm, phone: e.target.value})} className="w-full border rounded-lg p-2" placeholder="010-0000-0000" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
+                <div className="flex gap-2 mb-2">
+                  <input type="text" required readOnly value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
+                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 rounded-lg text-sm font-bold whitespace-nowrap">주소 검색</button>
+                </div>
+                <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">예상 수거량 / 메모</label>
+                <textarea rows={2} required value={manualForm.estimatedVolume} onChange={e => setManualForm({...manualForm, estimatedVolume: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 옷 3봉지, 신발 1봉지" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">방문 희망일</label>
+                <input type="date" required value={manualForm.desiredDate} onChange={e => setManualForm({...manualForm, desiredDate: e.target.value})} className="w-full border rounded-lg p-2" />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setIsManualModalOpen(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">취소</button>
+                <button type="submit" disabled={isSubmittingManual} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
+                  {isSubmittingManual ? <Spinner /> : '접수 완료하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 비회원 수동 접수 모달 */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
+            <div className="bg-blue-600 text-white p-4">
+              <h3 className="font-bold text-lg">비회원 수동 접수</h3>
+              <p className="text-sm opacity-80">전화로 요청받은 수거 건을 직접 등록합니다.</p>
+            </div>
+            <form onSubmit={handleManualSubmit} className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">고객명</label>
+                  <input type="text" required value={manualForm.userName} onChange={e => setManualForm({...manualForm, userName: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 김철수" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">연락처</label>
+                  <input type="text" required value={manualForm.phone} onChange={e => setManualForm({...manualForm, phone: e.target.value})} className="w-full border rounded-lg p-2" placeholder="010-0000-0000" />
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
+                <div className="flex gap-2 mb-2">
+                  <input type="text" required readOnly value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
+                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 rounded-lg text-sm font-bold whitespace-nowrap">주소 검색</button>
+                </div>
+                <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">예상 수거량 / 메모</label>
+                <textarea rows={2} required value={manualForm.estimatedVolume} onChange={e => setManualForm({...manualForm, estimatedVolume: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 헌옷 3봉지" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">방문 희망일</label>
+                <input type="date" required value={manualForm.desiredDate} onChange={e => setManualForm({...manualForm, desiredDate: e.target.value})} className="w-full border rounded-lg p-2" />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button type="button" onClick={() => setIsManualModalOpen(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">취소</button>
+                <button type="submit" disabled={isSubmittingManual} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
+                  {isSubmittingManual ? <Spinner /> : '접수 완료하기'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
