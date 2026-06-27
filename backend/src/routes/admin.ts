@@ -8,6 +8,7 @@ import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
 import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
 import { updateRequestStatusInSheet, addRequestToSheet } from '../services/googleSheets';
+import { sendDriverAssignedSystemMessage } from '../socket';
 
 const router = express.Router();
 
@@ -535,16 +536,17 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
     // 구글 시트 상태 연동
     updateRequestStatusInSheet(requestId, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
 
+    // 기사 전화번호 및 알림톡 발송
+    let driverPhone = undefined;
+    if (request.driverId) {
+      const driverProfile = await prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true }});
+      if (driverProfile && driverProfile.user.phone) {
+        driverPhone = driverProfile.user.phone;
+      }
+    }
+
     // 일정 확정 안내 알림톡 발송 (비동기)
     if (request.partner && request.partner.useBizMessage && request.confirmedDate) {
-      let driverPhone = undefined;
-      if (request.driverId) {
-        const driverProfile = await prisma.driverProfile.findUnique({ where: { id: request.driverId }, include: { user: true }});
-        if (driverProfile && driverProfile.user.phone) {
-          driverPhone = driverProfile.user.phone;
-        }
-      }
-
       sendScheduleConfirmedToCustomer(
         request.phone,
         request.userName,
@@ -552,6 +554,17 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
         request.partner.useBizMessage,
         driverPhone
       ).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+    }
+
+    // 채팅 자동 응답 발송 (비동기)
+    if (request.customerId && request.partnerId && driverPhone) {
+      // confirmedDate가 아직 null일 수 있으므로 any로 안전하게 넘기거나, schema상 Date|null로 처리
+      sendDriverAssignedSystemMessage(
+        request.customerId,
+        request.partnerId,
+        driverPhone,
+        request.confirmedDate as Date
+      );
     }
 
     res.json({ message: '기사 배정이 완료되었습니다.', request });
@@ -600,6 +613,27 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
     validIds.forEach(id => {
       updateRequestStatusInSheet(id, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
     });
+
+    // 채팅 자동 응답 일괄 발송
+    try {
+      const driverProfile = await prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true }});
+      const driverPhone = driverProfile?.user.phone;
+      
+      if (driverPhone) {
+        requests.forEach(req => {
+          if (req.customerId && req.partnerId) {
+            sendDriverAssignedSystemMessage(
+              req.customerId,
+              req.partnerId,
+              driverPhone,
+              req.confirmedDate as Date
+            );
+          }
+        });
+      }
+    } catch (e) {
+      console.error('채팅 일괄 자동 발송 에러:', e);
+    }
 
     res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
   } catch (error) {

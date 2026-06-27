@@ -1,18 +1,24 @@
 import express from 'express';
+import http from 'http';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
+import { initSocket } from './socket';
 import authRouter from './routes/auth';
 import requestsRouter from './routes/requests';
 import adminRouter from './routes/admin';
 import driverRouter from './routes/driver';
+import chatRouter from './routes/chat';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/prisma';
 
 dotenv.config();
 
 const app = express();
+const server = http.createServer(app);
 const port = process.env.PORT || 5000;
+
+initSocket(server);
 
 // CORS 설정 강화
 app.use(cors({
@@ -55,6 +61,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/requests', requestsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/driver', driverRouter);
+app.use('/api/chat', chatRouter);
 
 // 공개(Public) API - 공지사항 등
 app.get('/api/public/global-settings', async (req, res) => {
@@ -78,6 +85,6 @@ app.use(globalErrorHandler);
 // 스케줄러 초기화
 initCrmCron();
 
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
 });
