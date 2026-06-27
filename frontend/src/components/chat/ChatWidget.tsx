@@ -20,6 +20,8 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ userId, partnerId }) => 
         if (room) {
           joinRoom(room.id);
           fetchMessages(room.id);
+        } else {
+          alert('상담원과 연결할 수 없습니다. (관리자 계정이 생성되지 않았을 수 있습니다)');
         }
       });
     }
@@ -32,7 +34,11 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ userId, partnerId }) => 
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !activeRoomId) return;
+    if (!input.trim()) return;
+    if (!activeRoomId) {
+      alert('채팅방 연결 중입니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
     sendMessage(activeRoomId, input);
     setInput('');
   };

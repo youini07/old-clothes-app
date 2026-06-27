@@ -31,7 +31,11 @@ export const AdminChatDashboard: React.FC<AdminChatDashboardProps> = ({ adminId 
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || !activeRoomId) return;
+    if (!input.trim()) return;
+    if (!activeRoomId) {
+      alert('채팅방이 선택되지 않았습니다.');
+      return;
+    }
     sendMessage(activeRoomId, input);
     setInput('');
   };
