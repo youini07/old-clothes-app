@@ -482,8 +482,8 @@ export default function CustomerDashboard() {
         )}
       </div>
 
-      {userId && partnerIdForChat && (
-        <ChatWidget userId={userId} partnerId={partnerIdForChat} />
+      {userId && (
+        <ChatWidget userId={userId} partnerId={partnerIdForChat || ''} />
       )}
     </div>
   );

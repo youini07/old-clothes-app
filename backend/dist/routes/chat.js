@@ -61,8 +61,20 @@ router.get('/rooms/:roomId/messages', (req, res) => __awaiter(void 0, void 0, vo
 }));
 // 고객이 특정 파트너(혹은 대표번호)와의 채팅방 생성/조회
 router.post('/rooms/init', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { customerId, partnerId } = req.body;
+    const { customerId } = req.body;
+    let { partnerId } = req.body;
     try {
+        if (!partnerId) {
+            const defaultAdmin = yield prisma_1.prisma.user.findFirst({
+                where: { role: { in: ['SUPER_ADMIN', 'PARTNER'] } }
+            });
+            if (defaultAdmin) {
+                partnerId = defaultAdmin.id;
+            }
+            else {
+                return res.status(400).json({ error: 'No admin found to chat with' });
+            }
+        }
         let room = yield prisma_1.prisma.chatRoom.findFirst({
             where: { customerId, partnerId }
         });
