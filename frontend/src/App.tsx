@@ -64,16 +64,8 @@ function Home() {
 
         {/* 푸터 (회사 정보) - 하단 고정 */}
         <div className="absolute bottom-6 left-0 right-0 z-10 px-4 text-center">
-          <div className="flex items-center justify-center gap-3 text-[10px] text-[#8C94A4] font-medium mb-1.5">
-            <button className="hover:text-gray-600 transition-colors">이용약관</button>
-            <span className="w-[1px] h-2.5 bg-[#CBD1D9]"></span>
-            <button className="hover:text-gray-600 font-bold transition-colors">개인정보처리방침</button>
-            <span className="w-[1px] h-2.5 bg-[#CBD1D9]"></span>
-            <button className="hover:text-gray-600 transition-colors">고객센터</button>
-          </div>
-          <p className="text-[9px] text-[#A3AAB8] leading-relaxed">
-            상호명 : 올클(ALL-CLEAR) | 대표 : 올클<br/>
-            이메일 : support@all-clear.co.kr<br/>
+          <p className="text-[10px] text-[#A3AAB8] leading-relaxed font-medium">
+            상호명 : 올클(ALL-CLEAR)<br/>
             Copyright © 올클. All rights reserved.
           </p>
         </div>
