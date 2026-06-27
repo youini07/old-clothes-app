@@ -3,6 +3,7 @@ import axios from 'axios';
 import AdminMapDispatch from '../components/AdminMapDispatch';
 import Spinner from '../components/Spinner';
 import { AdminChatDashboard } from '../components/chat/AdminChatDashboard';
+import AddressSearchModal from '../components/AddressSearchModal';
 
 interface RequestItem {
   id: string;
@@ -63,8 +64,9 @@ export default function AdminDashboard() {
   const [isAddingRegion, setIsAddingRegion] = useState(false);
 
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
-  const [manualForm, setManualForm] = useState({ userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+  const [manualForm, setManualForm] = useState({ userName: '', phone: '', address: '', detailAddress: '', estimatedWeight: '', estimatedVolume: '', desiredDate: '' });
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
@@ -155,11 +157,15 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsSubmittingManual(true);
     try {
-      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/manual`, manualForm, {
+      const payload = {
+        ...manualForm,
+        estimatedVolume: manualForm.estimatedWeight ? `${manualForm.estimatedWeight}kg - ${manualForm.estimatedVolume}` : manualForm.estimatedVolume
+      };
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/manual`, payload, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setIsManualModalOpen(false);
-      setManualForm({ userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+      setManualForm({ userName: '', phone: '', address: '', detailAddress: '', estimatedWeight: '', estimatedVolume: '', desiredDate: '' });
       fetchData();
       alert('수동 접수가 완료되었습니다.');
     } catch (error) {
@@ -171,15 +177,11 @@ export default function AdminDashboard() {
   };
 
   const handleAddressSearch = () => {
-    if ((window as any).daum && (window as any).daum.Postcode) {
-      new (window as any).daum.Postcode({
-        oncomplete: function(data: any) {
-          setManualForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
-        }
-      }).open();
-    } else {
-      alert('주소 검색 서비스를 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
-    }
+    setIsAddressModalOpen(true);
+  };
+
+  const handleAddressComplete = (data: any) => {
+    setManualForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -1887,15 +1889,21 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
                 <div className="flex gap-2 mb-2">
-                  <input type="text" required readOnly onClick={handleAddressSearch} value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2 cursor-pointer" placeholder="주소 검색을 눌러주세요" />
-                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 rounded-lg text-sm font-bold whitespace-nowrap">주소 검색</button>
+                  <input type="text" required readOnly value={manualForm.address} className="flex-1 min-w-0 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
+                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap shrink-0">주소 검색</button>
                 </div>
                 <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">예상 수거량 / 메모</label>
-                <textarea rows={2} required value={manualForm.estimatedVolume} onChange={e => setManualForm({...manualForm, estimatedVolume: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 옷 3봉지, 신발 1봉지" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">예상 수거량 (KG)</label>
+                  <input type="number" value={manualForm.estimatedWeight} onChange={e => setManualForm({...manualForm, estimatedWeight: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 20" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">메모 (선택)</label>
+                  <input type="text" value={manualForm.estimatedVolume} onChange={e => setManualForm({...manualForm, estimatedVolume: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 옷 3봉지" />
+                </div>
               </div>
 
               <div>
@@ -1917,6 +1925,11 @@ export default function AdminDashboard() {
 
 
       <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
+      <AddressSearchModal 
+        isOpen={isAddressModalOpen} 
+        onClose={() => setIsAddressModalOpen(false)} 
+        onComplete={handleAddressComplete} 
+      />
     </div>
   );
 }

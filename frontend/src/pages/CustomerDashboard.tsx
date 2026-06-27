@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import Spinner from '../components/Spinner';
 import { ChatWidget } from '../components/chat/ChatWidget';
+import AddressSearchModal from '../components/AddressSearchModal';
+
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
@@ -25,6 +27,7 @@ export default function CustomerDashboard() {
   const [profileZipCode, setProfileZipCode] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
   const [userId, setUserId] = useState('');
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -74,18 +77,13 @@ export default function CustomerDashboard() {
   };
 
   const handleAddressSearch = () => {
-    new (window as any).daum.Postcode({
-      oncomplete: function(data: any) {
-        if (!data.address.startsWith('경기')) {
-          alert('현재는 경기도 지역만 수거 서비스를 제공하고 있습니다.');
-          return;
-        }
-        setProfileAddress(data.address);
-        setProfileZipCode(data.zonecode);
-        // 상세 주소 초기화
-        setProfileDetailAddress('');
-      }
-    }).open();
+    setIsAddressModalOpen(true);
+  };
+
+  const handleAddressComplete = (data: any) => {
+    setProfileAddress(data.address);
+    setProfileZipCode(data.zonecode);
+    setProfileDetailAddress('');
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -439,9 +437,8 @@ export default function CustomerDashboard() {
                     type="text"
                     value={profileAddress}
                     readOnly
-                    onClick={handleAddressSearch}
                     placeholder="주소 검색을 눌러주세요"
-                    className="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none cursor-pointer text-gray-700"
+                    className="flex-1 min-w-0 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none text-gray-700"
                   />
                   <button
                     type="button"
@@ -485,6 +482,11 @@ export default function CustomerDashboard() {
       {userId && (
         <ChatWidget userId={userId} partnerId={partnerIdForChat || ''} />
       )}
+      <AddressSearchModal 
+        isOpen={isAddressModalOpen} 
+        onClose={() => setIsAddressModalOpen(false)} 
+        onComplete={handleAddressComplete} 
+      />
     </div>
   );
 }
