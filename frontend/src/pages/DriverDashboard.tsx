@@ -102,6 +102,10 @@ export default function DriverDashboard() {
   // 고객 포장 사진 뷰어 상태
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
 
+  // 파트너(사장님) 정보 상태
+  const [partnerAddress, setPartnerAddress] = useState<string>('');
+  const [partnerBusinessName, setPartnerBusinessName] = useState<string>('');
+
   // 문자 템플릿 모달 상태
   const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, displayId: number} | null>(null);
 
@@ -142,8 +146,21 @@ export default function DriverDashboard() {
     } finally { setLoading(false); }
   };
 
+  async function fetchDriverInfo() {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/me`, { headers: { Authorization: `Bearer ${authToken}` } });
+      setPartnerAddress(res.data.partnerAddress || '');
+      setPartnerBusinessName(res.data.partnerBusinessName || '');
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
   useEffect(() => {
-    if (authToken) { fetchDriverRequests(page); }
+    if (authToken) { 
+      fetchDriverRequests(page); 
+      fetchDriverInfo();
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken, page]);
 
@@ -405,7 +422,15 @@ export default function DriverDashboard() {
               {returnToStart && (
                 <div className="pl-8">
                   <label className="block text-xs font-bold text-gray-500 mb-1">복귀할 커스텀 목적지 (비워두면 출발지)</label>
-                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구 성복동" className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all" />
+                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구 성복동" className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all mb-2" />
+                  {partnerAddress && (
+                    <button 
+                      onClick={() => setReturnAddress(partnerAddress)}
+                      className="px-3 py-1.5 bg-blue-100 text-blue-700 font-bold rounded-lg text-xs hover:bg-blue-200 transition-colors"
+                    >
+                      🏢 {partnerBusinessName || '회사'} 주소로 간편 등록
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -429,7 +454,7 @@ export default function DriverDashboard() {
             </button>
             {showMap && (
               <div className="mt-2">
-                <DriverMap requests={filteredRequests} />
+                <DriverMap requests={filteredRequests} partnerAddress={partnerAddress} partnerBusinessName={partnerBusinessName} />
               </div>
             )}
           </div>

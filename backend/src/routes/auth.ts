@@ -185,7 +185,7 @@ router.get('/partners', async (req, res) => {
 
 // 사장님 및 기사님 자율 회원가입 API
 router.post('/register', async (req, res) => {
-  const { role, name, phone, email, password, partnerId, vehicleInfo } = req.body;
+  const { role, name, phone, email, password, partnerId, vehicleInfo, address, detailAddress, zipCode } = req.body;
   
   if (!role || !['PARTNER', 'DRIVER'].includes(role)) {
     return res.status(400).json({ error: '올바른 가입 유형이 아닙니다.' });
@@ -213,7 +213,10 @@ router.post('/register', async (req, res) => {
         email,
         password: hashedPassword,
         role,
-        businessName
+        businessName,
+        address,
+        detailAddress,
+        zipCode
       }
     });
 

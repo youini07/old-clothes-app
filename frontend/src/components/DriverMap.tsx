@@ -4,9 +4,11 @@ interface DriverMapProps {
   requests: { id: string; address: string; userName: string; status: string; orderIndex?: number }[];
   currentLat?: number;
   currentLng?: number;
+  partnerAddress?: string;
+  partnerBusinessName?: string;
 }
 
-export default function DriverMap({ requests, currentLat, currentLng }: DriverMapProps) {
+export default function DriverMap({ requests, currentLat, currentLng, partnerAddress, partnerBusinessName }: DriverMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const [loadingCoords, setLoadingCoords] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -167,6 +169,51 @@ export default function DriverMap({ requests, currentLat, currentLng }: DriverMa
             polyline.setMap(map);
           }
           */
+
+          // 4-1. 회사 마커 렌더링
+          if (partnerAddress) {
+            geocoder.addressSearch(partnerAddress, (result: any, status: any) => {
+              if (status === kakao.maps.services.Status.OK) {
+                const partnerPos = new kakao.maps.LatLng(parseFloat(result[0].y), parseFloat(result[0].x));
+                bounds.extend(partnerPos);
+                
+                const content = `
+                  <div style="
+                    background-color: #F59E0B; 
+                    color: white; 
+                    width: 40px; height: 40px; 
+                    border-radius: 50%; 
+                    display: flex; align-items: center; justify-content: center; 
+                    font-size: 20px;
+                    border: 3px solid white;
+                    box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+                    cursor: pointer;
+                    z-index: 100;
+                  ">
+                    🏢
+                  </div>
+                `;
+
+                new kakao.maps.CustomOverlay({
+                  map: map,
+                  position: partnerPos,
+                  content: content,
+                  yAnchor: 1,
+                  zIndex: 100
+                });
+
+                new kakao.maps.CustomOverlay({
+                  map: map,
+                  position: partnerPos,
+                  content: `<div style="background-color: #F59E0B; color: white; padding: 4px 8px; border-radius: 8px; font-size: 12px; font-weight: bold; border: 2px solid white; transform: translateY(15px); white-space: nowrap; box-shadow: 0 2px 4px rgba(0,0,0,0.3); z-index: 100;">${partnerBusinessName || '회사'}</div>`,
+                  yAnchor: 0,
+                  zIndex: 100
+                });
+                
+                map.setBounds(bounds);
+              }
+            });
+          }
 
           // 5. 범위 재설정
           if (validResults.length > 0 || (currentLat && currentLng)) {

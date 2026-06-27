@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import Spinner from '../components/Spinner';
+import AddressSearchModal from '../components/AddressSearchModal';
 
 interface PartnerOption {
   id: string;
@@ -26,6 +27,10 @@ export default function Login() {
   const [regPasswordConfirm, setRegPasswordConfirm] = useState('');
   const [regVehicleInfo, setRegVehicleInfo] = useState('');
   const [regBusinessName, setRegBusinessName] = useState('');
+  const [regAddress, setRegAddress] = useState('');
+  const [regDetailAddress, setRegDetailAddress] = useState('');
+  const [regZipCode, setRegZipCode] = useState('');
+  const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [partnerOptions, setPartnerOptions] = useState<PartnerOption[]>([]);
   
@@ -146,7 +151,10 @@ export default function Login() {
         password: regPassword,
         partnerId: selectedPartnerId,
         vehicleInfo: regVehicleInfo,
-        businessName: regBusinessName
+        businessName: regBusinessName,
+        address: regAddress,
+        detailAddress: regDetailAddress,
+        zipCode: regZipCode
       });
 
       alert('회원가입이 완료되었습니다. 환영합니다!');
@@ -171,8 +179,9 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
+    <>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl overflow-hidden">
         
         {/* 상단 장식 */}
         <div className="bg-primary-600 p-8 text-center relative overflow-hidden">
@@ -339,6 +348,7 @@ export default function Login() {
               )}
 
               {registerRole === 'PARTNER' && (
+                <>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-2">업체명 (상호명)</label>
                   <input
@@ -350,6 +360,42 @@ export default function Login() {
                     placeholder="올클 헌옷수거 (용인점)"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">사업장 주소</label>
+                  <div className="flex gap-2 mb-2">
+                    <input
+                      type="text"
+                      readOnly
+                      required
+                      value={regZipCode}
+                      placeholder="우편번호"
+                      className="w-1/3 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressModalOpen(true)}
+                      className="w-2/3 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl hover:bg-gray-300 transition-colors"
+                    >
+                      주소 찾기
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    readOnly
+                    required
+                    value={regAddress}
+                    placeholder="기본 주소"
+                    className="w-full px-4 py-3 mb-2 bg-gray-50 border border-gray-200 rounded-xl outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={regDetailAddress}
+                    onChange={e => setRegDetailAddress(e.target.value)}
+                    placeholder="상세 주소 (입력)"
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
+                  />
+                </div>
+                </>
               )}
 
               <div>
@@ -440,5 +486,15 @@ export default function Login() {
         </div>
       </div>
     </div>
+      <AddressSearchModal
+        isOpen={isAddressModalOpen}
+        onClose={() => setIsAddressModalOpen(false)}
+        onComplete={(data) => {
+          setRegAddress(data.address);
+          setRegZipCode(data.zonecode);
+          setRegDetailAddress('');
+        }}
+      />
+    </>
   );
 }

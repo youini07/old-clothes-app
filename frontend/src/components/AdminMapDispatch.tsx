@@ -58,9 +58,11 @@ interface AdminMapDispatchProps {
   drivers: Driver[];
   onAssigned: () => void;
   authToken: string | null;
+  partnerAddress?: string;
+  partnerBusinessName?: string;
 }
 
-export default function AdminMapDispatch({ requests, drivers, onAssigned, authToken }: AdminMapDispatchProps) {
+export default function AdminMapDispatch({ requests, drivers, onAssigned, authToken, partnerAddress, partnerBusinessName }: AdminMapDispatchProps) {
   const mapRef = useRef<any>(null);
   const clustererRef = useRef<any>(null);
   const [mapLoaded, setMapLoaded] = useState(false);
@@ -227,6 +229,37 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       if (unassignedRequests.every(r => r.lat && r.lng) && boundsExtended) {
         map.setBounds(bounds);
       }
+    }
+
+    // 회사(사장님) 마커 렌더링
+    if (partnerAddress) {
+      geocoder.addressSearch(partnerAddress, (result: any, status: any) => {
+        if (status === window.kakao.maps.services.Status.OK) {
+          const partnerPos = new window.kakao.maps.LatLng(Number(result[0].y), Number(result[0].x));
+          bounds.extend(partnerPos);
+          
+          const content = document.createElement('div');
+          content.className = "relative flex flex-col items-center z-[100] cursor-pointer";
+          content.innerHTML = `
+            <div class="flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 bg-amber-500 border-white text-white z-[100]">
+              <span class="text-2xl">🏢</span>
+            </div>
+            <div class="mt-1 px-3 py-1.5 bg-amber-500 rounded-lg text-sm font-extrabold text-white shadow-lg border-2 border-white whitespace-nowrap z-[100]">
+              ${partnerBusinessName || '회사'}
+            </div>
+          `;
+          
+          new window.kakao.maps.CustomOverlay({
+            map: map,
+            position: partnerPos,
+            content: content,
+            yAnchor: 1,
+            zIndex: 100
+          });
+          
+          map.setBounds(bounds);
+        }
+      });
     }
 
     return () => {

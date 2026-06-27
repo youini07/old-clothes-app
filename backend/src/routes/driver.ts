@@ -238,7 +238,11 @@ router.get('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: 
     const userId = req.user!.userId;
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { driverProfile: true }
+      include: { 
+        driverProfile: {
+          include: { partner: true }
+        } 
+      }
     });
     if (!user) return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
     
@@ -246,7 +250,9 @@ router.get('/me', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: 
       name: user.name,
       phone: user.phone || '',
       email: user.email || '',
-      vehicleInfo: user.driverProfile?.vehicleInfo || ''
+      vehicleInfo: user.driverProfile?.vehicleInfo || '',
+      partnerAddress: user.driverProfile?.partner?.address || '',
+      partnerBusinessName: user.driverProfile?.partner?.businessName || user.driverProfile?.partner?.name || ''
     });
   } catch (error: any) {
     const errStr = error.message || String(error);

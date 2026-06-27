@@ -53,6 +53,7 @@ export default function AdminDashboard() {
   const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
+  const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
@@ -129,6 +130,17 @@ export default function AdminDashboard() {
       setCustomRegions(res.data.regions || []);
     } catch (error) {
       console.error('권역 조회 실패:', error);
+    }
+  };
+
+  const fetchAdminInfo = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setAdminInfo(res.data.user);
+    } catch (error) {
+      console.error('관리자 정보 조회 실패:', error);
     }
   };
 
@@ -255,6 +267,7 @@ export default function AdminDashboard() {
     if (authToken) {
       fetchData();
       if (page === 1) {
+        fetchAdminInfo();
         fetchStats();
         fetchSettings();
         fetchGlobalSettings();
@@ -1068,7 +1081,9 @@ export default function AdminDashboard() {
             requests={requests} 
             drivers={drivers} 
             onAssigned={() => fetchData()} 
-            authToken={authToken} 
+            authToken={authToken}
+            partnerAddress={adminInfo?.address}
+            partnerBusinessName={adminInfo?.businessName || adminInfo?.name}
           />
         )}
 
