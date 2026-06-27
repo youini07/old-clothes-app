@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import Spinner from '../components/Spinner';
+import { ChatWidget } from '../components/chat/ChatWidget';
 export default function CustomerDashboard() {
   const navigate = useNavigate();
   const [requests, setRequests] = useState<any[]>([]);
@@ -23,6 +24,7 @@ export default function CustomerDashboard() {
   const [profileDetailAddress, setProfileDetailAddress] = useState('');
   const [profileZipCode, setProfileZipCode] = useState('');
   const [savingProfile, setSavingProfile] = useState(false);
+  const [userId, setUserId] = useState('');
 
   useEffect(() => {
     const token = localStorage.getItem('auth_token');
@@ -65,6 +67,7 @@ export default function CustomerDashboard() {
       setProfileAddress(res.data.user.address || '');
       setProfileDetailAddress(res.data.user.detailAddress || '');
       setProfileZipCode(res.data.user.zipCode || '');
+      setUserId(res.data.user.id);
     } catch (error) {
       console.error('내 정보 조회 에러:', error);
     }
@@ -220,6 +223,9 @@ export default function CustomerDashboard() {
       </div>
     );
   }
+
+  const activeRequestWithPartner = requests.find(r => r.partnerId && r.status !== 'COMPLETED');
+  const partnerIdForChat = activeRequestWithPartner?.partnerId;
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -475,6 +481,10 @@ export default function CustomerDashboard() {
           </div>
         )}
       </div>
+
+      {userId && partnerIdForChat && (
+        <ChatWidget userId={userId} partnerId={partnerIdForChat} />
+      )}
     </div>
   );
 }
