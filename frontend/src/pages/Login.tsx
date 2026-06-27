@@ -32,12 +32,6 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (mode === 'REGISTER' && registerRole === 'DRIVER') {
-      fetchPartners();
-    }
-  }, [mode, registerRole]);
-
   const fetchPartners = async () => {
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/partners`);
@@ -46,6 +40,12 @@ export default function Login() {
       console.error('파트너 목록 로드 실패', error);
     }
   };
+
+  useEffect(() => {
+    if (mode === 'REGISTER' && registerRole === 'DRIVER') {
+      fetchPartners();
+    }
+  }, [mode, registerRole]);
 
   const handleDemoLogin = async (role: 'PARTNER' | 'DRIVER') => {
     setLoading(true);
@@ -216,82 +216,83 @@ export default function Login() {
 
         <div className="p-8">
           {mode === 'LOGIN' && (
-            <form onSubmit={handleLogin} className="space-y-6">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">이메일 (ID)</label>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
-                  placeholder="admin@test.com"
-                />
-              </div>
+            <>
+              <form onSubmit={handleLogin} className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">이메일 (ID)</label>
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
+                    placeholder="admin@test.com"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
+                    placeholder="••••••••"
+                  />
+                </div>
+
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    id="autoLogin"
+                    checked={autoLogin}
+                    onChange={e => setAutoLogin(e.target.checked)}
+                    className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  />
+                  <label htmlFor="autoLogin" className="ml-2 block text-sm text-gray-900 cursor-pointer">
+                    아이디/비밀번호 저장 (자동 로그인)
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className={`w-full flex justify-center items-center gap-2 py-4 rounded-xl font-bold text-white shadow-lg transition-all ${
+                    loading ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 hover:shadow-primary-500/30 active:scale-[0.98]'
+                  }`}
+                >
+                  {loading && <Spinner className="w-5 h-5 text-white" />}
+                  {loading ? '로그인 중...' : '로그인'}
+                </button>
+              </form>
               
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">비밀번호</label>
-                <input
-                  type="password"
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:bg-white transition-colors outline-none"
-                  placeholder="••••••••"
-                />
+              <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                  <div className="w-full border-t border-gray-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 bg-white text-gray-400 font-semibold">영업 및 시연용 데모 로그인</span>
+                </div>
               </div>
 
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="autoLogin"
-                  checked={autoLogin}
-                  onChange={e => setAutoLogin(e.target.checked)}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-                />
-                <label htmlFor="autoLogin" className="ml-2 block text-sm text-gray-900 cursor-pointer">
-                  아이디/비밀번호 저장 (자동 로그인)
-                </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleDemoLogin('PARTNER')}
+                  type="button"
+                  className="py-3 px-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                >
+                  🏢 사장님 데모
+                </button>
+                <button
+                  onClick={() => handleDemoLogin('DRIVER')}
+                  type="button"
+                  className="py-3 px-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-950 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
+                >
+                  🚚 기사님 데모
+                </button>
               </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full flex justify-center items-center gap-2 py-4 rounded-xl font-bold text-white shadow-lg transition-all ${
-                  loading ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700 hover:shadow-primary-500/30 active:scale-[0.98]'
-                }`}
-              >
-                {loading && <Spinner className="w-5 h-5 text-white" />}
-                {loading ? '로그인 중...' : '로그인'}
-              </button>
-            </form>
-            
-            <div className="relative my-8">
-              <div className="absolute inset-0 flex items-center" aria-hidden="true">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-400 font-semibold">영업 및 시연용 데모 로그인</span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => handleDemoLogin('PARTNER')}
-                type="button"
-                className="py-3 px-4 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
-              >
-                🏢 사장님 데모
-              </button>
-              <button
-                onClick={() => handleDemoLogin('DRIVER')}
-                type="button"
-                className="py-3 px-4 bg-sky-50 hover:bg-sky-100 border border-sky-200 text-sky-950 font-bold rounded-2xl text-sm transition-all text-center flex items-center justify-center gap-1.5 active:scale-95 shadow-sm"
-              >
-                🚚 기사님 데모
-              </button>
-            </div>
-          </div>
+            </>
           )}
 
           {mode === 'REGISTER' && (
