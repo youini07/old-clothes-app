@@ -803,11 +803,10 @@ export default function AdminDashboard() {
               <h2 className="text-2xl font-bold text-gray-900 mb-2">⚙️ 환경 설정</h2>
               <p className="text-gray-500 mb-8">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
 
-              <form onSubmit={handleSaveSettings} className="space-y-8">
+              <form onSubmit={handleSaveSettings}>
                 {/* 전역 공지사항 설정 */}
                 {globalSettings && (
-                  <div className="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-200/30 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none"></div>
+                  <div className="py-6 border-b border-gray-100">
                     
                     <div className="flex justify-between items-center mb-4">
                       <label className="block text-lg font-bold text-gray-900">📢 전역 공지사항 (앱 전체 띠 배너)</label>
@@ -822,7 +821,7 @@ export default function AdminDashboard() {
                       </button>
                     </div>
                     
-                    <p className="text-sm text-indigo-900/80 mb-4">
+                    <p className="text-sm text-gray-500 mb-4">
                       명절 휴무, 긴급 안내 등 <strong>고객과 기사님을 포함한 앱 전체 화면 최상단</strong>에 띄울 공지를 작성합니다.
                     </p>
 
@@ -850,7 +849,7 @@ export default function AdminDashboard() {
                 )}
 
                 {/* 단가 설정 */}
-                <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100">
+                <div className="py-6 border-b border-gray-100">
                   <div className="flex justify-between items-start mb-2">
                     <label className="block text-lg font-bold text-gray-900">💰 1kg당 수거 단가 설정</label>
                   </div>
@@ -870,21 +869,20 @@ export default function AdminDashboard() {
                 </div>
 
                 {/* 프리미엄 유료 서비스 그룹 */}
-                <div className="bg-gradient-to-br from-orange-50/80 via-white to-orange-50/50 p-6 md:p-8 rounded-3xl shadow-sm border border-orange-200 mt-8 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-orange-200/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none"></div>
+                <div className="py-6 border-b border-gray-100 relative">
                   
                   <div className="flex items-center gap-2 mb-6">
                     <span className="text-2xl">✨</span>
                     <h3 className="text-xl font-bold text-gray-900">프리미엄 알림톡 서비스</h3>
                     <span className="px-2.5 py-1 bg-gradient-to-r from-orange-600 to-red-500 text-white text-xs font-black rounded-full shadow-sm ml-2 tracking-wide">유료 서비스</span>
                   </div>
-                  <p className="text-sm text-gray-500 mb-8 border-b border-orange-100 pb-6">
+                  <p className="text-sm text-gray-500 mb-6">
                     파트너님의 수거 단가를 높이고, 재이용률을 극대화하는 카카오 알림톡 기반의 프리미엄 자동화 기능입니다.
                   </p>
 
-                  <div className="space-y-6">
+                  <div className="space-y-0 divide-y divide-gray-100 border-y border-gray-100">
                     {/* 1. 카카오 알림톡 자동 발송 */}
-                    <div className="bg-white p-5 rounded-2xl border border-orange-100 shadow-sm relative">
+                    <div className="py-5">
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-lg font-bold text-gray-900">💬 기본 알림톡 자동 발송</label>
                         
@@ -909,7 +907,7 @@ export default function AdminDashboard() {
                     </div>
 
                     {/* 2. CRM 자동화 */}
-                    <div className="bg-white p-5 rounded-2xl border border-orange-100 shadow-sm relative">
+                    <div className="py-5">
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-lg font-bold text-gray-900">🎯 CRM 리텐션 자동화</label>
                         
@@ -950,7 +948,7 @@ export default function AdminDashboard() {
             {/* 권역 관리 추가 */}
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
               <h2 className="text-2xl font-bold text-gray-900 mb-2">🗺️ 사용자 정의 권역 관리</h2>
-              <p className="text-gray-500 mb-8">기사님들에게 배정할 권역(A권역, B권역 등)과 해당 권역에 포함될 지역을 자유롭게 설정하세요.</p>
+              <p className="text-gray-500 mb-6 border-b border-gray-100 pb-6">기사님들에게 배정할 권역(A권역, B권역 등)과 해당 권역에 포함될 지역을 자유롭게 설정하세요.</p>
               <div className="space-y-4">
                 {customRegions.map(cr => (
                   <div key={cr.id} className="flex justify-between items-center p-4 bg-gray-50 border border-gray-100 rounded-xl">
