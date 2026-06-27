@@ -1236,7 +1236,7 @@ export default function AdminDashboard() {
                           onClick={() => handleSendSMS(selectedRequestIds)}
                           className="text-sm font-bold text-white bg-green-500 px-3 py-2 rounded-xl shadow-sm hover:bg-green-600 transition-all animate-fade-in flex items-center gap-1"
                         >
-                          💬 안내문자
+                          💬 문자
                         </button>
                       </>
                     )}
@@ -1322,7 +1322,7 @@ export default function AdminDashboard() {
                       onClick={() => handleSendSMS(selectedUnassignedIds)}
                       className="text-sm font-bold text-white bg-green-500 px-3 py-2 rounded-xl hover:bg-green-600 shadow-sm transition-all animate-fade-in flex items-center gap-1"
                     >
-                      💬 안내문자
+                      💬 문자
                     </button>
                   </>
                 )}
@@ -1887,7 +1887,7 @@ export default function AdminDashboard() {
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
                 <div className="flex gap-2 mb-2">
-                  <input type="text" required readOnly value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
+                  <input type="text" required readOnly onClick={handleAddressSearch} value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2 cursor-pointer" placeholder="주소 검색을 눌러주세요" />
                   <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 rounded-lg text-sm font-bold whitespace-nowrap">주소 검색</button>
                 </div>
                 <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
@@ -1914,55 +1914,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* 비회원 수동 접수 모달 */}
-      {isManualModalOpen && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md overflow-hidden shadow-2xl">
-            <div className="bg-blue-600 text-white p-4">
-              <h3 className="font-bold text-lg">비회원 수동 접수</h3>
-              <p className="text-sm opacity-80">전화로 요청받은 수거 건을 직접 등록합니다.</p>
-            </div>
-            <form onSubmit={handleManualSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">고객명</label>
-                  <input type="text" required value={manualForm.userName} onChange={e => setManualForm({...manualForm, userName: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 김철수" />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1">연락처</label>
-                  <input type="text" required value={manualForm.phone} onChange={e => setManualForm({...manualForm, phone: e.target.value})} className="w-full border rounded-lg p-2" placeholder="010-0000-0000" />
-                </div>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
-                <div className="flex gap-2 mb-2">
-                  <input type="text" required readOnly value={manualForm.address} className="flex-1 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
-                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 rounded-lg text-sm font-bold whitespace-nowrap">주소 검색</button>
-                </div>
-                <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">예상 수거량 / 메모</label>
-                <textarea rows={2} required value={manualForm.estimatedVolume} onChange={e => setManualForm({...manualForm, estimatedVolume: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 헌옷 3봉지" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">방문 희망일</label>
-                <input type="date" required value={manualForm.desiredDate} onChange={e => setManualForm({...manualForm, desiredDate: e.target.value})} className="w-full border rounded-lg p-2" />
-              </div>
-
-              <div className="pt-4 flex gap-3">
-                <button type="button" onClick={() => setIsManualModalOpen(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">취소</button>
-                <button type="submit" disabled={isSubmittingManual} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2">
-                  {isSubmittingManual ? <Spinner /> : '접수 완료하기'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
     </div>
