@@ -88,21 +88,23 @@ export const ChatWidget: React.FC<ChatWidgetProps> = ({ userId, partnerId }) => 
           </div>
 
           {/* 입력 폼 */}
-          <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
-            <input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="메시지를 입력하세요..."
-              className="flex-1 bg-gray-100 rounded-full px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button 
-              type="submit" 
-              disabled={!input.trim()}
-              className="bg-blue-600 text-white p-2 rounded-full disabled:bg-gray-300 disabled:cursor-not-allowed transition"
-            >
-              <Send size={18} />
-            </button>
+          <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200">
+            <div className="flex items-center gap-2 w-full">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="메시지를 입력하세요..."
+                className="flex-1 min-w-0 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button 
+                type="submit" 
+                disabled={!input.trim()}
+                className="shrink-0 bg-blue-600 text-white p-2.5 rounded-full disabled:bg-gray-300 disabled:cursor-not-allowed transition flex items-center justify-center w-10 h-10"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </form>
         </div>
       )}

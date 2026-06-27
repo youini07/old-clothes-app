@@ -158,18 +158,18 @@ export const AdminChatDashboard: React.FC<AdminChatDashboardProps> = ({ adminId 
 
                   {/* 입력 영역 */}
                   <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 w-full">
                       <input
                         type="text"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder="메시지를 입력하세요..."
-                        className="flex-1 bg-gray-100 border-none rounded-lg px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 min-w-0 bg-gray-100 border-none rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                       <button 
                         type="submit" 
                         disabled={!input.trim()}
-                        className="bg-blue-600 text-white p-2.5 rounded-lg disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700 transition"
+                        className="shrink-0 bg-blue-600 text-white p-2.5 rounded-full disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-blue-700 transition flex items-center justify-center w-10 h-10"
                       >
                         <Send size={18} />
                       </button>
