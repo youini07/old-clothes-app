@@ -28,7 +28,7 @@ function Home() {
   }, [navigate]);
 
   return (
-    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F0EDE6] flex items-center justify-center">
+    <div className="relative w-full h-[100dvh] overflow-hidden bg-[#F7F8FC] flex items-center justify-center">
       
       {/* 모바일 화면 크기의 중앙 컨테이너 */}
       <div className="relative w-full max-w-[450px] h-full shadow-2xl flex flex-col justify-end pb-8">
@@ -38,8 +38,8 @@ function Home() {
           className="absolute inset-0 w-full h-full"
           style={{
             backgroundImage: 'url(/allclear-logo.png)',
-            backgroundSize: 'cover',
-            backgroundPosition: 'center center',
+            backgroundSize: '100% auto', // 가로를 100% 꽉 채워서 글씨나 그림이 잘리지 않게 설정
+            backgroundPosition: 'top center', // 상단 고정
             backgroundRepeat: 'no-repeat',
             // AI 생성 이미지 특유의 물빠짐/흐릿함을 보정하는 CSS 필터
             filter: 'contrast(1.2) saturate(1.15) brightness(1.02)',
