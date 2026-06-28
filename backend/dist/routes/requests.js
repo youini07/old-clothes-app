@@ -239,8 +239,72 @@ router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) =>
         res.json({ message: '수거 신청이 취소되었습니다.', request: updatedRequest });
     }
     catch (error) {
-        console.error('수거 취소 에러:', error);
-        res.status(500).json({ error: '수거 취소 중 문제가 발생했습니다.' });
+        console.error('고객 취소 에러:', error);
+        res.status(500).json({ error: '취소 중 문제가 발생했습니다.' });
+    }
+}));
+// 고객 수거 수정 API (예약접수 상태에서만 가능)
+router.patch('/:id', validateMiddleware_1.validateRequest, authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    try {
+        const id = req.params.id;
+        const requestData = req.body;
+        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!existingRequest) {
+            return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
+        }
+        // 본인 확인 (로그인 유저인 경우)
+        if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
+            return res.status(403).json({ error: '권한이 없습니다.' });
+        }
+        if (existingRequest.status !== 'PENDING') {
+            return res.status(400).json({ error: '예약접수 상태인 경우에만 수정이 가능합니다. 이미 접수/배차가 진행된 경우 고객센터(카카오채널)로 문의해 주세요.' });
+        }
+        // 1. 주소에서 시/도, 시/군/구 파싱 (통계용 regionId 기록용)
+        let province = '';
+        let city = '';
+        if (requestData.regionInfo && requestData.regionInfo.province) {
+            province = requestData.regionInfo.province;
+            city = requestData.regionInfo.city;
+        }
+        else {
+            const addressParts = (requestData.address || '').split(' ');
+            province = addressParts[0] || '';
+            if (province === '경기')
+                province = '경기도';
+            city = addressParts[1] || '';
+        }
+        // 통계용 regionId 조회
+        let regionId = existingRequest.regionId;
+        if (province && city) {
+            const region = yield prisma_1.prisma.region.findFirst({
+                where: { province, city }
+            });
+            if (region) {
+                regionId = region.id;
+            }
+        }
+        const updatedRequest = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: {
+                userName: requestData.userName || existingRequest.userName,
+                phone: requestData.phone || existingRequest.phone,
+                address: requestData.address,
+                detailAddress: requestData.detailAddress,
+                zipCode: requestData.zipCode,
+                sigungu: ((_a = requestData.regionInfo) === null || _a === void 0 ? void 0 : _a.city) || null,
+                bname: ((_b = requestData.regionInfo) === null || _b === void 0 ? void 0 : _b.town) || null,
+                desiredDate: new Date(requestData.desiredDate),
+                isMustPickupDate: !!requestData.isMustPickupDate,
+                estimatedVolume: requestData.estimatedVolume,
+                regionId,
+            }
+        });
+        res.json({ message: '수거 신청이 수정되었습니다.', request: updatedRequest });
+    }
+    catch (error) {
+        console.error('고객 수정 에러:', error);
+        res.status(500).json({ error: '수정 중 문제가 발생했습니다.' });
     }
 }));
 exports.default = router;

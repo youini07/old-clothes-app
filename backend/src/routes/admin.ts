@@ -1381,7 +1381,7 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
 
     const newRequest = await prisma.request.create({
       data: {
-        userName: requestData.userName || '비회원',
+        userName: requestData.userName || '수동접수',
         phone: requestData.phone || '010-0000-0000',
         address: requestData.address,
         detailAddress: requestData.detailAddress || '',

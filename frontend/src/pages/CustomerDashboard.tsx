@@ -239,6 +239,10 @@ export default function CustomerDashboard() {
     }
   };
 
+  const handleEditRequest = (req: any) => {
+    navigate('/request', { state: { editMode: true, requestData: req } });
+  };
+
   const getStatusText = (status: string) => {
     switch(status) {
       case 'PENDING': return '예약 접수';
@@ -389,13 +393,23 @@ export default function CustomerDashboard() {
                         <h3 className={`font-bold text-lg mb-1 ${req.status === 'CANCELLED' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                           {req.address}
                         </h3>
-                        {req.status === 'PENDING' && (
-                          <button
-                            onClick={() => handleCancelRequest(req.id)}
-                            className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md hover:bg-red-100 transition-colors"
-                          >
-                            수거 취소
-                          </button>
+                        {['PENDING', 'ASSIGNED', 'SCHEDULED'].includes(req.status) && (
+                          <div className="flex gap-2">
+                            {req.status === 'PENDING' && (
+                              <button
+                                onClick={() => handleEditRequest(req)}
+                                className="text-xs font-bold text-blue-500 bg-blue-50 px-3 py-1.5 rounded-md hover:bg-blue-100 transition-colors"
+                              >
+                                수정
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleCancelRequest(req.id)}
+                              className="text-xs font-bold text-red-500 bg-red-50 px-3 py-1.5 rounded-md hover:bg-red-100 transition-colors"
+                            >
+                              수거 취소
+                            </button>
+                          </div>
                         )}
                       </div>
                       

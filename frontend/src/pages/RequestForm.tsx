@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
 
 export default function RequestForm() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const editMode = location.state?.editMode || false;
+  const requestData = location.state?.requestData || null;
   const [userName, setUserName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -18,21 +21,41 @@ export default function RequestForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(res => {
-        if (res.data.user.name) setUserName(res.data.user.name);
-        if (res.data.user.phone) setPhone(res.data.user.phone);
-        if (res.data.user.address) setAddress(res.data.user.address);
-        if (res.data.user.detailAddress) setDetailAddress(res.data.user.detailAddress);
-        if (res.data.user.zipCode) setZipCode(res.data.user.zipCode);
-      })
-      .catch(err => console.error('사용자 정보 불러오기 실패:', err));
+    if (editMode && requestData) {
+      setUserName(requestData.userName || '');
+      setPhone(requestData.phone || '');
+      setAddress(requestData.address || '');
+      setDetailAddress(requestData.detailAddress || '');
+      setZipCode(requestData.zipCode || '');
+      if (requestData.desiredDate) {
+        setDesiredDate(requestData.desiredDate.split('T')[0]);
+      }
+      setIsMustPickupDate(!!requestData.isMustPickupDate);
+      
+      const volParts = (requestData.estimatedVolume || '').split('kg - ');
+      if (volParts.length === 2) {
+        setEstimatedWeight(volParts[0]);
+        setEstimatedVolume(volParts[1]);
+      } else {
+        setEstimatedVolume(requestData.estimatedVolume || '');
+      }
+    } else {
+      const token = localStorage.getItem('auth_token');
+      if (token) {
+        axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        .then(res => {
+          if (res.data.user.name) setUserName(res.data.user.name);
+          if (res.data.user.phone) setPhone(res.data.user.phone);
+          if (res.data.user.address) setAddress(res.data.user.address);
+          if (res.data.user.detailAddress) setDetailAddress(res.data.user.detailAddress);
+          if (res.data.user.zipCode) setZipCode(res.data.user.zipCode);
+        })
+        .catch(err => console.error('사용자 정보 불러오기 실패:', err));
+      }
     }
-  }, []);
+  }, [editMode, requestData]);
 
   const handleAddressSearch = () => {
     new (window as any).daum.Postcode({
@@ -64,7 +87,7 @@ export default function RequestForm() {
 
     try {
       const token = localStorage.getItem('auth_token');
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/requests`, {
+      const payload = {
         userName,
         phone,
         address,
@@ -74,15 +97,24 @@ export default function RequestForm() {
         isMustPickupDate,
         estimatedVolume: estimatedWeight ? `${estimatedWeight}kg - ${estimatedVolume}` : estimatedVolume,
         regionInfo
-      }, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {}
-      });
-      alert(response.data.message || '수거 신청이 완료되었습니다!');
+      };
+
+      let response;
+      if (editMode && requestData) {
+        response = await axios.patch(`${import.meta.env.VITE_API_URL}/requests/${requestData.id}`, payload, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      } else {
+        response = await axios.post(`${import.meta.env.VITE_API_URL}/requests`, payload, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+      }
+      alert(response.data.message || (editMode ? '수거 신청이 수정되었습니다!' : '수거 신청이 완료되었습니다!'));
       window.location.href = '/status';
     } catch (error) {
       console.error(error);
-      alert('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
-      setIsLoading(false); // 에러 발생 시에만 로딩 해제 (성공 시 페이지 이동하므로 유지)
+      alert(editMode ? '수정 중 오류가 발생했습니다. 다시 시도해주세요.' : '신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+      setIsLoading(false);
     }
   };
 
@@ -247,7 +279,7 @@ export default function RequestForm() {
             }`}
           >
             {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-            {isLoading ? '신청 처리 중...' : '신청 완료하기'}
+            {isLoading ? '신청 처리 중...' : (editMode ? '신청 수정하기' : '신청 완료하기')}
           </button>
         </form>
       </div>

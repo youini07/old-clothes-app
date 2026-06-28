@@ -227,7 +227,7 @@ router.patch('/:id/customer-photo', optionalAuthenticate, async (req: AuthReques
   }
 });
 
-// 고객 수거 취소 API (예약접수 상태에서만 가능)
+// 고객 수거 취소 API (수거 완료 전까지 가능)
 router.patch('/:id/cancel', optionalAuthenticate, async (req: AuthRequest, res) => {
   try {
     const id = req.params.id as string;
@@ -242,8 +242,8 @@ router.patch('/:id/cancel', optionalAuthenticate, async (req: AuthRequest, res) 
       return res.status(403).json({ error: '권한이 없습니다.' });
     }
 
-    if (existingRequest.status !== 'PENDING') {
-      return res.status(400).json({ error: '예약접수 상태인 경우에만 취소가 가능합니다. 이미 접수/배차가 진행된 경우 고객센터(카카오채널)로 문의해 주세요.' });
+    if (!['PENDING', 'ASSIGNED', 'SCHEDULED'].includes(existingRequest.status)) {
+      return res.status(400).json({ error: '수거 완료 또는 이미 취소된 내역은 취소할 수 없습니다. 고객센터(카카오채널)로 문의해 주세요.' });
     }
 
     const updatedRequest = await prisma.request.update({
@@ -253,8 +253,77 @@ router.patch('/:id/cancel', optionalAuthenticate, async (req: AuthRequest, res) 
 
     res.json({ message: '수거 신청이 취소되었습니다.', request: updatedRequest });
   } catch (error) {
-    console.error('수거 취소 에러:', error);
-    res.status(500).json({ error: '수거 취소 중 문제가 발생했습니다.' });
+    console.error('고객 취소 에러:', error);
+    res.status(500).json({ error: '취소 중 문제가 발생했습니다.' });
+  }
+});
+
+// 고객 수거 수정 API (예약접수 상태에서만 가능)
+router.patch('/:id', validateRequest, optionalAuthenticate, async (req: AuthRequest, res) => {
+  try {
+    const id = req.params.id as string;
+    const requestData = req.body;
+    
+    const existingRequest = await prisma.request.findUnique({ where: { id } });
+    if (!existingRequest) {
+      return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
+    }
+
+    // 본인 확인 (로그인 유저인 경우)
+    if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
+      return res.status(403).json({ error: '권한이 없습니다.' });
+    }
+
+    if (existingRequest.status !== 'PENDING') {
+      return res.status(400).json({ error: '예약접수 상태인 경우에만 수정이 가능합니다. 이미 접수/배차가 진행된 경우 고객센터(카카오채널)로 문의해 주세요.' });
+    }
+
+    // 1. 주소에서 시/도, 시/군/구 파싱 (통계용 regionId 기록용)
+    let province = '';
+    let city = '';
+    
+    if (requestData.regionInfo && requestData.regionInfo.province) {
+      province = requestData.regionInfo.province;
+      city = requestData.regionInfo.city;
+    } else {
+      const addressParts = (requestData.address || '').split(' ');
+      province = addressParts[0] || ''; 
+      if (province === '경기') province = '경기도';
+      city = addressParts[1] || '';     
+    }
+
+    // 통계용 regionId 조회
+    let regionId = existingRequest.regionId;
+    if (province && city) {
+      const region = await prisma.region.findFirst({
+        where: { province, city }
+      });
+      if (region) {
+        regionId = region.id;
+      }
+    }
+
+    const updatedRequest = await prisma.request.update({
+      where: { id },
+      data: {
+        userName: requestData.userName || existingRequest.userName,
+        phone: requestData.phone || existingRequest.phone,
+        address: requestData.address,
+        detailAddress: requestData.detailAddress,
+        zipCode: requestData.zipCode,
+        sigungu: requestData.regionInfo?.city || null,
+        bname: requestData.regionInfo?.town || null,
+        desiredDate: new Date(requestData.desiredDate),
+        isMustPickupDate: !!requestData.isMustPickupDate,
+        estimatedVolume: requestData.estimatedVolume,
+        regionId,
+      }
+    });
+
+    res.json({ message: '수거 신청이 수정되었습니다.', request: updatedRequest });
+  } catch (error) {
+    console.error('고객 수정 에러:', error);
+    res.status(500).json({ error: '수정 중 문제가 발생했습니다.' });
   }
 });
 

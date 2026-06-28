@@ -184,6 +184,7 @@ export default function AdminDashboard() {
     try {
       const payload = {
         ...manualForm,
+        userName: manualForm.userName.trim() === '' ? '수동접수' : manualForm.userName,
         estimatedVolume: manualForm.estimatedWeight ? `${manualForm.estimatedWeight}kg - ${manualForm.estimatedVolume}` : manualForm.estimatedVolume
       };
       await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/manual`, payload, {
@@ -1976,7 +1977,7 @@ export default function AdminDashboard() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">고객명</label>
-                  <input type="text" required value={manualForm.userName} onChange={e => setManualForm({...manualForm, userName: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 김철수" />
+                  <input type="text" value={manualForm.userName} onChange={e => setManualForm({...manualForm, userName: e.target.value})} className="w-full border rounded-lg p-2" placeholder="예: 김철수 (미입력시 수동접수)" />
                 </div>
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">연락처</label>
