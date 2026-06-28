@@ -7,6 +7,23 @@ import { sendDepartureNotification, sendCompletionToCustomer } from '../services
 import { updateRequestStatusInSheet } from '../services/googleSheets';
 import { getStatusForAction } from '../services/statusService';
 
+// ==========================================
+// 항목별 수거 단가표 (카테고리별 단가 정의)
+// 왜 코드에 정의하는가: 현재 모든 파트너가 동일 단가를 사용.
+// 향후 파트너별 커스텀 단가가 필요하면 DB 테이블로 분리 예정.
+// ==========================================
+export const PRICE_TABLE = [
+  { category: 'CLOTHES',   label: '헌옷 (신발, 가방 포함)', unitPrice: 400,   unitType: 'KG'   as const, icon: '👕' },
+  { category: 'BOOKS',     label: '헌책',                   unitPrice: 30,    unitType: 'KG'   as const, icon: '📚' },
+  { category: 'COOKWARE',  label: '후라이팬, 냄비류',        unitPrice: 300,   unitType: 'KG'   as const, icon: '🍳' },
+  { category: 'PHONE',     label: '핸드폰',                 unitPrice: 500,   unitType: 'UNIT' as const, icon: '📱' },
+  { category: 'COMPUTER',  label: '컴퓨터, 노트북',         unitPrice: 2000,  unitType: 'UNIT' as const, icon: '💻' },
+  { category: 'CD_TAPE',   label: '음악 CD/음악 테이프',     unitPrice: 500,   unitType: 'KG'   as const, icon: '💿' },
+  { category: 'LP',        label: '음악 LP판',              unitPrice: 1000,  unitType: 'KG'   as const, icon: '🎵' },
+  { category: 'AC_STAND',  label: '스탠드 에어컨 (실외기 포함)', unitPrice: 20000, unitType: 'UNIT' as const, icon: '❄️' },
+  { category: 'AC_WALL',   label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT' as const, icon: '🌀' },
+];
+
 // 유클리드 거리 계산 헬퍼
 function getDistance(x1: number, y1: number, x2: number, y2: number) {
   const dx = x1 - x2;
@@ -81,7 +98,10 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
         { createdAt: 'asc' }
       ], // 동선 순서, 그 다음 생성일 순으로 정렬하여 순서 고정
       skip,
-      take: limit
+      take: limit,
+      include: {
+        collectionItems: true // 항목별 수거 정산 내역을 함께 조회
+      }
     });
 
     const totalPages = Math.ceil(totalCount / limit);
@@ -116,7 +136,19 @@ router.put('/reorder', authenticate, requireRole(['DRIVER', 'PARTNER']), async (
 // 향후 multer & aws-sdk 를 이용한 R2 업로드 연동 필요
 router.post('/complete/:id', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   const { id } = req.params;
-  const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body as any;
+  // 변경: 기존의 단일 무게 입력 대신 항목별 배열을 수신
+  const { items, driverNote } = req.body as {
+    items: Array<{
+      category: string;
+      categoryLabel: string;
+      quantity: number;
+      unitType: string;
+      unitPrice: number;
+      subtotal: number;
+      photoUrl?: string;
+    }>;
+    driverNote?: string;
+  };
 
   try {
     // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회
@@ -129,43 +161,69 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER', 'PARTNER']), a
       return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
     }
 
-    // 2. 단가(pricePerKg) 적용: 파트너 설정값이 없으면 기본값 300원 사용
-    const PRICE_PER_KG = existingRequest.partner?.pricePerKg ?? 300;
-    const weight = parseFloat(actualWeight);
-    const totalPrice = weight * PRICE_PER_KG;
+    // 2. 항목이 없으면 에러 반환
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: '최소 1개 이상의 수거 항목을 입력해주세요.' });
+    }
 
-    // 3. 수거 완료 처리 및 무게/금액 업데이트
-    const request = await prisma.request.update({
-      where: { id },
-      data: {
-        actualWeight: weight,
-        totalPrice,
-        driverNote,
-        itemPhotoUrl,
-        scalePhotoUrl,
-        extraPhotoUrl,
-        status: getStatusForAction.onCompleted(),
-        completedDate: new Date()
-      },
-      include: { partner: true }
+    // 3. 항목별 합산 계산
+    // - actualWeight: kg 단위 항목들의 무게 합산 (호환용)
+    // - totalPrice: 모든 항목의 subtotal 합산
+    const totalWeight = items
+      .filter(item => item.unitType === 'KG')
+      .reduce((sum, item) => sum + item.quantity, 0);
+    const totalPrice = items.reduce((sum, item) => sum + item.subtotal, 0);
+
+    // 4. 트랜잭션으로 수거 완료 처리 + 항목 일괄 생성
+    const request = await prisma.$transaction(async (tx) => {
+      // 4-1. Request 상태 업데이트
+      const updatedRequest = await tx.request.update({
+        where: { id },
+        data: {
+          actualWeight: totalWeight || null,
+          totalPrice,
+          driverNote: driverNote || '수거 완료',
+          itemPhotoUrl: items[0]?.photoUrl || null, // 기존 호환: 첫 번째 항목 사진
+          status: getStatusForAction.onCompleted(),
+          completedDate: new Date()
+        },
+        include: { partner: true }
+      });
+
+      // 4-2. CollectionItem 일괄 생성
+      await tx.collectionItem.createMany({
+        data: items.map(item => ({
+          requestId: id,
+          category: item.category,
+          categoryLabel: item.categoryLabel,
+          quantity: item.quantity,
+          unitType: item.unitType,
+          unitPrice: item.unitPrice,
+          subtotal: item.subtotal,
+          photoUrl: item.photoUrl || null
+        }))
+      });
+
+      return updatedRequest;
     });
     
-    // 수거 완료 및 정산 알림톡 발송 (비동기)
+    // 5. 수거 완료 및 정산 알림톡 발송 (영수증 형태)
     if (request.partner && request.partner.useBizMessage) {
       sendCompletionToCustomer(
         request.phone,
         request.userName,
-        weight,
+        items, // 변경: 항목 배열을 전달하여 영수증 형태 메시지 생성
         totalPrice,
         request.partner.useBizMessage
       ).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
     }
     
-    // 구글 시트에 완료 상태 및 무게/메모 업데이트
-    await updateRequestStatusInSheet(id as string, 'COMPLETED', parseFloat(actualWeight), driverNote as string);
+    // 6. 구글 시트에 완료 상태 및 무게/메모 업데이트
+    await updateRequestStatusInSheet(id as string, 'COMPLETED', totalWeight, driverNote as string);
     
     res.json({ message: '수거가 완료되었습니다!', request });
   } catch (error) {
+    console.error('수거 완료 처리 에러:', error);
     res.status(500).json({ error: '수거 완료 처리 실패' });
   }
 });
@@ -545,6 +603,17 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
   } catch (error) {
     console.error('현위치 기반 동선 최적화 에러:', error);
     res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
+  }
+});
+
+// ==========================================
+// 단가표 조회 API — 기사 앱에서 카테고리 목록 + 단가를 가져감
+// ==========================================
+router.get('/price-table', authenticate, requireRole(['DRIVER', 'PARTNER']), async (_req: any, res: any) => {
+  try {
+    res.json({ priceTable: PRICE_TABLE });
+  } catch (error) {
+    res.status(500).json({ error: '단가표 조회 실패' });
   }
 });
 

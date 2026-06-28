@@ -431,10 +431,35 @@ export default function CustomerDashboard() {
                         </div>
                       )}
 
-                      {req.status === 'COMPLETED' && req.actualWeight && (
-                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center text-sm font-bold">
-                          <span className="text-gray-600">수거 완료된 무게</span>
-                          <span className="text-green-600 text-lg">{req.actualWeight} kg</span>
+                      {req.status === 'COMPLETED' && (req.collectionItems?.length > 0 || req.actualWeight) && (
+                        <div className="mt-3 pt-3 border-t border-gray-100">
+                          {/* 항목별 영수증 표시 (새 방식) */}
+                          {req.collectionItems && req.collectionItems.length > 0 ? (
+                            <div className="bg-gray-50 rounded-xl p-4 space-y-2">
+                              <h4 className="text-sm font-bold text-gray-800 flex items-center gap-1">🧾 수거 정산서</h4>
+                              {req.collectionItems.map((item: any, idx: number) => (
+                                <div key={idx} className="flex justify-between items-center text-sm">
+                                  <div>
+                                    <span className="font-medium text-gray-700">{item.categoryLabel}</span>
+                                    <span className="text-gray-400 ml-1.5 text-xs">
+                                      {item.quantity}{item.unitType === 'KG' ? 'kg' : '대'} × {item.unitPrice?.toLocaleString()}원
+                                    </span>
+                                  </div>
+                                  <span className="font-bold text-gray-800">{item.subtotal?.toLocaleString()}원</span>
+                                </div>
+                              ))}
+                              <div className="border-t border-gray-200 pt-2 mt-2 flex justify-between items-center">
+                                <span className="text-sm font-extrabold text-gray-900">합계</span>
+                                <span className="text-lg font-extrabold text-green-600">{(req.totalPrice || 0).toLocaleString()}원</span>
+                              </div>
+                            </div>
+                          ) : (
+                            /* 기존 호환: 항목 데이터 없는 경우 총 무게만 표시 */
+                            <div className="flex justify-between items-center text-sm font-bold">
+                              <span className="text-gray-600">수거 완료된 무게</span>
+                              <span className="text-green-600 text-lg">{req.actualWeight} kg</span>
+                            </div>
+                          )}
                         </div>
                       )}
 

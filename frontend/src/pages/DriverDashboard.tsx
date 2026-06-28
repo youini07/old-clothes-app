@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DriverMap from '../components/DriverMap';
 import Spinner from '../components/Spinner';
-import { Camera, X } from 'lucide-react';
+import { Camera, X, Plus, Trash2, ChevronRight, Receipt } from 'lucide-react';
 
 interface RequestItem {
   id: string;
@@ -18,7 +18,42 @@ interface RequestItem {
   customerPackedPhotoUrl?: string | null;
   isMustPickupDate?: boolean;
   createdAt?: string | Date;
+  collectionItems?: CollectionItemData[];
 }
+
+// 항목별 수거 정산 데이터 타입
+interface CollectionItemData {
+  category: string;
+  categoryLabel: string;
+  quantity: number;
+  unitType: string;
+  unitPrice: number;
+  subtotal: number;
+  photoUrl?: string | null;
+}
+
+// 단가표 타입 (백엔드와 동일 구조)
+interface PriceTableItem {
+  category: string;
+  label: string;
+  unitPrice: number;
+  unitType: 'KG' | 'UNIT';
+  icon: string;
+}
+
+// 프론트엔드 하드코딩 단가표 (백엔드와 동기화)
+// 왜 프론트에도 두는가: 오프라인 환경에서도 즉시 사용 가능하도록
+const DEFAULT_PRICE_TABLE: PriceTableItem[] = [
+  { category: 'CLOTHES',  label: '헌옷 (신발, 가방 포함)', unitPrice: 400,   unitType: 'KG',   icon: '👕' },
+  { category: 'BOOKS',    label: '헌책',                   unitPrice: 30,    unitType: 'KG',   icon: '📚' },
+  { category: 'COOKWARE', label: '후라이팬, 냄비류',        unitPrice: 300,   unitType: 'KG',   icon: '🍳' },
+  { category: 'PHONE',    label: '핸드폰',                 unitPrice: 500,   unitType: 'UNIT', icon: '📱' },
+  { category: 'COMPUTER', label: '컴퓨터, 노트북',         unitPrice: 2000,  unitType: 'UNIT', icon: '💻' },
+  { category: 'CD_TAPE',  label: '음악 CD/음악 테이프',     unitPrice: 500,   unitType: 'KG',   icon: '💿' },
+  { category: 'LP',       label: '음악 LP판',              unitPrice: 1000,  unitType: 'KG',   icon: '🎵' },
+  { category: 'AC_STAND', label: '스탠드 에어컨 (실외기 포함)', unitPrice: 20000, unitType: 'UNIT', icon: '❄️' },
+  { category: 'AC_WALL',  label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT', icon: '🌀' },
+];
 
 const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   const [profile, setProfile] = useState({ name: '', phone: '', vehicleInfo: '' });
@@ -110,14 +145,19 @@ export default function DriverDashboard() {
   // 문자 템플릿 모달 상태
   const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, displayId: number} | null>(null);
 
-  // 수거 완료 모달 상태
-  const [completeModal, setCompleteModal] = useState<{ open: boolean; requestId: string | null; step: number }>({ open: false, requestId: null, step: 1 });
-  const [actualWeight, setActualWeight] = useState('');
+  // 수거 완료 모달 상태 (항목별 입력 방식)
+  const [completeModal, setCompleteModal] = useState<{ open: boolean; requestId: string | null; step: 'items' | 'receipt' }>({ open: false, requestId: null, step: 'items' });
+  const [collectedItems, setCollectedItems] = useState<CollectionItemData[]>([]);
   const [driverNote, setDriverNote] = useState('');
-  const [itemPhoto, setItemPhoto] = useState<string | null>(null);
-  const [scalePhoto, setScalePhoto] = useState<string | null>(null);
-  const [extraPhoto, setExtraPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  
+  // 항목 추가 중 상태 (카테고리 선택 → 사진 → 무게/수량 입력)
+  const [addingItem, setAddingItem] = useState<{
+    active: boolean;
+    category: PriceTableItem | null;
+    photo: string | null;
+    quantity: string;
+  }>({ active: false, category: null, photo: null, quantity: '' });
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -273,22 +313,63 @@ export default function DriverDashboard() {
   };
 
   const openCompleteModal = (id: string) => {
-    setCompleteModal({ open: true, requestId: id, step: 1 });
-    setActualWeight(''); setDriverNote(''); setItemPhoto(null); setScalePhoto(null); setExtraPhoto(null);
+    setCompleteModal({ open: true, requestId: id, step: 'items' });
+    setCollectedItems([]); setDriverNote('');
+    setAddingItem({ active: false, category: null, photo: null, quantity: '' });
   };
 
-  const closeModal = () => setCompleteModal({ open: false, requestId: null, step: 1 });
+  const closeModal = () => {
+    setCompleteModal({ open: false, requestId: null, step: 'items' });
+    setAddingItem({ active: false, category: null, photo: null, quantity: '' });
+  };
+
+  // 카테고리 선택 시 호출
+  const handleSelectCategory = (cat: PriceTableItem) => {
+    setAddingItem({ active: true, category: cat, photo: null, quantity: '' });
+  };
+
+  // 항목 추가 확정
+  const handleAddItem = () => {
+    if (!addingItem.category || !addingItem.quantity) {
+      alert('수량/무게를 입력해주세요.');
+      return;
+    }
+    const qty = parseFloat(addingItem.quantity);
+    if (isNaN(qty) || qty <= 0) {
+      alert('올바른 수량/무게를 입력해주세요.');
+      return;
+    }
+    const newItem: CollectionItemData = {
+      category: addingItem.category.category,
+      categoryLabel: addingItem.category.label,
+      quantity: qty,
+      unitType: addingItem.category.unitType,
+      unitPrice: addingItem.category.unitPrice,
+      subtotal: Math.round(qty * addingItem.category.unitPrice),
+      photoUrl: addingItem.photo || null,
+    };
+    setCollectedItems(prev => [...prev, newItem]);
+    setAddingItem({ active: false, category: null, photo: null, quantity: '' });
+  };
+
+  // 항목 삭제
+  const handleRemoveItem = (index: number) => {
+    setCollectedItems(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // 합계 계산
+  const totalAmount = collectedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
   const submitComplete = async () => {
-    if (!completeModal.requestId || !actualWeight) { alert('실제 수거 무게를 입력해주세요.'); return; }
+    if (!completeModal.requestId || collectedItems.length === 0) {
+      alert('최소 1개 이상의 수거 항목을 추가해주세요.');
+      return;
+    }
     setSubmitting(true);
     try {
       await axios.post(`${import.meta.env.VITE_API_URL}/driver/complete/${completeModal.requestId}`, {
-        actualWeight: parseFloat(actualWeight),
+        items: collectedItems,
         driverNote: driverNote || '수거 완료',
-        itemPhotoUrl: itemPhoto || undefined,
-        scalePhotoUrl: scalePhoto || undefined,
-        extraPhotoUrl: extraPhoto || undefined,
       }, { headers: { Authorization: `Bearer ${authToken}` } });
       alert('수거 완료 처리되었습니다!');
       closeModal();
@@ -358,9 +439,21 @@ export default function DriverDashboard() {
     return `안녕하세요! 올클입니다.\n\n지금 고객님 댁으로 수거하러 출발합니다!\n곧 도착할 예정이오니 잠시만 기다려주세요.\n감사합니다.`;
   };
 
+  // 수거 완료 문자 템플릿 — 항목별 영수증 형태
   const getSmsTemplate3 = (req: RequestItem) => {
-    const weight = req.actualWeight || 0;
     const price = req.totalPrice || 0;
+    const items = req.collectionItems || [];
+    
+    if (items.length > 0) {
+      // 항목별 정산 내역이 있는 경우 영수증 형태
+      const itemLines = items.map(item => {
+        const unitLabel = item.unitType === 'KG' ? 'kg' : '대';
+        return `· ${item.categoryLabel}: ${item.quantity}${unitLabel} × ${item.unitPrice.toLocaleString()}원 = ${item.subtotal.toLocaleString()}원`;
+      }).join('\n');
+      return `안녕하세요! 올클입니다.\n\n고객님의 수거가 완료되었습니다!\n\n[정산서]\n${itemLines}\n────────\n합계: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.`;
+    }
+    // 기존 호환: 항목 데이터 없는 경우 (이전 방식으로 완료된 건)
+    const weight = req.actualWeight || 0;
     return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!`;
   };
 
@@ -571,81 +664,230 @@ export default function DriverDashboard() {
         </div>
       )}
 
-      {/* 수거 완료 3단계 모달 */}
+      {/* 수거 완료 항목별 정산 모달 */}
       {completeModal.open && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-gray-900/50 backdrop-blur-sm">
           <div className="bg-white rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto relative shadow-2xl">
-            <button type="button" onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold">X</button>
-            {/* 단계 인디케이터 */}
-            <div className="flex items-center justify-center gap-2 mb-6">
-              {[1, 2, 3].map(s => (
-                <div key={s} className={`w-3 h-3 rounded-full transition-all ${completeModal.step >= s ? 'bg-blue-600 scale-110' : 'bg-gray-200'}`} />
-              ))}
-            </div>
+            <button type="button" onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+              <X size={24} />
+            </button>
 
-            {/* Step 1: 물품 사진 */}
-            {completeModal.step === 1 && (
+            {/* ========== 항목 입력 화면 ========== */}
+            {completeModal.step === 'items' && !addingItem.active && (
               <div className="space-y-4">
-                <div className="text-center">
-                  <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'📦'}</div>
-                  <h3 className="text-lg font-bold text-gray-900">1단계: 수거 물품 촬영</h3>
-                  <p className="text-sm text-gray-500 mt-1">수거할 물품의 전체 사진을 찍어주세요.</p>
+                <div className="text-center mb-2">
+                  <div className="w-14 h-14 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'⚖️'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">수거 물품 입력</h3>
+                  <p className="text-sm text-gray-500 mt-1">항목을 선택하고 무게/수량을 입력하세요</p>
                 </div>
-                <PhotoUpload photo={itemPhoto} setter={setItemPhoto} label="탭하여 사진 촬영/선택" color="blue" handlePhotoChange={handlePhotoChange} />
-                <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl active:scale-95 transition-transform">
-                  {itemPhoto ? '다음 단계' : '건너뛰기'}  {'>'}
+
+                {/* 카테고리 버튼 그리드 */}
+                <div className="grid grid-cols-3 gap-2">
+                  {DEFAULT_PRICE_TABLE.map(cat => (
+                    <button
+                      key={cat.category}
+                      type="button"
+                      onClick={() => handleSelectCategory(cat)}
+                      className="flex flex-col items-center p-3 bg-gray-50 hover:bg-blue-50 border border-gray-200 hover:border-blue-300 rounded-xl transition-all active:scale-95"
+                    >
+                      <span className="text-2xl mb-1">{cat.icon}</span>
+                      <span className="text-[11px] font-bold text-gray-800 leading-tight text-center">{cat.label.split('(')[0].trim()}</span>
+                      <span className="text-[10px] text-gray-500 mt-0.5">
+                        {cat.unitType === 'KG' ? `${cat.unitPrice.toLocaleString()}원/kg` : `${cat.unitPrice.toLocaleString()}원/대`}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+
+                {/* 추가된 항목 목록 */}
+                {collectedItems.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <h4 className="text-sm font-bold text-gray-800 flex items-center gap-1"><Receipt size={16} /> 수거 항목 목록</h4>
+                    {collectedItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2.5">
+                        <div className="flex-1">
+                          <span className="text-sm font-bold text-gray-800">{item.categoryLabel}</span>
+                          <span className="text-xs text-gray-500 ml-2">
+                            {item.quantity}{item.unitType === 'KG' ? 'kg' : '대'} × {item.unitPrice.toLocaleString()}원
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-extrabold text-green-700">{item.subtotal.toLocaleString()}원</span>
+                          <button type="button" onClick={() => handleRemoveItem(idx)} className="text-red-400 hover:text-red-600 p-1">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    {/* 합계 */}
+                    <div className="flex justify-between items-center bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
+                      <span className="text-sm font-bold text-blue-800">합계</span>
+                      <span className="text-lg font-extrabold text-blue-700">{totalAmount.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                )}
+
+                {/* 완료 버튼 */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (collectedItems.length === 0) {
+                      alert('최소 1개 이상의 수거 항목을 추가해주세요.');
+                      return;
+                    }
+                    setCompleteModal(m => ({ ...m, step: 'receipt' }));
+                  }}
+                  className={`w-full py-3.5 font-bold rounded-xl flex items-center justify-center gap-2 transition-all ${
+                    collectedItems.length > 0
+                      ? 'bg-blue-600 text-white shadow-lg active:scale-95'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  완료 <ChevronRight size={18} />
                 </button>
               </div>
             )}
 
-            {/* Step 2: 저울 사진 + 무게 입력 */}
-            {completeModal.step === 2 && (
+            {/* ========== 항목 추가 중 (사진 + 무게/수량 입력) ========== */}
+            {completeModal.step === 'items' && addingItem.active && addingItem.category && (
               <div className="space-y-4">
-                <div className="text-center">
-                  <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'⚖️'}</div>
-                  <h3 className="text-lg font-bold text-gray-900">2단계: 무게 측정</h3>
-                  <p className="text-sm text-gray-500 mt-1">저울 사진을 찍고 실제 무게를 입력해주세요.</p>
+                <div className="text-center mb-2">
+                  <div className="w-14 h-14 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+                    {addingItem.category.icon}
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900">{addingItem.category.label}</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {addingItem.category.unitType === 'KG'
+                      ? `1kg당 ${addingItem.category.unitPrice.toLocaleString()}원`
+                      : `1대당 ${addingItem.category.unitPrice.toLocaleString()}원`
+                    }
+                  </p>
                 </div>
-                <PhotoUpload photo={scalePhoto} setter={setScalePhoto} label="저울 사진 촬영/선택" color="green" handlePhotoChange={handlePhotoChange} />
+
+                {/* 사진 촬영 */}
+                <PhotoUpload
+                  photo={addingItem.photo}
+                  setter={(v) => setAddingItem(prev => ({ ...prev, photo: v }))}
+                  label="📸 물품/저울 사진 촬영"
+                  color="blue"
+                  handlePhotoChange={handlePhotoChange}
+                />
+
+                {/* 무게 또는 수량 입력 */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">실제 수거 무게 (kg) *</label>
-                  <input type="number" step="0.1" value={actualWeight} onChange={(e) => setActualWeight(e.target.value)} placeholder="예: 15.5"
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 focus:outline-none text-lg font-bold text-center" />
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    {addingItem.category.unitType === 'KG' ? '무게 (kg) *' : '수량 (대) *'}
+                  </label>
+                  <input
+                    type="number"
+                    step={addingItem.category.unitType === 'KG' ? '0.1' : '1'}
+                    min="0"
+                    value={addingItem.quantity}
+                    onChange={(e) => setAddingItem(prev => ({ ...prev, quantity: e.target.value }))}
+                    placeholder={addingItem.category.unitType === 'KG' ? '예: 10.5' : '예: 2'}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none text-xl font-bold text-center"
+                    autoFocus
+                  />
                 </div>
+
+                {/* 자동 계산 미리보기 */}
+                {addingItem.quantity && parseFloat(addingItem.quantity) > 0 && (
+                  <div className="bg-blue-50 rounded-xl p-3 text-center">
+                    <span className="text-sm text-blue-600">
+                      {addingItem.category.unitPrice.toLocaleString()}원 × {addingItem.quantity}{addingItem.category.unitType === 'KG' ? 'kg' : '대'} ={' '}
+                    </span>
+                    <span className="text-lg font-extrabold text-blue-700">
+                      {Math.round(parseFloat(addingItem.quantity) * addingItem.category.unitPrice).toLocaleString()}원
+                    </span>
+                  </div>
+                )}
+
+                {/* 버튼 */}
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 1 }))} className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">{'<'} 이전</button>
-                  <button type="button" onClick={() => { if (!actualWeight) { alert('무게를 입력해주세요.'); return; } setCompleteModal(m => ({ ...m, step: 3 })); }} className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl">다음 {'>'}</button>
+                  <button
+                    type="button"
+                    onClick={() => setAddingItem({ active: false, category: null, photo: null, quantity: '' })}
+                    className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddItem}
+                    className="flex-1 py-3 bg-green-600 text-white font-bold rounded-xl flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                  >
+                    <Plus size={18} /> 추가
+                  </button>
                 </div>
               </div>
             )}
 
-            {/* Step 3: 특이사항 + 완료 */}
-            {completeModal.step === 3 && (
+            {/* ========== 영수증 미리보기 + 최종 제출 ========== */}
+            {completeModal.step === 'receipt' && (
               <div className="space-y-4">
-                <div className="text-center">
-                  <div className="w-14 h-14 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'📝'}</div>
-                  <h3 className="text-lg font-bold text-gray-900">3단계: 특이사항</h3>
-                  <p className="text-sm text-gray-500 mt-1">추가 사진이나 메모를 남겨주세요. (선택)</p>
+                <div className="text-center mb-2">
+                  <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">{'🧾'}</div>
+                  <h3 className="text-lg font-bold text-gray-900">정산서 확인</h3>
+                  <p className="text-sm text-gray-500 mt-1">아래 내역을 확인 후 수거 완료해주세요</p>
                 </div>
-                <PhotoUpload photo={extraPhoto} setter={setExtraPhoto} label="추가 사진 (선택)" color="purple" handlePhotoChange={handlePhotoChange} />
+
+                {/* 영수증 스타일 */}
+                <div className="bg-gray-50 rounded-2xl p-5 space-y-3 border border-gray-200">
+                  <div className="text-center border-b border-dashed border-gray-300 pb-3">
+                    <p className="text-sm font-bold text-gray-900">올클 수거 정산서</p>
+                    <p className="text-xs text-gray-500 mt-1">{new Date().toLocaleDateString('ko-KR')} {new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    {collectedItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm">
+                        <div>
+                          <span className="font-bold text-gray-800">{item.categoryLabel}</span>
+                          <span className="text-gray-500 ml-1.5 text-xs">
+                            {item.quantity}{item.unitType === 'KG' ? 'kg' : '대'} × {item.unitPrice.toLocaleString()}원
+                          </span>
+                        </div>
+                        <span className="font-bold text-gray-900">{item.subtotal.toLocaleString()}원</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
+                    <span className="text-base font-extrabold text-gray-900">합계</span>
+                    <span className="text-xl font-extrabold text-blue-600">{totalAmount.toLocaleString()}원</span>
+                  </div>
+                </div>
+
+                {/* 기사 메모 */}
                 <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-2">기사 메모</label>
-                  <textarea value={driverNote} onChange={(e) => setDriverNote(e.target.value)} placeholder="특이사항을 입력하세요"
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:outline-none resize-none h-20" />
+                  <label className="block text-sm font-bold text-gray-700 mb-2">기사 메모 (선택)</label>
+                  <textarea
+                    value={driverNote}
+                    onChange={(e) => setDriverNote(e.target.value)}
+                    placeholder="특이사항을 입력하세요"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none resize-none h-16 text-sm"
+                  />
                 </div>
-                {/* 요약 */}
-                <div className="bg-gray-50 rounded-xl p-4 space-y-2">
-                  <h4 className="text-sm font-bold text-gray-800">{'📋'} 수거 완료 요약</h4>
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">실제 무게</span><span className="font-bold text-gray-900">{actualWeight} kg</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">물품 사진</span><span className={itemPhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{itemPhoto ? '첨부 완료' : '미첨부'}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">저울 사진</span><span className={scalePhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{scalePhoto ? '첨부 완료' : '미첨부'}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-gray-500">특이사항 사진</span><span className={extraPhoto ? 'text-green-600 font-bold' : 'text-gray-400'}>{extraPhoto ? '첨부 완료' : '미첨부'}</span></div>
-                </div>
+
+                {/* 버튼 */}
                 <div className="flex gap-3">
-                  <button type="button" onClick={() => setCompleteModal(m => ({ ...m, step: 2 }))} className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl">{'<'} 이전</button>
-                  <button type="button" onClick={submitComplete} disabled={submitting} className={`flex flex-1 items-center justify-center gap-2 py-3 font-bold rounded-xl ${submitting ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white shadow-lg'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setCompleteModal(m => ({ ...m, step: 'items' }))}
+                    className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-xl"
+                  >
+                    이전
+                  </button>
+                  <button
+                    type="button"
+                    onClick={submitComplete}
+                    disabled={submitting}
+                    className={`flex flex-1 items-center justify-center gap-2 py-3 font-bold rounded-xl transition-all ${
+                      submitting ? 'bg-gray-400 text-gray-200' : 'bg-blue-600 text-white shadow-lg active:scale-95'
+                    }`}
+                  >
                     {submitting && <Spinner className="w-5 h-5 text-current" />}
-                    {submitting ? '처리 중...' : '수거 완료!'}
+                    {submitting ? '처리 중...' : '✅ 수거 완료!'}
                   </button>
                 </div>
               </div>

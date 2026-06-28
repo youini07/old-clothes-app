@@ -138,6 +138,9 @@ model Request {
   
   driverNote      String?      // 기사가 남기는 특이사항 메모
   
+  // 항목별 수거 정산 내역 (카테고리별 무게/수량 + 단가 계산)
+  collectionItems CollectionItem[]
+  
   status         String        @default("PENDING")
   crmSent        Boolean       @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
   
@@ -194,4 +197,21 @@ model ChatMessage {
   isRead     Boolean  @default(false)
   
   createdAt  DateTime @default(now())
+}
+
+// 항목별 수거 정산 내역 (기사가 카테고리별로 무게/수량을 입력하면 자동으로 단가 계산)
+model CollectionItem {
+  id          String   @id @default(uuid())
+  requestId   String
+  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  
+  category    String   // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
+  categoryLabel String // 한국어 라벨 (예: '헌옷 (신발, 가방 포함)')
+  quantity    Float    // kg 또는 대 수
+  unitType    String   // 'KG' 또는 'UNIT' (대)
+  unitPrice   Int      // 단가 (원)
+  subtotal    Int      // 소계 = quantity * unitPrice
+  photoUrl    String?  // 해당 항목 촬영 사진 (base64 or URL)
+  
+  createdAt   DateTime @default(now())
 }

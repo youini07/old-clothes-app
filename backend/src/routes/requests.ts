@@ -115,7 +115,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
       take: limit,
       include: {
         driver: { include: { user: true } },
-        partner: { select: { businessName: true, name: true, phone: true } }
+        partner: { select: { businessName: true, name: true, phone: true } },
+        collectionItems: true // 항목별 수거 정산 내역 (영수증 표시용)
       }
     });
     const totalPages = Math.ceil(totalCount / limit);
