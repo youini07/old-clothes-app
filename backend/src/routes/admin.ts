@@ -20,7 +20,10 @@ const router = express.Router();
 router.get('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
     const users = await prisma.user.findMany({
-      where: { role: 'PARTNER' },
+      where: { 
+        role: 'PARTNER',
+        NOT: { name: { contains: '데모' } }
+      },
       include: {
         coverageRegions: {
           include: { region: true }
