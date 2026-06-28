@@ -3,8 +3,8 @@ import { io, Socket } from 'socket.io-client';
 import axios from 'axios';
 
 // 환경 변수 기반으로 API URL 설정 (없으면 기본값)
-const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
-const API_URL = `${SOCKET_URL}/api`;
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
 export interface ChatMessage {
   id: string;

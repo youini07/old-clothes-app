@@ -88,8 +88,9 @@ router.post('/rooms/init', async (req, res) => {
     }
 
     res.json(room);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to init room' });
+  } catch (error: any) {
+    console.error('Failed to init room:', error);
+    res.status(500).json({ error: 'Failed to init room', details: error?.message || String(error) });
   }
 });
 
