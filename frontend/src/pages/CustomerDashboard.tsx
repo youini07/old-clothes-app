@@ -30,6 +30,11 @@ export default function CustomerDashboard() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   useEffect(() => {
+    // Kakao SDK 초기화
+    if ((window as any).Kakao && !(window as any).Kakao.isInitialized()) {
+      (window as any).Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+    }
+
     const token = localStorage.getItem('auth_token');
 
     
@@ -78,6 +83,26 @@ export default function CustomerDashboard() {
 
   const handleAddressSearch = () => {
     setIsAddressModalOpen(true);
+  };
+
+  const handleAddChannel = () => {
+    if ((window as any).Kakao) {
+      (window as any).Kakao.Channel.addChannel({
+        channelPublicId: '_xbquxfX',
+      });
+    } else {
+      alert('카카오 기능을 불러올 수 없습니다.');
+    }
+  };
+
+  const handleChatChannel = () => {
+    if ((window as any).Kakao) {
+      (window as any).Kakao.Channel.chat({
+        channelPublicId: '_xbquxfX',
+      });
+    } else {
+      alert('카카오 기능을 불러올 수 없습니다.');
+    }
   };
 
   const handleAddressComplete = (data: any) => {
@@ -240,8 +265,34 @@ export default function CustomerDashboard() {
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"></path></svg>
           로그아웃
         </button>
-        <h1 className="text-2xl font-bold">{userInfo?.name || '고객'}님의 대시보드</h1>
-        <p className="opacity-80 mt-1">나의 수거 현황과 정보를 관리하세요.</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold">{userInfo?.name || '고객'}님의 대시보드</h1>
+            <p className="opacity-80 mt-1">나의 수거 현황과 정보를 관리하세요.</p>
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              onClick={handleAddChannel}
+              className="flex items-center justify-center gap-1 bg-[#FEE500] text-[#3C1E1E] text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:brightness-95 transition-all"
+            >
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none">
+                <ellipse cx="11" cy="10" rx="9" ry="7.5" fill="#3C1E1E"/>
+                <path d="M6 14l1.5-3.5" stroke="#FEE500" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              채널 추가
+            </button>
+            <button
+              onClick={handleChatChannel}
+              className="flex items-center justify-center gap-1 bg-[#FEE500] text-[#3C1E1E] text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm hover:brightness-95 transition-all"
+            >
+              <svg width="14" height="14" viewBox="0 0 22 22" fill="none">
+                <ellipse cx="11" cy="10" rx="9" ry="7.5" fill="#3C1E1E"/>
+                <path d="M6 14l1.5-3.5" stroke="#FEE500" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              채널 채팅
+            </button>
+          </div>
+        </div>
       </div>
 
       <div className="p-4 max-w-lg mx-auto">
