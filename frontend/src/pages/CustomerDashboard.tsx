@@ -30,9 +30,25 @@ export default function CustomerDashboard() {
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
 
   useEffect(() => {
-    // Kakao SDK 초기화
-    if ((window as any).Kakao && !(window as any).Kakao.isInitialized()) {
-      (window as any).Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+    // Kakao SDK 동적 로드 및 초기화
+    const initKakao = () => {
+      if ((window as any).Kakao && !(window as any).Kakao.isInitialized()) {
+        try {
+          (window as any).Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+        } catch (e) {
+          console.error("Kakao init error:", e);
+        }
+      }
+    };
+
+    if (!(window as any).Kakao) {
+      const script = document.createElement('script');
+      script.src = 'https://t1.kakaocdn.net/kakao_js_sdk/2.7.4/kakao.min.js';
+      script.async = true;
+      script.onload = () => initKakao();
+      document.head.appendChild(script);
+    } else {
+      initKakao();
     }
 
     const token = localStorage.getItem('auth_token');
@@ -86,22 +102,22 @@ export default function CustomerDashboard() {
   };
 
   const handleAddChannel = () => {
-    if ((window as any).Kakao) {
+    if ((window as any).Kakao && (window as any).Kakao.isInitialized()) {
       (window as any).Kakao.Channel.addChannel({
         channelPublicId: '_xbquxfX',
       });
     } else {
-      alert('카카오 기능을 불러올 수 없습니다.');
+      alert('카카오 기능이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
   const handleChatChannel = () => {
-    if ((window as any).Kakao) {
+    if ((window as any).Kakao && (window as any).Kakao.isInitialized()) {
       (window as any).Kakao.Channel.chat({
         channelPublicId: '_xbquxfX',
       });
     } else {
-      alert('카카오 기능을 불러올 수 없습니다.');
+      alert('카카오 기능이 아직 로드되지 않았습니다. 잠시 후 다시 시도해주세요.');
     }
   };
 
