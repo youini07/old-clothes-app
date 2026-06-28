@@ -28,8 +28,6 @@ export default function CustomerDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [userId, setUserId] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
-  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
-  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   
   // 영수증 상세 사진 확대 모달 상태
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
@@ -457,29 +455,6 @@ export default function CustomerDashboard() {
                                 <span className="text-sm font-extrabold text-gray-900">합계</span>
                                 <span className="text-lg font-extrabold text-green-600">{(req.totalPrice || 0).toLocaleString()}원</span>
                               </div>
-                              
-                              {/* 증빙 사진 썸네일 */}
-                              {req.collectionItems.some((item: any) => item.photoUrl) && (
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                  <h5 className="text-xs font-bold text-gray-600 mb-2">📸 증빙 사진</h5>
-                                  <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {req.collectionItems.map((item: any, idx: number) => {
-                                      if (!item.photoUrl) return null;
-                                      return (
-                                        <div key={idx} className="flex-shrink-0 flex flex-col items-center gap-1">
-                                          <img 
-                                            src={item.photoUrl} 
-                                            alt={item.categoryLabel} 
-                                            className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                            onClick={() => setEnlargedImage(item.photoUrl)}
-                                          />
-                                          <span className="text-[10px] text-gray-500 w-16 truncate text-center">{item.categoryLabel}</span>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
                             </div>
                           ) : (
                             /* 기존 호환: 항목 데이터 없는 경우 총 무게만 표시 */
@@ -489,12 +464,40 @@ export default function CustomerDashboard() {
                             </div>
                           )}
                           
-                          {/* 3단계 증빙 사진 (레거시 또는 기본 사진) 표시 */}
-                          {(req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl) && (
-                            <div className="mt-3 pt-3 border-t border-gray-100">
+                          {/* 📸 모든 증빙 사진 통합 표시 */}
+                          {(req.customerPackedPhotoUrl || req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl || (req.collectionItems && req.collectionItems.some((item: any) => item.photoUrl))) && (
+                            <div className="mt-4 pt-4 border-t border-gray-100">
                               <h5 className="text-xs font-bold text-gray-600 mb-2">📸 수거 증빙 사진</h5>
-                              <div className="flex gap-2 overflow-x-auto pb-1">
-                                {req.itemPhotoUrl && (
+                              <div className="flex gap-2 overflow-x-auto pb-2">
+                                {/* 고객 포장 사진 */}
+                                {req.customerPackedPhotoUrl && (
+                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                    <img 
+                                      src={req.customerPackedPhotoUrl} 
+                                      alt="포장 사진" 
+                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                      onClick={() => setEnlargedImage(req.customerPackedPhotoUrl!)}
+                                    />
+                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">고객 포장</span>
+                                  </div>
+                                )}
+                                {/* 새 방식: 항목별 증빙 사진 */}
+                                {req.collectionItems && req.collectionItems.map((item: any, idx: number) => {
+                                  if (!item.photoUrl) return null;
+                                  return (
+                                    <div key={`col-${idx}`} className="flex-shrink-0 flex flex-col items-center gap-1">
+                                      <img 
+                                        src={item.photoUrl} 
+                                        alt={item.categoryLabel} 
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                        onClick={() => setEnlargedImage(item.photoUrl)}
+                                      />
+                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">{item.categoryLabel}</span>
+                                    </div>
+                                  );
+                                })}
+                                {/* 기존 호환 3단계 증빙 사진 */}
+                                {req.itemPhotoUrl && (!req.collectionItems || req.collectionItems.length === 0) && (
                                   <div className="flex-shrink-0 flex flex-col items-center gap-1">
                                     <img 
                                       src={req.itemPhotoUrl} 
