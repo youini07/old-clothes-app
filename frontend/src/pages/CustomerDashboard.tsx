@@ -224,12 +224,28 @@ export default function CustomerDashboard() {
     }
   };
 
+  const handleCancelRequest = async (reqId: string) => {
+    if (!window.confirm('정말 수거 신청을 취소하시겠습니까?')) return;
+    try {
+      const token = localStorage.getItem('auth_token');
+      await axios.patch(`${import.meta.env.VITE_API_URL}/requests/${reqId}/cancel`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      alert('수거 신청이 취소되었습니다.');
+      fetchMyRequests(token || '', page);
+    } catch (error: any) {
+      console.error('취소 실패:', error);
+      alert(error.response?.data?.error || '취소 중 오류가 발생했습니다.');
+    }
+  };
+
   const getStatusText = (status: string) => {
     switch(status) {
       case 'PENDING': return '예약 접수';
       case 'ASSIGNED': return '업체 확인/배정';
       case 'SCHEDULED': return '방문일정 확정';
       case 'COMPLETED': return '수거 완료';
+      case 'CANCELLED': return '취소됨';
       default: return status;
     }
   };
@@ -240,6 +256,7 @@ export default function CustomerDashboard() {
       case 'ASSIGNED': return 'bg-yellow-100 text-yellow-800';
       case 'SCHEDULED': return 'bg-blue-100 text-blue-800';
       case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800 line-through opacity-70';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -368,8 +385,28 @@ export default function CustomerDashboard() {
                         </span>
                       </div>
                       
-                      <h3 className="font-bold text-gray-800 text-lg mb-1">{req.address}</h3>
-                      <p className="text-gray-500 text-sm mb-3">희망일: {new Date(req.desiredDate).toLocaleDateString()}</p>
+                      <div className="flex justify-between items-start">
+                        <h3 className={`font-bold text-lg mb-1 ${req.status === 'CANCELLED' ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
+                          {req.address}
+                        </h3>
+                        {req.status === 'PENDING' && (
+                          <button
+                            onClick={() => handleCancelRequest(req.id)}
+                            className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-md hover:bg-red-100 transition-colors"
+                          >
+                            수거 취소
+                          </button>
+                        )}
+                      </div>
+                      
+                      <p className="text-gray-500 text-sm mb-3">
+                        희망일: {new Date(req.desiredDate).toLocaleDateString()}
+                        {req.isMustPickupDate && (
+                          <span className="ml-2 inline-block bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-md">
+                            🚨 필수 지정일
+                          </span>
+                        )}
+                      </p>
                       
                       {req.partner && (
                         <div className="bg-gray-50 p-3 rounded-xl mb-3 flex justify-between items-center">

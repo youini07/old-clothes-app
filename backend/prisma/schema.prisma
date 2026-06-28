@@ -113,6 +113,7 @@ model Request {
   
   // 수거 관련 시간
   desiredDate    DateTime      // 고객 희망 날짜
+  isMustPickupDate Boolean     @default(false) // 지정일 필수 수거 여부
   confirmedDate  DateTime?     // 기사 확정 시간 (방문 예정)
   completedDate  DateTime?     // 수거 완료 시간
   

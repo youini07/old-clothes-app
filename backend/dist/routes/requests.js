@@ -66,6 +66,7 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
                 sigungu: ((_a = requestData.regionInfo) === null || _a === void 0 ? void 0 : _a.city) || null,
                 bname: ((_b = requestData.regionInfo) === null || _b === void 0 ? void 0 : _b.town) || null,
                 desiredDate: new Date(requestData.desiredDate),
+                isMustPickupDate: !!requestData.isMustPickupDate,
                 estimatedVolume: requestData.estimatedVolume,
                 status: 'PENDING', // 항상 미배정(PENDING)으로 시작
                 partnerId: null, // 사장님이 수락할 때까지 null
@@ -214,6 +215,32 @@ router.patch('/:id/customer-photo', authMiddleware_1.optionalAuthenticate, (req,
     catch (error) {
         console.error('포장 사진 업로드 에러:', error);
         res.status(500).json({ error: '사진 업로드 중 문제가 발생했습니다.' });
+    }
+}));
+// 고객 수거 취소 API (예약접수 상태에서만 가능)
+router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const id = req.params.id;
+        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!existingRequest) {
+            return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
+        }
+        // 본인 확인 (로그인 유저인 경우)
+        if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
+            return res.status(403).json({ error: '권한이 없습니다.' });
+        }
+        if (existingRequest.status !== 'PENDING') {
+            return res.status(400).json({ error: '예약접수 상태인 경우에만 취소가 가능합니다. 이미 접수/배차가 진행된 경우 고객센터(카카오채널)로 문의해 주세요.' });
+        }
+        const updatedRequest = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: { status: 'CANCELLED' }
+        });
+        res.json({ message: '수거 신청이 취소되었습니다.', request: updatedRequest });
+    }
+    catch (error) {
+        console.error('수거 취소 에러:', error);
+        res.status(500).json({ error: '수거 취소 중 문제가 발생했습니다.' });
     }
 }));
 exports.default = router;

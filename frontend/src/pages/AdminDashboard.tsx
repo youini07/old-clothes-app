@@ -24,6 +24,7 @@ interface RequestItem {
   extraPhotoUrl?: string | null;
   customerPackedPhotoUrl?: string | null;
   completedDate?: string | Date | null;
+  isMustPickupDate?: boolean;
   createdAt?: string | Date;
   displayId?: number;
   sigungu?: string | null;
@@ -1311,7 +1312,14 @@ export default function AdminDashboard() {
                       </div>
                       <div className="flex-1">
                         <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                          <h3 className="font-bold text-gray-900">
+                            {req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span>
+                            {req.isMustPickupDate && (
+                              <span className="ml-2 inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap">
+                                🚨 지정일 필수 수거
+                              </span>
+                            )}
+                          </h3>
                         </div>
                         <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
                         <div className="flex justify-between items-center mt-3">
@@ -1408,7 +1416,14 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex-1">
                       <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-gray-900">{req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span></h3>
+                        <h3 className="font-bold text-gray-900">
+                          {req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span>
+                          {req.isMustPickupDate && (
+                            <span className="ml-2 inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap">
+                              🚨 지정일 필수 수거
+                            </span>
+                          )}
+                        </h3>
                         {selectedRequestIdForAssign === req.id && (
                           <span className="text-xs bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold shadow-sm">배정 대기중</span>
                         )}
@@ -1573,10 +1588,15 @@ export default function AdminDashboard() {
                           </div>
                           <div className="flex-1">
                             <div className="flex justify-between items-start">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <h3 className="font-bold text-gray-900 text-sm">{req.userName}</h3>
+                                {req.isMustPickupDate && (
+                                  <span className="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap">
+                                    🚨 필수 수거
+                                  </span>
+                                )}
                                 {req.status === 'IN_PROGRESS' && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse">
+                                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap">
                                     이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
                                   </span>
                                 )}
@@ -1623,8 +1643,15 @@ export default function AdminDashboard() {
                             className="p-3 bg-white border border-gray-100 hover:border-primary-400 hover:shadow-sm rounded-2xl flex justify-between items-center cursor-pointer transition-all"
                           >
                             <div className="min-w-0 flex-1 mr-2">
-                              <p className="text-xs font-bold text-gray-800">{req.userName} <span className="font-normal text-gray-500">님</span></p>
-                              <p className="text-[10px] text-gray-500 truncate w-full">{req.address}</p>
+                              <p className="text-xs font-bold text-gray-800 flex items-center gap-1">
+                                {req.userName} <span className="font-normal text-gray-500">님</span>
+                                {req.isMustPickupDate && (
+                                  <span className="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded-md">
+                                    🚨 필수 수거
+                                  </span>
+                                )}
+                              </p>
+                              <p className="text-[10px] text-gray-500 truncate w-full mt-0.5">{req.address}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full">

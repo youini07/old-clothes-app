@@ -13,6 +13,7 @@ export default function RequestForm() {
   const [estimatedWeight, setEstimatedWeight] = useState('');
   const [estimatedVolume, setEstimatedVolume] = useState('');
   const [desiredDate, setDesiredDate] = useState('');
+  const [isMustPickupDate, setIsMustPickupDate] = useState(false);
   const [regionInfo, setRegionInfo] = useState({ province: '', city: '', town: '' });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -70,6 +71,7 @@ export default function RequestForm() {
         detailAddress,
         zipCode: zipCode || '00000',
         desiredDate,
+        isMustPickupDate,
         estimatedVolume: estimatedWeight ? `${estimatedWeight}kg - ${estimatedVolume}` : estimatedVolume,
         regionInfo
       }, {
@@ -185,6 +187,17 @@ export default function RequestForm() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               required
             />
+            {estimatedWeight !== '' && Number(estimatedWeight) < 20 ? (
+              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-start gap-2 animate-in fade-in zoom-in duration-300">
+                <span className="text-lg leading-none">🚫</span>
+                <p>20kg 이상 시 수거 가능합니다.</p>
+              </div>
+            ) : (
+              <div className="bg-blue-50 border border-blue-100 text-blue-600 px-4 py-3 rounded-xl text-sm font-bold flex items-start gap-2">
+                <span className="text-lg leading-none">ℹ️</span>
+                <p>최소 수거 가능 무게는 20kg 이상입니다.</p>
+              </div>
+            )}
             <label className="block text-sm font-medium text-gray-700 mt-2">상세 품목 메모 (선택)</label>
             <textarea
               value={estimatedVolume}
@@ -204,14 +217,33 @@ export default function RequestForm() {
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none"
               required
             />
+            <label className="flex items-start gap-3 p-3 mt-2 bg-gray-50 border border-gray-200 rounded-xl cursor-pointer hover:bg-gray-100 transition-colors">
+              <input
+                type="checkbox"
+                checked={isMustPickupDate}
+                onChange={(e) => setIsMustPickupDate(e.target.checked)}
+                className="w-5 h-5 mt-0.5 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+              />
+              <div className="text-sm">
+                <span className="font-bold text-gray-800 block mb-1">이삿날 등 무조건 해당 일자에 수거가 필요합니다.</span>
+                <span className="text-gray-500">기본적으로 기사님 동선에 따라 일정이 조율되나, 부득이한 경우 체크해 주세요.</span>
+              </div>
+            </label>
+            {isMustPickupDate && (
+              <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl text-sm font-medium mt-2 animate-in fade-in zoom-in duration-300">
+                🚨 <b>필수 수거</b>를 선택하신 경우, 기사님 배차 및 원활한 일정 조율을 위해 <b>접수 후 반드시 카카오톡 채널이나 앱 내 메시지</b>로 사장님께 문의를 남겨주시기 바랍니다.
+              </div>
+            )}
           </div>
 
           {/* 제출 버튼 */}
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || (estimatedWeight !== '' && Number(estimatedWeight) < 20)}
             className={`w-full flex justify-center items-center gap-2 py-4 text-lg font-bold text-white rounded-xl shadow-lg transition-all ${
-              isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
+              isLoading || (estimatedWeight !== '' && Number(estimatedWeight) < 20)
+                ? 'bg-gray-400 cursor-not-allowed opacity-70' 
+                : 'bg-blue-600 hover:bg-blue-700 active:scale-95'
             }`}
           >
             {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}

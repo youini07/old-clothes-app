@@ -163,7 +163,10 @@ router.post('/demo', (req, res) => __awaiter(void 0, void 0, void 0, function* (
 router.get('/partners', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const partners = yield prisma_1.prisma.user.findMany({
-            where: { role: 'PARTNER' },
+            where: {
+                role: 'PARTNER',
+                email: { not: 'demo_partner@test.com' }
+            },
             select: { id: true, businessName: true, name: true, email: true }
         });
         res.json(partners);
@@ -175,7 +178,7 @@ router.get('/partners', (req, res) => __awaiter(void 0, void 0, void 0, function
 }));
 // 사장님 및 기사님 자율 회원가입 API
 router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { role, name, phone, email, password, partnerId, vehicleInfo } = req.body;
+    const { role, name, phone, email, password, partnerId, vehicleInfo, address, detailAddress, zipCode } = req.body;
     if (!role || !['PARTNER', 'DRIVER'].includes(role)) {
         return res.status(400).json({ error: '올바른 가입 유형이 아닙니다.' });
     }
@@ -199,7 +202,10 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
                 email,
                 password: hashedPassword,
                 role,
-                businessName
+                businessName,
+                address,
+                detailAddress,
+                zipCode
             }
         });
         if (role === 'DRIVER') {

@@ -211,12 +211,16 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 // 5. 기사 본인 정보(프로필) 조회
 router.get('/me', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c, _d, _e, _f, _g;
     try {
         const userId = req.user.userId;
         const user = yield prisma_1.prisma.user.findUnique({
             where: { id: userId },
-            include: { driverProfile: true }
+            include: {
+                driverProfile: {
+                    include: { partner: true }
+                }
+            }
         });
         if (!user)
             return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
@@ -224,7 +228,9 @@ router.get('/me', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRol
             name: user.name,
             phone: user.phone || '',
             email: user.email || '',
-            vehicleInfo: ((_a = user.driverProfile) === null || _a === void 0 ? void 0 : _a.vehicleInfo) || ''
+            vehicleInfo: ((_a = user.driverProfile) === null || _a === void 0 ? void 0 : _a.vehicleInfo) || '',
+            partnerAddress: ((_c = (_b = user.driverProfile) === null || _b === void 0 ? void 0 : _b.partner) === null || _c === void 0 ? void 0 : _c.address) || '',
+            partnerBusinessName: ((_e = (_d = user.driverProfile) === null || _d === void 0 ? void 0 : _d.partner) === null || _e === void 0 ? void 0 : _e.businessName) || ((_g = (_f = user.driverProfile) === null || _f === void 0 ? void 0 : _f.partner) === null || _g === void 0 ? void 0 : _g.name) || ''
         });
     }
     catch (error) {

@@ -16,6 +16,7 @@ interface RequestItem {
   actualWeight?: number;
   totalPrice?: number;
   customerPackedPhotoUrl?: string | null;
+  isMustPickupDate?: boolean;
   createdAt?: string | Date;
 }
 
@@ -480,7 +481,14 @@ export default function DriverDashboard() {
                   {activeTab === 'pending' && <div className="absolute top-0 left-0 bg-blue-600 text-white w-9 h-9 flex items-center justify-center rounded-br-2xl rounded-tl-3xl font-extrabold">{req.displayId}</div>}
                   <div className="ml-6">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-bold text-lg text-gray-900">{req.userName}</h3>
+                      <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                        {req.userName}
+                        {req.isMustPickupDate && (
+                          <span className="text-xs bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                            🚨 필수 수거
+                          </span>
+                        )}
+                      </h3>
                       <div className="flex gap-2">
                         <a href={`tel:${req.phone}`} className="px-3.5 py-1.5 bg-green-50 text-green-700 rounded-xl text-xs font-bold transition-colors hover:bg-green-100">{'📞 전화'}</a>
                         <button onClick={() => setSelectedSmsReq({req, displayId: req.displayId})} className="px-3.5 py-1.5 bg-blue-50 text-blue-700 rounded-xl text-xs font-bold transition-colors hover:bg-blue-100">{'💬 문자'}</button>
