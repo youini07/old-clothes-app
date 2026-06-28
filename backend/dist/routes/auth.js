@@ -129,15 +129,7 @@ router.post('/demo', (req, res) => __awaiter(void 0, void 0, void 0, function* (
             }
         }
         else if (role === 'SUPER_ADMIN') {
-            user = yield prisma_1.prisma.user.upsert({
-                where: { email: 'demo_superadmin@test.com' },
-                update: {},
-                create: {
-                    name: '슈퍼 관리자 (데모)',
-                    email: 'demo_superadmin@test.com',
-                    role: 'SUPER_ADMIN'
-                }
-            });
+            return res.status(403).json({ error: '슈퍼 관리자 데모 로그인은 비활성화되었습니다. 정식 계정으로 로그인해주세요.' });
         }
         else {
             // CUSTOMER

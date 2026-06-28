@@ -135,15 +135,7 @@ router.post('/demo', async (req, res) => {
         return res.status(404).json({ error: '기사 계정이 없습니다. 파트너로 먼저 데모 로그인해주세요.' });
       }
     } else if (role === 'SUPER_ADMIN') {
-      user = await prisma.user.upsert({
-        where: { email: 'demo_superadmin@test.com' },
-        update: {},
-        create: {
-          name: '슈퍼 관리자 (데모)',
-          email: 'demo_superadmin@test.com',
-          role: 'SUPER_ADMIN'
-        }
-      });
+      return res.status(403).json({ error: '슈퍼 관리자 데모 로그인은 비활성화되었습니다. 정식 계정으로 로그인해주세요.' });
     } else {
       // CUSTOMER
       user = await prisma.user.upsert({

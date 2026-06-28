@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import MapRegionSelector from '../components/MapRegionSelector';
 import Spinner from '../components/Spinner';
@@ -14,6 +15,7 @@ interface Partner {
 }
 
 export default function SuperAdminDashboard() {
+  const navigate = useNavigate();
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(!!localStorage.getItem('superadmin_token'));
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('superadmin_token'));
@@ -43,9 +45,11 @@ export default function SuperAdminDashboard() {
     if (authToken) {
       fetchPartners();
       fetchMonitoring();
+    } else {
+      navigate('/login');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authToken]);
+  }, [authToken, navigate]);
 
   async function fetchMonitoring() {
     try {
@@ -58,18 +62,7 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  const handleDemoLogin = async () => {
-    try {
-      setLoading(true);
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/auth/demo`, { role: 'SUPER_ADMIN' });
-      const token = res.data.token;
-      localStorage.setItem('superadmin_token', token);
-      setAuthToken(token);
-    } catch (error) {
-      alert('데모 로그인 실패');
-      setLoading(false);
-    }
-  };
+
 
   const handleRegisterPartner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -231,14 +224,7 @@ export default function SuperAdminDashboard() {
                 파트너 등록하기
               </button>
             )}
-            {!authToken && (
-              <button 
-                onClick={handleDemoLogin} 
-                className="px-4 py-2 bg-yellow-400 text-yellow-900 font-bold rounded-xl shadow-md hover:bg-yellow-500 transition-all active:scale-95"
-              >
-                데모 로그인
-              </button>
-            )}
+
             <div className="hidden md:block bg-blue-50 text-blue-700 px-4 py-2 rounded-xl font-bold">
               총 가맹점: {partners.length}개
             </div>
