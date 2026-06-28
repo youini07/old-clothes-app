@@ -488,6 +488,48 @@ export default function CustomerDashboard() {
                               <span className="text-green-600 text-lg">{req.actualWeight} kg</span>
                             </div>
                           )}
+                          
+                          {/* 3단계 증빙 사진 (레거시 또는 기본 사진) 표시 */}
+                          {(req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl) && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <h5 className="text-xs font-bold text-gray-600 mb-2">📸 수거 증빙 사진</h5>
+                              <div className="flex gap-2 overflow-x-auto pb-1">
+                                {req.itemPhotoUrl && (
+                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                    <img 
+                                      src={req.itemPhotoUrl} 
+                                      alt="수거 전 물품" 
+                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                      onClick={() => setEnlargedImage(req.itemPhotoUrl)}
+                                    />
+                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">수거 전</span>
+                                  </div>
+                                )}
+                                {req.scalePhotoUrl && (
+                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                    <img 
+                                      src={req.scalePhotoUrl} 
+                                      alt="무게 측정" 
+                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                      onClick={() => setEnlargedImage(req.scalePhotoUrl)}
+                                    />
+                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">무게 측정</span>
+                                  </div>
+                                )}
+                                {req.extraPhotoUrl && (
+                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                    <img 
+                                      src={req.extraPhotoUrl} 
+                                      alt="특이사항" 
+                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                      onClick={() => setEnlargedImage(req.extraPhotoUrl)}
+                                    />
+                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">특이사항</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
