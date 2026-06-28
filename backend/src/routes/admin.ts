@@ -284,7 +284,7 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
       totalCount = await prisma.request.count({ where: whereCondition });
       requests = await prisma.request.findMany({
         where: whereCondition,
-        include: { driver: { include: { user: true } } },
+        include: { driver: { include: { user: true } }, collectionItems: true },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
@@ -304,7 +304,7 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
       totalCount = await prisma.request.count({ where: whereCondition });
       requests = await prisma.request.findMany({
         where: whereCondition,
-        include: { driver: { include: { user: true } } },
+        include: { driver: { include: { user: true } }, collectionItems: true },
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit

@@ -29,6 +29,15 @@ interface RequestItem {
   displayId?: number;
   sigungu?: string | null;
   bname?: string | null;
+  totalPrice?: number;
+  collectionItems?: Array<{
+    categoryLabel: string;
+    quantity: number;
+    unitType: string;
+    unitPrice: number;
+    subtotal: number;
+    photoUrl: string | null;
+  }>;
 }
 
 interface CustomRegion {
@@ -1948,69 +1957,96 @@ export default function AdminDashboard() {
                 <div className="flex justify-between text-sm"><span className="text-gray-500">연락처</span><span className="font-bold text-gray-900">{selectedCompletedRequest.phone}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-500">수거 주소</span><span className="font-bold text-gray-900 text-right max-w-[250px] break-all">{selectedCompletedRequest.address} {selectedCompletedRequest.detailAddress}</span></div>
                 <div className="flex justify-between text-sm border-t border-gray-200/50 pt-2">
-                  <span className="text-gray-500">실제 무게</span>
+                  <span className="text-gray-500">총 정산 금액</span>
                   <span className="font-extrabold text-primary-600 text-lg">
-                    {selectedCompletedRequest.actualWeight} kg 
-                    <span className="text-sm font-medium text-gray-500 ml-1">
-                      ({((selectedCompletedRequest.actualWeight || 0) * (settings?.pricePerKg || 0)).toLocaleString()}원)
-                    </span>
+                    {(selectedCompletedRequest.totalPrice || 0).toLocaleString()}원
                   </span>
                 </div>
                 <div className="flex justify-between text-sm"><span className="text-gray-500">수거 완료일시</span><span className="font-semibold text-gray-800">{selectedCompletedRequest.completedDate ? new Date(selectedCompletedRequest.completedDate).toLocaleString('ko-KR') : '-'}</span></div>
                 <div className="flex flex-col text-sm border-t border-gray-200/50 pt-2"><span className="text-gray-500">기사 메모</span><p className="font-medium text-gray-900 mt-1 bg-white p-3 rounded-lg border border-gray-100">{selectedCompletedRequest.driverNote || '특이사항 없음'}</p></div>
               </div>
 
+              {/* 항목별 정산 내역 */}
+              {selectedCompletedRequest.collectionItems && selectedCompletedRequest.collectionItems.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-gray-700 mb-3">🧾 수거 정산 내역</h3>
+                  <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
+                    {selectedCompletedRequest.collectionItems.map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center text-sm border-b border-gray-200/50 pb-2 last:border-0 last:pb-0">
+                        <div>
+                          <span className="font-bold text-gray-900">{item.categoryLabel}</span>
+                          <span className="text-gray-500 ml-2 text-xs">
+                            {item.quantity}{item.unitType === 'KG' ? 'kg' : '대'} × {item.unitPrice.toLocaleString()}원
+                          </span>
+                        </div>
+                        <span className="font-bold text-gray-900">{item.subtotal.toLocaleString()}원</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* 사진 리스트 */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-3">📍 첨부 증빙 사진</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   {/* 고객 업로드 포장 사진 */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="w-full h-24 bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                      {selectedCompletedRequest.customerPackedPhotoUrl ? (
+                  {selectedCompletedRequest.customerPackedPhotoUrl && (
+                    <div className="flex flex-col items-center gap-1.5">
+                      <div className="w-full h-24 bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex items-center justify-center relative">
                         <img src={selectedCompletedRequest.customerPackedPhotoUrl} alt="고객 업로드 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.customerPackedPhotoUrl!)} />
-                      ) : (
-                        <span className="text-xs text-blue-400">고객 미첨부</span>
-                      )}
+                      </div>
+                      <span className="text-[10px] text-blue-600 font-bold">고객 포장 사진</span>
                     </div>
-                    <span className="text-[10px] text-blue-600 font-bold">고객 포장 사진</span>
-                  </div>
+                  )}
 
-                  {/* 1단계 물품 사진 */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                      {selectedCompletedRequest.itemPhotoUrl ? (
-                        <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.itemPhotoUrl!)} />
-                      ) : (
-                        <span className="text-xs text-gray-400">미첨부</span>
-                      )}
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-semibold">1단계: 물품</span>
-                  </div>
+                  {/* 항목별 증빙 사진 (새 방식) */}
+                  {selectedCompletedRequest.collectionItems && selectedCompletedRequest.collectionItems.map((item, idx) => {
+                    if (!item.photoUrl) return null;
+                    return (
+                      <div key={`item-photo-${idx}`} className="flex flex-col items-center gap-1.5">
+                        <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                          <img src={item.photoUrl} alt={item.categoryLabel} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(item.photoUrl!)} />
+                        </div>
+                        <span className="text-[10px] text-gray-600 font-semibold truncate w-full text-center">{item.categoryLabel}</span>
+                      </div>
+                    );
+                  })}
 
-                  {/* 2단계 저울 사진 */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                      {selectedCompletedRequest.scalePhotoUrl ? (
-                        <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.scalePhotoUrl!)} />
-                      ) : (
-                        <span className="text-xs text-gray-400">미첨부</span>
+                  {/* 구버전 호환 (물품, 저울, 추가 사진) */}
+                  {!selectedCompletedRequest.collectionItems?.length && (
+                    <>
+                      {selectedCompletedRequest.itemPhotoUrl && (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.itemPhotoUrl!)} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-semibold">물품 사진</span>
+                        </div>
                       )}
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-semibold">2단계: 저울</span>
-                  </div>
-
-                  {/* 3단계 특이사항 사진 */}
-                  <div className="flex flex-col items-center gap-1.5">
-                    <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                      {selectedCompletedRequest.extraPhotoUrl ? (
-                        <img src={selectedCompletedRequest.extraPhotoUrl} alt="특이사항 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.extraPhotoUrl!)} />
-                      ) : (
-                        <span className="text-xs text-gray-400">미첨부</span>
+                      {selectedCompletedRequest.scalePhotoUrl && (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.scalePhotoUrl!)} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-semibold">저울 사진</span>
+                        </div>
                       )}
-                    </div>
-                    <span className="text-[10px] text-gray-500 font-semibold">3단계: 추가</span>
-                  </div>
+                      {selectedCompletedRequest.extraPhotoUrl && (
+                        <div className="flex flex-col items-center gap-1.5">
+                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <img src={selectedCompletedRequest.extraPhotoUrl} alt="추가 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.extraPhotoUrl!)} />
+                          </div>
+                          <span className="text-[10px] text-gray-500 font-semibold">특이사항 사진</span>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  
+                  {/* 사진이 하나도 없는 경우 */}
+                  {!selectedCompletedRequest.customerPackedPhotoUrl && !selectedCompletedRequest.itemPhotoUrl && (!selectedCompletedRequest.collectionItems || selectedCompletedRequest.collectionItems.every(i => !i.photoUrl)) && (
+                     <div className="col-span-full text-center text-sm text-gray-400 py-4">첨부된 사진이 없습니다.</div>
+                  )}
                 </div>
               </div>
             </div>

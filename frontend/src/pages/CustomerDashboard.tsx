@@ -28,6 +28,11 @@ export default function CustomerDashboard() {
   const [savingProfile, setSavingProfile] = useState(false);
   const [userId, setUserId] = useState('');
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
+  
+  // 영수증 상세 사진 확대 모달 상태
+  const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
   useEffect(() => {
     // Kakao SDK 동적 로드 및 초기화
@@ -452,6 +457,29 @@ export default function CustomerDashboard() {
                                 <span className="text-sm font-extrabold text-gray-900">합계</span>
                                 <span className="text-lg font-extrabold text-green-600">{(req.totalPrice || 0).toLocaleString()}원</span>
                               </div>
+                              
+                              {/* 증빙 사진 썸네일 */}
+                              {req.collectionItems.some((item: any) => item.photoUrl) && (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                  <h5 className="text-xs font-bold text-gray-600 mb-2">📸 증빙 사진</h5>
+                                  <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {req.collectionItems.map((item: any, idx: number) => {
+                                      if (!item.photoUrl) return null;
+                                      return (
+                                        <div key={idx} className="flex-shrink-0 flex flex-col items-center gap-1">
+                                          <img 
+                                            src={item.photoUrl} 
+                                            alt={item.categoryLabel} 
+                                            className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                            onClick={() => setEnlargedImage(item.photoUrl)}
+                                          />
+                                          <span className="text-[10px] text-gray-500 w-16 truncate text-center">{item.categoryLabel}</span>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           ) : (
                             /* 기존 호환: 항목 데이터 없는 경우 총 무게만 표시 */
@@ -631,6 +659,24 @@ export default function CustomerDashboard() {
         onClose={() => setIsAddressModalOpen(false)} 
         onComplete={handleAddressComplete} 
       />
+      {/* 증빙 사진 확대 모달 */}
+      {enlargedImage && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/90 backdrop-blur-sm"
+          onClick={() => setEnlargedImage(null)}
+        >
+          <div className="relative max-w-2xl w-full flex justify-center items-center" onClick={(e) => e.stopPropagation()}>
+            <button 
+              onClick={() => setEnlargedImage(null)}
+              className="absolute -top-12 right-0 text-white hover:text-gray-300 transition-colors text-3xl font-bold"
+            >
+              ✕
+            </button>
+            <img src={enlargedImage} alt="확대 사진" className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
