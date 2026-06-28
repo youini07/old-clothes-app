@@ -240,10 +240,13 @@ router.post('/register', async (req, res) => {
 
 // 이메일과 비밀번호 기반의 정식 로그인 API
 router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+  let { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
   }
+  
+  email = email.trim().toLowerCase();
+  password = password.trim();
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });

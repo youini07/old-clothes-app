@@ -941,10 +941,20 @@ router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), asyn
 // ==========================================
 router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    // 1. 전체 수거 건 통계
-    const allRequests = await prisma.request.findMany({
+    const demoNames = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
+               '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은', '테스트', '수동접수'];
+
+    // 1. 전체 수거 건 통계 (더미 데이터 제외)
+    const allRequestsRaw = await prisma.request.findMany({
       include: { partner: true },
       orderBy: { createdAt: 'desc' }
+    });
+
+    // 더미데이터 필터링: seed_demo 이름이면서 비회원(customerId 없음)이거나 이름에 '테스트' 포함
+    const allRequests = allRequestsRaw.filter((r: any) => {
+      const isDemoName = demoNames.includes(r.userName) && !r.customerId;
+      const hasTestInName = r.userName.includes('테스트');
+      return !isDemoName && !hasTestInName;
     });
 
     const total = allRequests.length;
@@ -952,8 +962,12 @@ router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req
     const totalWeight = completed.reduce((s: number, r: any) => s + (r.actualWeight || 0), 0);
 
     // 2. 파트너별 성과 (수거 건수, 완료율, 총 무게)
+    // 데모 파트너 제외
     const partners = await prisma.user.findMany({
-      where: { role: 'PARTNER' },
+      where: { 
+        role: 'PARTNER',
+        NOT: { name: { contains: '데모' } }
+      },
       select: { id: true, name: true, businessName: true }
     });
 
