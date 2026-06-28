@@ -204,6 +204,51 @@ router.patch('/partners/:id/biz-message', authenticate, requireRole(['SUPER_ADMI
   }
 });
 
+// 4. 파트너 계정 강제 삭제 (관련 데이터 연쇄 삭제 및 초기화)
+router.delete('/partners/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  try {
+    // 1. 담당 권역(Coverage) 삭제
+    await prisma.coverage.deleteMany({ where: { partnerId: id } });
+    
+    // 2. 사장님이 직접 등록한 CustomRegion 삭제
+    await prisma.customRegion.deleteMany({ where: { partnerId: id } });
+
+    // 3. 소속 기사들(DriverProfile 및 해당 기사의 User 계정) 삭제
+    const drivers = await prisma.driverProfile.findMany({ where: { partnerId: id } });
+    for (const d of drivers) {
+      await prisma.driverProfile.delete({ where: { id: d.id } });
+      await prisma.user.delete({ where: { id: d.userId } });
+    }
+
+    // 4. 파트너에게 배정된 수거 요청 건 처리
+    await prisma.request.updateMany({
+      where: { partnerId: id, status: { not: 'COMPLETED' } },
+      data: { partnerId: null, driverId: null, status: 'PENDING' }
+    });
+    await prisma.request.updateMany({
+      where: { partnerId: id, status: 'COMPLETED' },
+      data: { partnerId: null, driverId: null }
+    });
+
+    // 5. 채팅방 및 메시지 삭제
+    const rooms = await prisma.chatRoom.findMany({ where: { partnerId: id } });
+    for (const r of rooms) {
+      await prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
+      await prisma.chatRoom.delete({ where: { id: r.id } });
+    }
+    await prisma.chatMessage.deleteMany({ where: { senderId: id } });
+
+    // 6. 파트너 계정 최종 삭제
+    await prisma.user.delete({ where: { id, role: 'PARTNER' } });
+
+    res.json({ message: '파트너 계정이 성공적으로 삭제되었습니다.' });
+  } catch (error) {
+    console.error('파트너 삭제 에러:', error);
+    res.status(500).json({ error: '파트너 삭제 중 서버 오류가 발생했습니다.' });
+  }
+});
+
 // ==========================================
 // [PARTNER 전용] 파트너 업체 대시보드 기능
 // ==========================================

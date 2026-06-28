@@ -140,6 +140,22 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleDeletePartner = async (partnerId: string) => {
+    if (!authToken) return;
+    if (!window.confirm('정말 이 파트너를 강제 해제(삭제)하시겠습니까?\n관련된 소속 기사와 할당된 권역이 모두 함께 삭제되며, 기존 배정된 수거 건들은 미배정 상태로 돌아갑니다.')) return;
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/partners/${partnerId}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('파트너가 성공적으로 삭제되었습니다.');
+      fetchPartners();
+      fetchMonitoring();
+    } catch (error) {
+      console.error(error);
+      alert('파트너 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   async function fetchPartners() {
     try {
       setLoading(true);
@@ -353,11 +369,19 @@ export default function SuperAdminDashboard() {
                       <h3 className="font-bold text-lg text-gray-900">{partner.businessName}</h3>
                       <p className="text-sm text-gray-500">대표: {partner.ownerName} • {partner.phone}</p>
                     </div>
-                    {partner.isApproved ? (
-                      <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">승인 완료</span>
-                    ) : (
-                      <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">승인 대기</span>
-                    )}
+                    <div className="flex flex-col items-end gap-2">
+                      {partner.isApproved ? (
+                        <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-xs font-bold">승인 완료</span>
+                      ) : (
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs font-bold">승인 대기</span>
+                      )}
+                      <button 
+                        onClick={() => handleDeletePartner(partner.id)}
+                        className="px-3 py-1 bg-red-50 text-red-600 rounded-full text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors"
+                      >
+                        강제해제
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mb-4">
