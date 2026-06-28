@@ -176,6 +176,11 @@ export default function DriverDashboard() {
   }, [isLargeText]);
 
   const handleOptimizeRoute = () => {
+    if (returnToStart && !returnAddress.trim()) {
+      alert('경로 종착지를 설정하셨다면 도착할 주소를 직접 입력하시거나 회사 주소를 선택해주세요.');
+      return;
+    }
+
     if (!navigator.geolocation) {
       alert('이 브라우저에서는 위치 정보를 지원하지 않습니다.');
       return;
@@ -418,12 +423,12 @@ export default function DriverDashboard() {
             <div className={`p-4 rounded-2xl flex flex-col gap-3 transition-all ${returnToStart ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 accent-blue-600 cursor-pointer" />
-                <span className="font-extrabold text-gray-800 text-sm">🔄 퇴근 코스 (마지막에 출발지로 복귀)</span>
+                <span className="font-extrabold text-gray-800 text-sm">📍 경로 종착지 설정</span>
               </label>
               {returnToStart && (
                 <div className="pl-8">
-                  <label className="block text-xs font-bold text-gray-500 mb-1">복귀할 커스텀 목적지 (비워두면 출발지)</label>
-                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="예: 경기도 용인시 수지구 성복동" className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all mb-2" />
+                  <label className="block text-xs font-bold text-gray-500 mb-1">도착할 목적지 주소 (입력 또는 회사 선택)</label>
+                  <input type="text" value={returnAddress} onChange={e => setReturnAddress(e.target.value)} placeholder="직접 주소 입력 또는 아래 버튼으로 회사 선택" className="w-full px-4 py-2.5 bg-white border border-blue-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-sm transition-all mb-2" />
                   {partnerAddress && (
                     <button 
                       onClick={() => setReturnAddress(partnerAddress)}
