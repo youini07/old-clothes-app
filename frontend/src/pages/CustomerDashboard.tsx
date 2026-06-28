@@ -10,7 +10,7 @@ export default function CustomerDashboard() {
   const [requests, setRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userInfo, setUserInfo] = useState<{name: string, role: string} | null>(() => {
-    const userStr = localStorage.getItem('user');
+    const userStr = localStorage.getItem('user_info');
     return userStr ? JSON.parse(userStr) : null;
   });
   const [page, setPage] = useState(1);
