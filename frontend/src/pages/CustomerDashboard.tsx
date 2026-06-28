@@ -34,7 +34,8 @@ export default function CustomerDashboard() {
     const initKakao = () => {
       if ((window as any).Kakao && !(window as any).Kakao.isInitialized()) {
         try {
-          (window as any).Kakao.init(import.meta.env.VITE_KAKAO_JS_KEY);
+          const kakaoKey = import.meta.env.VITE_KAKAO_JS_KEY || "66bc9999ee637da6b707cb39f61b187a";
+          (window as any).Kakao.init(kakaoKey);
         } catch (e) {
           console.error("Kakao init error:", e);
         }
