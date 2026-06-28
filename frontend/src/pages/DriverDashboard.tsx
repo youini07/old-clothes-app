@@ -158,6 +158,8 @@ export default function DriverDashboard() {
     photo: string | null;
     quantity: string;
   }>({ active: false, category: null, photo: null, quantity: '' });
+  // 서버에서 로드한 단가표 (파트너 커스텀 단가 우선, 없으면 기본 단가표)
+  const [priceTable, setPriceTable] = useState<PriceTableItem[]>(DEFAULT_PRICE_TABLE);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -197,10 +199,26 @@ export default function DriverDashboard() {
     }
   }
 
+  // 파트너의 커스텀 단가표 조회 (사장님이 설정한 단가가 있으면 해당 단가 사용)
+  async function fetchPriceTable() {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/price-table`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      if (res.data.priceTable && res.data.priceTable.length > 0) {
+        setPriceTable(res.data.priceTable);
+      }
+    } catch (e) {
+      // 단가표 로드 실패 시 기본 단가표 유지 (오프라인 대응)
+      console.error('단가표 조회 실패, 기본 단가표 사용:', e);
+    }
+  }
+
   useEffect(() => {
     if (authToken) { 
       fetchDriverRequests(page); 
       fetchDriverInfo();
+      fetchPriceTable();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken, page]);
@@ -681,9 +699,9 @@ export default function DriverDashboard() {
                   <p className="text-sm text-gray-500 mt-1">항목을 선택하고 무게/수량을 입력하세요</p>
                 </div>
 
-                {/* 카테고리 버튼 그리드 */}
+                {/* 카테고리 버튼 그리드 (서버에서 로드한 단가표 사용) */}
                 <div className="grid grid-cols-3 gap-2">
-                  {DEFAULT_PRICE_TABLE.map(cat => (
+                  {priceTable.map(cat => (
                     <button
                       key={cat.category}
                       type="button"

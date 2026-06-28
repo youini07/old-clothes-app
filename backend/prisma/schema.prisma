@@ -29,7 +29,8 @@ model User {
   drivers         DriverProfile[] // 사장님이 고용한 기사들
   useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
   useCrmAutomation Boolean @default(false) // 파트너의 3개월 리텐션 CRM 자동화 사용 여부 (유료 서비스)
-  pricePerKg      Int      @default(300) // 1kg당 수거 단가 (사장님이 설정 가능)
+  pricePerKg      Int      @default(300) // 1kg당 수거 단가 (레거시, 사장님이 설정 가능)
+  priceItems      PartnerPriceItem[] // 파트너별 커스텀 단가표 (카테고리별)
   
   // 고객일 경우
   customerRequests Request[] @relation("CustomerRequests")
@@ -214,4 +215,23 @@ model CollectionItem {
   photoUrl    String?  // 해당 항목 촬영 사진 (base64 or URL)
   
   createdAt   DateTime @default(now())
+}
+
+// 파트너(사장님)별 커스텀 단가표 (카테고리별 단가 설정)
+// 만약 단가표가 없으면 기본 단가표(PRICE_TABLE)가 사용됨
+model PartnerPriceItem {
+  id          String   @id @default(uuid())
+  partnerId   String
+  partner     User     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  
+  category    String   // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
+  label       String   // 한국어 라벨 (예: '헌옷 (신발, 가방 포함)')
+  unitPrice   Int      // 단가 (원)
+  unitType    String   // 'KG' 또는 'UNIT'
+  icon        String   @default("") // 이모지 아이콘
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@unique([partnerId, category]) // 파트너당 카테고리는 고유해야 함
 }

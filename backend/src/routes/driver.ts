@@ -608,11 +608,42 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
 
 // ==========================================
 // 단가표 조회 API — 기사 앱에서 카테고리 목록 + 단가를 가져감
+// 파트너(사장님)가 커스텀 단가를 설정했으면 해당 단가를, 아니면 기본 단가표를 반환
 // ==========================================
-router.get('/price-table', authenticate, requireRole(['DRIVER', 'PARTNER']), async (_req: any, res: any) => {
+router.get('/price-table', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
-    res.json({ priceTable: PRICE_TABLE });
+    const userId = req.user!.userId;
+    
+    // 기사의 소속 파트너 ID 조회
+    const driverProfile = await prisma.driverProfile.findUnique({
+      where: { userId },
+      select: { partnerId: true }
+    });
+    
+    const partnerId = driverProfile?.partnerId || userId; // 파트너 본인이면 자기 ID 사용
+    
+    // 파트너의 커스텀 단가표 조회
+    const customPriceItems = await prisma.partnerPriceItem.findMany({
+      where: { partnerId },
+      orderBy: { createdAt: 'asc' }
+    });
+    
+    if (customPriceItems.length > 0) {
+      // 커스텀 단가표가 있으면 해당 단가 사용
+      const priceTable = customPriceItems.map(item => ({
+        category: item.category,
+        label: item.label,
+        unitPrice: item.unitPrice,
+        unitType: item.unitType,
+        icon: item.icon || ''
+      }));
+      return res.json({ priceTable, isCustom: true });
+    }
+    
+    // 커스텀 단가표가 없으면 기본 단가표 사용
+    res.json({ priceTable: PRICE_TABLE, isCustom: false });
   } catch (error) {
+    console.error('단가표 조회 에러:', error);
     res.status(500).json({ error: '단가표 조회 실패' });
   }
 });

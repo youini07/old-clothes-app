@@ -1344,8 +1344,14 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
     if (!partner) {
       return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
     }
+
+    // 파트너별 커스텀 단가표 조회
+    const priceItems = await prisma.partnerPriceItem.findMany({
+      where: { partnerId },
+      orderBy: { createdAt: 'asc' }
+    });
     
-    res.json({ settings: partner });
+    res.json({ settings: partner, priceItems });
   } catch (error) {
     console.error('환경 설정 조회 에러:', error);
     res.status(500).json({ error: '환경 설정 조회에 실패했습니다.' });
@@ -1372,6 +1378,55 @@ router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']),
   } catch (error) {
     console.error('환경 설정 저장 오류:', error);
     res.status(500).json({ message: '설정 저장 중 오류가 발생했습니다.' });
+  }
+});
+
+// 파트너별 커스텀 단가표 일괄 저장 (upsert 방식)
+// 왜 upsert인가: 카테고리가 이미 존재하면 업데이트, 없으면 생성
+router.put('/price-table', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const partnerId = req.user!.userId;
+  const { items } = req.body as {
+    items: Array<{ category: string; label: string; unitPrice: number; unitType: string; icon: string }>
+  };
+
+  try {
+    if (!items || items.length === 0) {
+      return res.status(400).json({ error: '단가표 항목이 필요합니다.' });
+    }
+
+    // 트랜잭션으로 일괄 upsert (전체 단가표를 한 번에 저장)
+    await prisma.$transaction(
+      items.map(item =>
+        prisma.partnerPriceItem.upsert({
+          where: { partnerId_category: { partnerId, category: item.category } },
+          update: {
+            label: item.label,
+            unitPrice: item.unitPrice,
+            unitType: item.unitType,
+            icon: item.icon || ''
+          },
+          create: {
+            partnerId,
+            category: item.category,
+            label: item.label,
+            unitPrice: item.unitPrice,
+            unitType: item.unitType,
+            icon: item.icon || ''
+          }
+        })
+      )
+    );
+
+    // 저장 후 최신 단가표 반환
+    const priceItems = await prisma.partnerPriceItem.findMany({
+      where: { partnerId },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    res.json({ message: '단가표가 저장되었습니다.', priceItems });
+  } catch (error) {
+    console.error('단가표 저장 오류:', error);
+    res.status(500).json({ error: '단가표 저장 중 오류가 발생했습니다.' });
   }
 });
 

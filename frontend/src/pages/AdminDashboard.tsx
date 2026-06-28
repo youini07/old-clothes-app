@@ -58,6 +58,22 @@ export default function AdminDashboard() {
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
+  // 파트너 단가표 상태 (카테고리별 단가 설정)
+  const [priceTableItems, setPriceTableItems] = useState<Array<{
+    category: string; label: string; unitPrice: number; unitType: string; icon: string;
+  }>>([
+    { category: 'CLOTHES',  label: '헌옷 (신발, 가방 포함)', unitPrice: 400,   unitType: 'KG',   icon: '👕' },
+    { category: 'BOOKS',    label: '헌책',                   unitPrice: 30,    unitType: 'KG',   icon: '📚' },
+    { category: 'COOKWARE', label: '후라이팬, 냄비류',        unitPrice: 300,   unitType: 'KG',   icon: '🍳' },
+    { category: 'PHONE',    label: '핸드폰',                 unitPrice: 500,   unitType: 'UNIT', icon: '📱' },
+    { category: 'COMPUTER', label: '컴퓨터, 노트북',         unitPrice: 2000,  unitType: 'UNIT', icon: '💻' },
+    { category: 'CD_TAPE',  label: '음악 CD/음악 테이프',     unitPrice: 500,   unitType: 'KG',   icon: '💿' },
+    { category: 'LP',       label: '음악 LP판',              unitPrice: 1000,  unitType: 'KG',   icon: '🎵' },
+    { category: 'AC_STAND', label: '스탠드 에어컨 (실외기 포함)', unitPrice: 20000, unitType: 'UNIT', icon: '❄️' },
+    { category: 'AC_WALL',  label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT', icon: '🌀' },
+  ]);
+  const [isSavingPriceTable, setIsSavingPriceTable] = useState(false);
+
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
 
@@ -162,6 +178,16 @@ export default function AdminDashboard() {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setSettings(res.data.settings);
+      // 파트너 커스텀 단가표가 있으면 로드, 없으면 기본값 유지
+      if (res.data.priceItems && res.data.priceItems.length > 0) {
+        setPriceTableItems(res.data.priceItems.map((item: any) => ({
+          category: item.category,
+          label: item.label,
+          unitPrice: item.unitPrice,
+          unitType: item.unitType,
+          icon: item.icon || ''
+        })));
+      }
     } catch (error) {
       console.error('환경 설정 조회 실패:', error);
     }
@@ -882,24 +908,73 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
-                {/* 단가 설정 */}
+                {/* 항목별 단가 설정 */}
                 <div className="py-6 border-b border-gray-100">
                   <div className="flex justify-between items-start mb-2">
-                    <label className="block text-lg font-bold text-gray-900">💰 1kg당 수거 단가 설정</label>
+                    <label className="block text-lg font-bold text-gray-900">💰 항목별 수거 단가 설정</label>
                   </div>
-                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다.</p>
+                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다. 단가를 수정하고 저장하면 기사님 앱에 즉시 반영됩니다.</p>
                   
-                  <div className="relative max-w-xs">
-                    <input 
-                      type="number" 
-                      min="0"
-                      step="10"
-                      value={settings.pricePerKg} 
-                      onChange={(e) => setSettings({...settings, pricePerKg: Number(e.target.value)})}
-                      className="w-full text-right pl-4 pr-16 py-3 bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 font-bold text-xl text-primary-700"
-                    />
-                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-bold ml-2 pl-2 border-l border-gray-200 bg-white">원</span>
+                  <div className="space-y-2">
+                    {priceTableItems.map((item, idx) => (
+                      <div key={item.category} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                        <span className="text-xl w-8 text-center flex-shrink-0">{item.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-bold text-gray-800 block">{item.label}</span>
+                          <span className="text-xs text-gray-500">
+                            {item.unitType === 'KG' ? '1kg당' : '1대당'}
+                          </span>
+                        </div>
+                        <div className="relative w-28 flex-shrink-0">
+                          <input 
+                            type="number" 
+                            min="0"
+                            step="10"
+                            value={item.unitPrice} 
+                            onChange={(e) => {
+                              const newItems = [...priceTableItems];
+                              newItems[idx] = { ...newItems[idx], unitPrice: Number(e.target.value) };
+                              setPriceTableItems(newItems);
+                            }}
+                            className="w-full text-right pl-2 pr-8 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-bold text-primary-700 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-bold">원</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
+                  
+                  <button
+                    type="button"
+                    disabled={isSavingPriceTable}
+                    onClick={async () => {
+                      setIsSavingPriceTable(true);
+                      try {
+                        const res = await axios.put(`${import.meta.env.VITE_API_URL}/admin/price-table`, {
+                          items: priceTableItems
+                        }, { headers: { Authorization: `Bearer ${authToken}` } });
+                        if (res.data.priceItems) {
+                          setPriceTableItems(res.data.priceItems.map((item: any) => ({
+                            category: item.category, label: item.label, unitPrice: item.unitPrice,
+                            unitType: item.unitType, icon: item.icon || ''
+                          })));
+                        }
+                        alert('단가표가 저장되었습니다.');
+                      } catch (error: any) {
+                        alert(error.response?.data?.error || '단가표 저장 중 오류가 발생했습니다.');
+                      } finally {
+                        setIsSavingPriceTable(false);
+                      }
+                    }}
+                    className={`mt-4 w-full py-3 font-bold rounded-xl flex items-center justify-center gap-2 transition-all ${
+                      isSavingPriceTable 
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                        : 'bg-primary-600 text-white hover:bg-primary-700 active:scale-95 shadow-md'
+                    }`}
+                  >
+                    {isSavingPriceTable && <Spinner className="w-4 h-4 text-current" />}
+                    {isSavingPriceTable ? '저장 중...' : '💾 단가표 저장하기'}
+                  </button>
                 </div>
 
                 {/* 프리미엄 유료 서비스 그룹 */}
