@@ -32,6 +32,7 @@ interface CalendarViewProps {
   compact?: boolean;
   drivers?: { id: string; user?: { name: string } | null; name?: string }[];
   onAssignDriver?: (requestId: string, driverId: string | null, dateStr?: string) => void;
+  onBulkAssignClick?: (selectedIds: string[]) => void;
 }
 
 // 상태별 색상 맵 (뱃지 UI에 사용)
@@ -52,13 +53,21 @@ const toDateKey = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-export default function CalendarView({ requests, onRequestClick, compact = false, drivers, onAssignDriver }: CalendarViewProps) {
+export default function CalendarView({ requests, onRequestClick, compact = false, drivers, onAssignDriver, onBulkAssignClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   
   // 기사 배정 인라인 UI를 위한 상태
   const [assigningRequestId, setAssigningRequestId] = useState<string | null>(null);
   const [assignForm, setAssignForm] = useState({ driverId: '', dateStr: '' });
+  
+  // 일괄 배정을 위한 체크박스 상태
+  const [checkedIds, setCheckedIds] = useState<string[]>([]);
+
+  // selectedDate가 변경될 때 체크박스 초기화
+  useMemo(() => {
+    setCheckedIds([]);
+  }, [selectedDate]);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -313,17 +322,63 @@ export default function CalendarView({ requests, onRequestClick, compact = false
               <p className="text-sm font-medium">해당 날짜에 수거 건이 없습니다.</p>
             </div>
           ) : (
-            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-              {filteredSelectedRequests.map(req => {
-                const sc = STATUS_COLORS[req.status] || { bg: 'bg-gray-100', text: 'text-gray-600', label: req.status };
-                return (
-                  <div 
-                    key={req.id} 
-                    className="p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-300 transition-all cursor-pointer"
-                    onClick={() => onRequestClick?.(req)}
-                  >
-                    <div className="flex justify-between items-start">
+            <>
+              {onBulkAssignClick && (
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-bold text-gray-700">
+                    <input 
+                      type="checkbox" 
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                      checked={filteredSelectedRequests.filter(r => r.status === 'PENDING' || r.status === 'ASSIGNED').length > 0 && checkedIds.length === filteredSelectedRequests.filter(r => r.status === 'PENDING' || r.status === 'ASSIGNED').length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setCheckedIds(filteredSelectedRequests.filter(r => r.status === 'PENDING' || r.status === 'ASSIGNED').map(r => r.id));
+                        } else {
+                          setCheckedIds([]);
+                        }
+                      }}
+                    />
+                    <span>전체 선택</span>
+                  </label>
+                  {checkedIds.length > 0 && (
+                    <button 
+                      onClick={() => onBulkAssignClick(checkedIds)}
+                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-colors animate-fade-in"
+                    >
+                      🚀 선택된 {checkedIds.length}건 일괄 기사 배정 및 날짜 변경
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                {filteredSelectedRequests.map(req => {
+                  const sc = STATUS_COLORS[req.status] || { bg: 'bg-gray-100', text: 'text-gray-600', label: req.status };
+                  const isSelectable = onBulkAssignClick && (req.status === 'PENDING' || req.status === 'ASSIGNED');
+                  return (
+                    <div 
+                      key={req.id} 
+                      className="p-3 bg-gray-50 rounded-xl border border-gray-100 hover:border-gray-300 transition-all cursor-pointer flex gap-3 items-start"
+                      onClick={() => onRequestClick?.(req)}
+                    >
+                      {isSelectable && (
+                        <div className="pt-1" onClick={(e) => e.stopPropagation()}>
+                          <input 
+                            type="checkbox" 
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500 cursor-pointer"
+                            checked={checkedIds.includes(req.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setCheckedIds([...checkedIds, req.id]);
+                              } else {
+                                setCheckedIds(checkedIds.filter(id => id !== req.id));
+                              }
+                            }}
+                          />
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <h4 className="font-bold text-gray-900 text-sm">{req.userName}</h4>
                           <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${sc.bg} ${sc.text}`}>
@@ -432,10 +487,12 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                         </button>
                       </div>
                     )}
-                  </div>
-                );
-              })}
-            </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </div>
       )}

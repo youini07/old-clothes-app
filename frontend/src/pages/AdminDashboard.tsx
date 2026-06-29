@@ -157,6 +157,11 @@ export default function AdminDashboard() {
   const [selectedAssignedIds, setSelectedAssignedIds] = useState<string[]>([]);
   const [isBulkAssignModalOpen, setIsBulkAssignModalOpen] = useState(false);
 
+  // 캘린더 일괄 배정 모달 상태
+  const [isCalendarBulkModalOpen, setIsCalendarBulkModalOpen] = useState(false);
+  const [calendarBulkSelectedIds, setCalendarBulkSelectedIds] = useState<string[]>([]);
+  const [calendarBulkForm, setCalendarBulkForm] = useState({ driverId: '', dateStr: '' });
+
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
   
@@ -536,6 +541,40 @@ export default function AdminDashboard() {
       console.error('배정 실패, 롤백');
       alert('기사 배정에 실패했습니다.');
       fetchData(); // 롤백
+    }
+  };
+
+  // 캘린더 전용 일괄 처리 핸들러
+  const handleCalendarBulkAssignSubmit = async () => {
+    if (!calendarBulkForm.driverId && !calendarBulkForm.dateStr) {
+      return alert('기사 배정 또는 방문 확정일 중 하나 이상을 입력해주세요.');
+    }
+    setIsBulkAssigning(true);
+    try {
+      for (const reqId of calendarBulkSelectedIds) {
+        if (calendarBulkForm.dateStr) {
+          await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${reqId}/date`, {
+            confirmedDate: calendarBulkForm.dateStr
+          }, { headers: { Authorization: `Bearer ${authToken}` } });
+        }
+        if (calendarBulkForm.driverId) {
+          await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
+            requestId: reqId,
+            driverId: calendarBulkForm.driverId
+          }, { headers: { Authorization: `Bearer ${authToken}` } });
+        }
+      }
+      setIsCalendarBulkModalOpen(false);
+      setCalendarBulkSelectedIds([]);
+      setCalendarBulkForm({ driverId: '', dateStr: '' });
+      fetchData();
+      alert('일괄 적용이 완료되었습니다.');
+    } catch (error) {
+      console.error('일괄 적용 실패:', error);
+      alert('일괄 적용 중 오류가 발생했습니다.');
+      fetchData();
+    } finally {
+      setIsBulkAssigning(false);
     }
   };
 
@@ -1224,6 +1263,11 @@ export default function AdminDashboard() {
                 await handleUpdateDate(reqId, dateStr);
               }
               await assignDriver(reqId, driverId);
+            }}
+            onBulkAssignClick={(ids) => {
+              setCalendarBulkSelectedIds(ids);
+              setCalendarBulkForm({ driverId: '', dateStr: '' });
+              setIsCalendarBulkModalOpen(true);
             }}
           />
         )}
@@ -2039,6 +2083,59 @@ export default function AdminDashboard() {
             >
               취소
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* 캘린더 일괄 기사 배정 및 날짜 변경 모달 */}
+      {isCalendarBulkModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">선택한 {calendarBulkSelectedIds.length}건 일괄 변경</h3>
+            <p className="text-sm text-gray-500 mb-6 text-center">변경하고 싶은 항목만 입력하세요. 입력하지 않은 항목은 기존 상태가 유지됩니다.</p>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">🚚 담당 기사 배정</label>
+                <select 
+                  value={calendarBulkForm.driverId} 
+                  onChange={(e) => setCalendarBulkForm({ ...calendarBulkForm, driverId: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 text-gray-900"
+                >
+                  <option value="">-- 기사 선택 (변경 안 함) --</option>
+                  {drivers.map(driver => (
+                    <option key={driver.id} value={driver.id}>{driver.user?.name || driver.name} 기사님</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">📅 방문 확정일 변경</label>
+                <input 
+                  type="date" 
+                  value={calendarBulkForm.dateStr}
+                  onChange={(e) => setCalendarBulkForm({ ...calendarBulkForm, dateStr: e.target.value })}
+                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 text-gray-900"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <button 
+                  onClick={() => setIsCalendarBulkModalOpen(false)}
+                  className="flex-1 py-4 text-gray-500 font-bold bg-gray-100 rounded-xl hover:bg-gray-200 transition-all"
+                >
+                  취소
+                </button>
+                <button 
+                  onClick={handleCalendarBulkAssignSubmit}
+                  disabled={isBulkAssigning}
+                  className={`flex-1 py-4 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${isBulkAssigning ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
+                >
+                  {isBulkAssigning && <Spinner className="w-5 h-5" />}
+                  일괄 적용하기
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
