@@ -29,7 +29,10 @@ const router = express_1.default.Router();
 router.get('/partners', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const users = yield prisma_1.prisma.user.findMany({
-            where: { role: 'PARTNER' },
+            where: {
+                role: 'PARTNER',
+                NOT: { name: { contains: '데모' } }
+            },
             include: {
                 coverageRegions: {
                     include: { region: true }
@@ -196,6 +199,45 @@ router.patch('/partners/:id/biz-message', authMiddleware_1.authenticate, (0, aut
         res.status(500).json({ error: '알림톡 설정 변경 실패' });
     }
 }));
+// 4. 파트너 계정 강제 삭제 (관련 데이터 연쇄 삭제 및 초기화)
+router.delete('/partners/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    try {
+        // 1. 담당 권역(Coverage) 삭제
+        yield prisma_1.prisma.coverage.deleteMany({ where: { partnerId: id } });
+        // 2. 사장님이 직접 등록한 CustomRegion 삭제
+        yield prisma_1.prisma.customRegion.deleteMany({ where: { partnerId: id } });
+        // 3. 소속 기사들(DriverProfile 및 해당 기사의 User 계정) 삭제
+        const drivers = yield prisma_1.prisma.driverProfile.findMany({ where: { partnerId: id } });
+        for (const d of drivers) {
+            yield prisma_1.prisma.driverProfile.delete({ where: { id: d.id } });
+            yield prisma_1.prisma.user.delete({ where: { id: d.userId } });
+        }
+        // 4. 파트너에게 배정된 수거 요청 건 처리
+        yield prisma_1.prisma.request.updateMany({
+            where: { partnerId: id, status: { not: 'COMPLETED' } },
+            data: { partnerId: null, driverId: null, status: 'PENDING' }
+        });
+        yield prisma_1.prisma.request.updateMany({
+            where: { partnerId: id, status: 'COMPLETED' },
+            data: { partnerId: null, driverId: null }
+        });
+        // 5. 채팅방 및 메시지 삭제
+        const rooms = yield prisma_1.prisma.chatRoom.findMany({ where: { partnerId: id } });
+        for (const r of rooms) {
+            yield prisma_1.prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
+            yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
+        }
+        yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: id } });
+        // 6. 파트너 계정 최종 삭제
+        yield prisma_1.prisma.user.delete({ where: { id, role: 'PARTNER' } });
+        res.json({ message: '파트너 계정이 성공적으로 삭제되었습니다.' });
+    }
+    catch (error) {
+        console.error('파트너 삭제 에러:', error);
+        res.status(500).json({ error: '파트너 삭제 중 서버 오류가 발생했습니다.' });
+    }
+}));
 // ==========================================
 // [PARTNER 전용] 파트너 업체 대시보드 기능
 // ==========================================
@@ -226,7 +268,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             requests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
-                include: { driver: { include: { user: true } } },
+                include: { driver: { include: { user: true } }, collectionItems: true },
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
@@ -245,7 +287,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             requests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
-                include: { driver: { include: { user: true } } },
+                include: { driver: { include: { user: true } }, collectionItems: true },
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
@@ -478,11 +520,7 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
     try {
         const request = yield prisma_1.prisma.request.update({
             where: { id: requestId },
-            data: {
-                driverId,
-                status: statusService_1.getStatusForAction.onDriverAssigned(),
-                confirmedDate: new Date(confirmedDate)
-            },
+            data: Object.assign({ driverId, status: statusService_1.getStatusForAction.onDriverAssigned() }, (confirmedDate ? { confirmedDate: new Date(confirmedDate) } : {})),
             include: { partner: true }
         });
         // 구글 시트 상태 연동
@@ -508,6 +546,106 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
     }
     catch (error) {
         res.status(500).json({ error: '기사 배정 실패' });
+    }
+}));
+// 3-0. 특정 수거 건의 실제 방문 날짜(confirmedDate) 임의 변경 (동선 최적화용)
+router.patch('/requests/:id/date', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const { confirmedDate } = req.body;
+    const partnerId = req.user.userId;
+    try {
+        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!request) {
+            return res.status(404).json({ error: '수거 신청을 찾을 수 없습니다.' });
+        }
+        // 본인 배정 건이거나 SUPER_ADMIN인지 체크 (여기선 간략히 체크)
+        if (req.user.role === 'PARTNER' && request.partnerId !== partnerId) {
+            return res.status(403).json({ error: '본인에게 배정된 건만 수정할 수 있습니다.' });
+        }
+        const updated = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: { confirmedDate: new Date(confirmedDate) }
+        });
+        res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
+    }
+    catch (error) {
+        console.error('날짜 변경 에러:', error);
+        res.status(500).json({ error: '날짜 변경에 실패했습니다.' });
+    }
+}));
+// 3-1-2. 수거 신청건 다중 일괄 변경 (기사 배정 및 방문 확정일 변경)
+router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
+    const { requestIds, driverId, confirmedDate } = req.body;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+        return res.status(400).json({ error: '변경할 수거 건을 선택해주세요.' });
+    }
+    if (!driverId && !confirmedDate) {
+        return res.status(400).json({ error: '기사 배정 또는 방문 확정일 중 하나 이상을 입력해주세요.' });
+    }
+    try {
+        const partnerId = req.user.userId;
+        const isAdmin = req.user.role === 'SUPER_ADMIN';
+        // 권한 확인: SUPER_ADMIN은 모두 허용, PARTNER는 본인 건만 허용
+        const whereClause = isAdmin ? { id: { in: requestIds } } : { id: { in: requestIds }, partnerId };
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: whereClause,
+            include: { partner: true }
+        });
+        if (requests.length === 0) {
+            return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+        }
+        const validIds = requests.map(r => r.id);
+        const updateData = {};
+        if (confirmedDate) {
+            updateData.confirmedDate = new Date(confirmedDate);
+        }
+        if (driverId) {
+            updateData.driverId = driverId;
+            updateData.status = statusService_1.getStatusForAction.onDriverAssigned();
+        }
+        const updatePromises = requestIds.map((id, index) => {
+            if (!validIds.includes(id))
+                return null;
+            const data = Object.assign({}, updateData);
+            if (driverId) {
+                data.orderIndex = index + 1;
+            }
+            return prisma_1.prisma.request.update({
+                where: { id },
+                data
+            });
+        }).filter(Boolean);
+        yield prisma_1.prisma.$transaction(updatePromises);
+        if (driverId) {
+            // 구글 시트 비동기 업데이트
+            validIds.forEach(id => {
+                (0, googleSheets_1.updateRequestStatusInSheet)(id, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
+            });
+            // 채팅 자동 응답 일괄 발송 및 알림톡
+            try {
+                const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } });
+                const driverPhone = ((_a = driverProfile === null || driverProfile === void 0 ? void 0 : driverProfile.user) === null || _a === void 0 ? void 0 : _a.phone) || undefined;
+                requests.forEach(req => {
+                    var _a;
+                    // 기사가 배정되고 날짜도 확정된 경우 알림톡 발송
+                    if (confirmedDate && ((_a = req.partner) === null || _a === void 0 ? void 0 : _a.useBizMessage)) {
+                        (0, notificationService_1.sendScheduleConfirmedToCustomer)(req.phone, req.userName, new Date(confirmedDate), req.partner.useBizMessage, driverPhone).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+                    }
+                    if (req.customerId && req.partnerId && driverPhone) {
+                        (0, socket_1.sendDriverAssignedSystemMessage)(req.customerId, req.partnerId, driverPhone, (confirmedDate ? new Date(confirmedDate) : req.confirmedDate));
+                    }
+                });
+            }
+            catch (e) {
+                console.error('채팅/알림톡 일괄 발송 에러:', e);
+            }
+        }
+        res.json({ message: `${validIds.length}건이 일괄 변경되었습니다.` });
+    }
+    catch (error) {
+        console.error('일괄 변경 에러:', error);
+        res.status(500).json({ error: '일괄 변경 중 오류가 발생했습니다.' });
     }
 }));
 // 3-1. 기사에게 수거 신청건 다중 일괄 배정 (지도 기반 등)
@@ -825,17 +963,29 @@ router.get('/stats', authMiddleware_1.authenticate, (0, authMiddleware_1.require
 // ==========================================
 router.get('/monitoring', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        // 1. 전체 수거 건 통계
-        const allRequests = yield prisma_1.prisma.request.findMany({
+        const demoNames = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
+            '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은', '테스트', '수동접수'];
+        // 1. 전체 수거 건 통계 (더미 데이터 제외)
+        const allRequestsRaw = yield prisma_1.prisma.request.findMany({
             include: { partner: true },
             orderBy: { createdAt: 'desc' }
+        });
+        // 더미데이터 필터링: seed_demo 이름이면서 비회원(customerId 없음)이거나 이름에 '테스트' 포함
+        const allRequests = allRequestsRaw.filter((r) => {
+            const isDemoName = demoNames.includes(r.userName) && !r.customerId;
+            const hasTestInName = r.userName.includes('테스트');
+            return !isDemoName && !hasTestInName;
         });
         const total = allRequests.length;
         const completed = allRequests.filter((r) => r.status === 'COMPLETED');
         const totalWeight = completed.reduce((s, r) => s + (r.actualWeight || 0), 0);
         // 2. 파트너별 성과 (수거 건수, 완료율, 총 무게)
+        // 데모 파트너 제외
         const partners = yield prisma_1.prisma.user.findMany({
-            where: { role: 'PARTNER' },
+            where: {
+                role: 'PARTNER',
+                NOT: { name: { contains: '데모' } }
+            },
             select: { id: true, name: true, businessName: true }
         });
         const partnerStats = partners.map((p) => {
@@ -1140,7 +1290,12 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         if (!partner) {
             return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
         }
-        res.json({ settings: partner });
+        // 파트너별 커스텀 단가표 조회
+        const priceItems = yield prisma_1.prisma.partnerPriceItem.findMany({
+            where: { partnerId },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json({ settings: partner, priceItems });
     }
     catch (error) {
         console.error('환경 설정 조회 에러:', error);
@@ -1166,6 +1321,45 @@ router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.re
     catch (error) {
         console.error('환경 설정 저장 오류:', error);
         res.status(500).json({ message: '설정 저장 중 오류가 발생했습니다.' });
+    }
+}));
+// 파트너별 커스텀 단가표 일괄 저장 (upsert 방식)
+// 왜 upsert인가: 카테고리가 이미 존재하면 업데이트, 없으면 생성
+router.put('/price-table', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const partnerId = req.user.userId;
+    const { items } = req.body;
+    try {
+        if (!items || items.length === 0) {
+            return res.status(400).json({ error: '단가표 항목이 필요합니다.' });
+        }
+        // 트랜잭션으로 일괄 upsert (전체 단가표를 한 번에 저장)
+        yield prisma_1.prisma.$transaction(items.map(item => prisma_1.prisma.partnerPriceItem.upsert({
+            where: { partnerId_category: { partnerId, category: item.category } },
+            update: {
+                label: item.label,
+                unitPrice: item.unitPrice,
+                unitType: item.unitType,
+                icon: item.icon || ''
+            },
+            create: {
+                partnerId,
+                category: item.category,
+                label: item.label,
+                unitPrice: item.unitPrice,
+                unitType: item.unitType,
+                icon: item.icon || ''
+            }
+        })));
+        // 저장 후 최신 단가표 반환
+        const priceItems = yield prisma_1.prisma.partnerPriceItem.findMany({
+            where: { partnerId },
+            orderBy: { createdAt: 'asc' }
+        });
+        res.json({ message: '단가표가 저장되었습니다.', priceItems });
+    }
+    catch (error) {
+        console.error('단가표 저장 오류:', error);
+        res.status(500).json({ error: '단가표 저장 중 오류가 발생했습니다.' });
     }
 }));
 // 전역 공지사항 설정 가져오기
@@ -1232,7 +1426,7 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
         }
         const newRequest = yield prisma_1.prisma.request.create({
             data: {
-                userName: requestData.userName || '비회원',
+                userName: requestData.userName || '수동접수',
                 phone: requestData.phone || '010-0000-0000',
                 address: requestData.address,
                 detailAddress: requestData.detailAddress || '',

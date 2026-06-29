@@ -12,6 +12,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.PRICE_TABLE = void 0;
 const express_1 = __importDefault(require("express"));
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
@@ -20,6 +21,22 @@ const axios_1 = __importDefault(require("axios"));
 const notificationService_1 = require("../services/notificationService");
 const googleSheets_1 = require("../services/googleSheets");
 const statusService_1 = require("../services/statusService");
+// ==========================================
+// 항목별 수거 단가표 (카테고리별 단가 정의)
+// 왜 코드에 정의하는가: 현재 모든 파트너가 동일 단가를 사용.
+// 향후 파트너별 커스텀 단가가 필요하면 DB 테이블로 분리 예정.
+// ==========================================
+exports.PRICE_TABLE = [
+    { category: 'CLOTHES', label: '헌옷 (신발, 가방 포함)', unitPrice: 400, unitType: 'KG', icon: '👕' },
+    { category: 'BOOKS', label: '헌책', unitPrice: 30, unitType: 'KG', icon: '📚' },
+    { category: 'COOKWARE', label: '후라이팬, 냄비류', unitPrice: 300, unitType: 'KG', icon: '🍳' },
+    { category: 'PHONE', label: '핸드폰', unitPrice: 500, unitType: 'UNIT', icon: '📱' },
+    { category: 'COMPUTER', label: '컴퓨터, 노트북', unitPrice: 2000, unitType: 'UNIT', icon: '💻' },
+    { category: 'CD_TAPE', label: '음악 CD/음악 테이프', unitPrice: 500, unitType: 'KG', icon: '💿' },
+    { category: 'LP', label: '음악 LP판', unitPrice: 1000, unitType: 'KG', icon: '🎵' },
+    { category: 'AC_STAND', label: '스탠드 에어컨 (실외기 포함)', unitPrice: 20000, unitType: 'UNIT', icon: '❄️' },
+    { category: 'AC_WALL', label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT', icon: '🌀' },
+];
 // 유클리드 거리 계산 헬퍼
 function getDistance(x1, y1, x2, y2) {
     const dx = x1 - x2;
@@ -84,7 +101,10 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
                 { createdAt: 'asc' }
             ], // 동선 순서, 그 다음 생성일 순으로 정렬하여 순서 고정
             skip,
-            take: limit
+            take: limit,
+            include: {
+                collectionItems: true // 항목별 수거 정산 내역을 함께 조회
+            }
         });
         const totalPages = Math.ceil(totalCount / limit);
         res.json({ requests, totalPages, currentPage: page, totalCount });
@@ -112,9 +132,9 @@ router.put('/reorder', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
 // 3. 수거 완료 처리 (다단계 사진 및 무게 입력)
 // 향후 multer & aws-sdk 를 이용한 R2 업로드 연동 필요
 router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b;
     const { id } = req.params;
-    const { actualWeight, driverNote, itemPhotoUrl, scalePhotoUrl, extraPhotoUrl } = req.body;
+    // 변경: 기존의 단일 무게 입력 대신 항목별 배열을 수신
+    const { items, driverNote } = req.body;
     try {
         // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회
         const existingRequest = yield prisma_1.prisma.request.findUnique({
@@ -124,34 +144,59 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
         }
-        // 2. 단가(pricePerKg) 적용: 파트너 설정값이 없으면 기본값 300원 사용
-        const PRICE_PER_KG = (_b = (_a = existingRequest.partner) === null || _a === void 0 ? void 0 : _a.pricePerKg) !== null && _b !== void 0 ? _b : 300;
-        const weight = parseFloat(actualWeight);
-        const totalPrice = weight * PRICE_PER_KG;
-        // 3. 수거 완료 처리 및 무게/금액 업데이트
-        const request = yield prisma_1.prisma.request.update({
-            where: { id },
-            data: {
-                actualWeight: weight,
-                totalPrice,
-                driverNote,
-                itemPhotoUrl,
-                scalePhotoUrl,
-                extraPhotoUrl,
-                status: statusService_1.getStatusForAction.onCompleted(),
-                completedDate: new Date()
-            },
-            include: { partner: true }
-        });
-        // 수거 완료 및 정산 알림톡 발송 (비동기)
-        if (request.partner && request.partner.useBizMessage) {
-            (0, notificationService_1.sendCompletionToCustomer)(request.phone, request.userName, weight, totalPrice, request.partner.useBizMessage).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
+        // 2. 항목이 없으면 에러 반환
+        if (!items || items.length === 0) {
+            return res.status(400).json({ error: '최소 1개 이상의 수거 항목을 입력해주세요.' });
         }
-        // 구글 시트에 완료 상태 및 무게/메모 업데이트
-        yield (0, googleSheets_1.updateRequestStatusInSheet)(id, 'COMPLETED', parseFloat(actualWeight), driverNote);
+        // 3. 항목별 합산 계산
+        // - actualWeight: kg 단위 항목들의 무게 합산 (호환용)
+        // - totalPrice: 모든 항목의 subtotal 합산
+        const totalWeight = items
+            .filter(item => item.unitType === 'KG')
+            .reduce((sum, item) => sum + item.quantity, 0);
+        const totalPrice = items.reduce((sum, item) => sum + item.subtotal, 0);
+        // 4. 트랜잭션으로 수거 완료 처리 + 항목 일괄 생성
+        const request = yield prisma_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
+            var _a;
+            // 4-1. Request 상태 업데이트
+            const updatedRequest = yield tx.request.update({
+                where: { id },
+                data: {
+                    actualWeight: totalWeight || null,
+                    totalPrice,
+                    driverNote: driverNote || '수거 완료',
+                    itemPhotoUrl: ((_a = items[0]) === null || _a === void 0 ? void 0 : _a.photoUrl) || null, // 기존 호환: 첫 번째 항목 사진
+                    status: statusService_1.getStatusForAction.onCompleted(),
+                    completedDate: new Date()
+                },
+                include: { partner: true }
+            });
+            // 4-2. CollectionItem 일괄 생성
+            yield tx.collectionItem.createMany({
+                data: items.map(item => ({
+                    requestId: id,
+                    category: item.category,
+                    categoryLabel: item.categoryLabel,
+                    quantity: item.quantity,
+                    unitType: item.unitType,
+                    unitPrice: item.unitPrice,
+                    subtotal: item.subtotal,
+                    photoUrl: item.photoUrl || null
+                }))
+            });
+            return updatedRequest;
+        }));
+        // 5. 수거 완료 및 정산 알림톡 발송 (영수증 형태)
+        if (request.partner && request.partner.useBizMessage) {
+            (0, notificationService_1.sendCompletionToCustomer)(request.phone, request.userName, items, // 변경: 항목 배열을 전달하여 영수증 형태 메시지 생성
+            totalPrice, request.partner.useBizMessage).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
+        }
+        // 6. 구글 시트에 완료 상태 및 무게/메모 업데이트
+        yield (0, googleSheets_1.updateRequestStatusInSheet)(id, 'COMPLETED', totalWeight, driverNote);
         res.json({ message: '수거가 완료되었습니다!', request });
     }
     catch (error) {
+        console.error('수거 완료 처리 에러:', error);
         res.status(500).json({ error: '수거 완료 처리 실패' });
     }
 }));
@@ -487,6 +532,43 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
     catch (error) {
         console.error('현위치 기반 동선 최적화 에러:', error);
         res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
+    }
+}));
+// ==========================================
+// 단가표 조회 API — 기사 앱에서 카테고리 목록 + 단가를 가져감
+// 파트너(사장님)가 커스텀 단가를 설정했으면 해당 단가를, 아니면 기본 단가표를 반환
+// ==========================================
+router.get('/price-table', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const userId = req.user.userId;
+        // 기사의 소속 파트너 ID 조회
+        const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({
+            where: { userId },
+            select: { partnerId: true }
+        });
+        const partnerId = (driverProfile === null || driverProfile === void 0 ? void 0 : driverProfile.partnerId) || userId; // 파트너 본인이면 자기 ID 사용
+        // 파트너의 커스텀 단가표 조회
+        const customPriceItems = yield prisma_1.prisma.partnerPriceItem.findMany({
+            where: { partnerId },
+            orderBy: { createdAt: 'asc' }
+        });
+        if (customPriceItems.length > 0) {
+            // 커스텀 단가표가 있으면 해당 단가 사용
+            const priceTable = customPriceItems.map(item => ({
+                category: item.category,
+                label: item.label,
+                unitPrice: item.unitPrice,
+                unitType: item.unitType,
+                icon: item.icon || ''
+            }));
+            return res.json({ priceTable, isCustom: true });
+        }
+        // 커스텀 단가표가 없으면 기본 단가표 사용
+        res.json({ priceTable: exports.PRICE_TABLE, isCustom: false });
+    }
+    catch (error) {
+        console.error('단가표 조회 에러:', error);
+        res.status(500).json({ error: '단가표 조회 실패' });
     }
 }));
 exports.default = router;

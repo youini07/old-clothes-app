@@ -116,7 +116,8 @@ router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0,
             take: limit,
             include: {
                 driver: { include: { user: true } },
-                partner: { select: { businessName: true, name: true, phone: true } }
+                partner: { select: { businessName: true, name: true, phone: true } },
+                collectionItems: true // 항목별 수거 정산 내역 (영수증 표시용)
             }
         });
         const totalPages = Math.ceil(totalCount / limit);
@@ -217,7 +218,7 @@ router.patch('/:id/customer-photo', authMiddleware_1.optionalAuthenticate, (req,
         res.status(500).json({ error: '사진 업로드 중 문제가 발생했습니다.' });
     }
 }));
-// 고객 수거 취소 API (예약접수 상태에서만 가능)
+// 고객 수거 취소 API (수거 완료 전까지 가능)
 router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
@@ -229,8 +230,8 @@ router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) =>
         if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
             return res.status(403).json({ error: '권한이 없습니다.' });
         }
-        if (existingRequest.status !== 'PENDING') {
-            return res.status(400).json({ error: '예약접수 상태인 경우에만 취소가 가능합니다. 이미 접수/배차가 진행된 경우 고객센터(카카오채널)로 문의해 주세요.' });
+        if (!['PENDING', 'ASSIGNED', 'SCHEDULED'].includes(existingRequest.status)) {
+            return res.status(400).json({ error: '수거 완료 또는 이미 취소된 내역은 취소할 수 없습니다. 고객센터(카카오채널)로 문의해 주세요.' });
         }
         const updatedRequest = yield prisma_1.prisma.request.update({
             where: { id },

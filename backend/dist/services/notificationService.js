@@ -131,10 +131,15 @@ const sendScheduleConfirmedToCustomer = (phone, userName, confirmedDate, useBizM
     return sendNotification(tplCode, phone, userName, message, '수거 일정 확정');
 });
 exports.sendScheduleConfirmedToCustomer = sendScheduleConfirmedToCustomer;
-const sendCompletionToCustomer = (phone, userName, actualWeight, totalPrice, useBizMessage) => __awaiter(void 0, void 0, void 0, function* () {
+const sendCompletionToCustomer = (phone, userName, items, totalPrice, useBizMessage) => __awaiter(void 0, void 0, void 0, function* () {
     if (!useBizMessage)
         return false;
-    const message = `[올클 알림톡]\n${userName}님, 헌옷 수거가 완료되었습니다!\n\n[수거 내역]\n- 수거 무게: ${actualWeight}kg\n- 정산 금액: ${totalPrice.toLocaleString()}원\n\n이용해 주셔서 감사합니다. 올클과 함께 깨끗한 하루 보내세요!`;
+    // 항목별 영수증 내역 생성
+    const itemLines = items.map(item => {
+        const unitLabel = item.unitType === 'KG' ? 'kg' : '대';
+        return `  · ${item.categoryLabel}: ${item.quantity}${unitLabel} × ${item.unitPrice.toLocaleString()}원 = ${item.subtotal.toLocaleString()}원`;
+    }).join('\n');
+    const message = `[올클 알림톡]\n${userName}님, 헌옷 수거가 완료되었습니다!\n\n[수거 정산서]\n${itemLines}\n────────────\n합계: ${totalPrice.toLocaleString()}원\n\n이용해 주셔서 감사합니다. 올클과 함께 깨끗한 하루 보내세요!`;
     const tplCode = process.env.ALIGO_TPL_COMPLETED || 'TPL_005';
     return sendNotification(tplCode, phone, userName, message, '수거 완료 및 정산');
 });

@@ -90,7 +90,8 @@ router.post('/rooms/init', (req, res) => __awaiter(void 0, void 0, void 0, funct
         res.json(room);
     }
     catch (error) {
-        res.status(500).json({ error: 'Failed to init room' });
+        console.error('Failed to init room:', error);
+        res.status(500).json({ error: 'Failed to init room', details: (error === null || error === void 0 ? void 0 : error.message) || String(error) });
     }
 }));
 exports.default = router;

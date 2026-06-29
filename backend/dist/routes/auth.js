@@ -219,10 +219,12 @@ router.post('/register', (req, res) => __awaiter(void 0, void 0, void 0, functio
 }));
 // 이메일과 비밀번호 기반의 정식 로그인 API
 router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { email, password } = req.body;
+    let { email, password } = req.body;
     if (!email || !password) {
         return res.status(400).json({ error: '이메일과 비밀번호를 입력해주세요.' });
     }
+    email = email.trim().toLowerCase();
+    password = password.trim();
     try {
         const user = yield prisma_1.prisma.user.findUnique({ where: { email } });
         if (!user || !user.password) {

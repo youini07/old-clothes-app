@@ -711,7 +711,7 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
       // 채팅 자동 응답 일괄 발송 및 알림톡
       try {
         const driverProfile = await prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true }});
-        const driverPhone = driverProfile?.user?.phone;
+        const driverPhone = driverProfile?.user?.phone || undefined;
         
         requests.forEach(req => {
           // 기사가 배정되고 날짜도 확정된 경우 알림톡 발송
