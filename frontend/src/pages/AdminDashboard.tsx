@@ -20,6 +20,7 @@ interface RequestItem {
   etaMinutes?: number;
   orderIndex?: number;
   actualWeight?: number;
+  estimatedPickupHour?: number | null;
   driverNote?: string | null;
   itemPhotoUrl?: string | null;
   scalePhotoUrl?: string | null;
@@ -1027,6 +1028,64 @@ export default function AdminDashboard() {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const bodyParam = isIOS ? `&body=${encodeURIComponent(message)}` : `?body=${encodeURIComponent(message)}`;
     const smsLink = `sms:${phoneString}${bodyParam}`;
+    
+    window.location.href = smsLink;
+  };
+
+  const handleUpdateEstimatedTime = async (requestId: string, hourStr: string) => {
+    const hour = parseInt(hourStr, 10);
+    const estimatedPickupHour = isNaN(hour) ? null : hour;
+
+    setRequests(prev => prev.map(r => r.id === requestId ? { ...r, estimatedPickupHour } : r));
+
+    if (authToken) {
+      try {
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/estimated-time`, {
+          estimatedPickupHour
+        }, { headers: { Authorization: `Bearer ${authToken}` } });
+      } catch (e) {
+        console.error('예상 방문 시간 저장 실패', e);
+      }
+    }
+  };
+
+  const handleSendAssignedSMS = (req: RequestItem) => {
+    if (req.estimatedPickupHour === undefined || req.estimatedPickupHour === null) {
+      alert('먼저 수거 예상 시간을 선택해주세요.');
+      return;
+    }
+    const phone = req.phone.replace(/[^0-9]/g, '');
+    if (!phone) {
+      alert('유효한 연락처가 없습니다.');
+      return;
+    }
+
+    const formatAmPm = (h: number) => {
+      if (h < 0) h = 0;
+      if (h > 23) h = 23;
+      const ampm = h < 12 ? '오전' : '오후';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      return `${ampm} ${displayHour}시`;
+    };
+
+    const startHour = req.estimatedPickupHour - 1;
+    const endHour = req.estimatedPickupHour + 1;
+    const timeWindow = `${formatAmPm(startHour)}~${formatAmPm(endHour)}`;
+
+    const message = `안녕하세요, 올클헌옷입니다.
+내일 ${timeWindow} 사이 방문 예정입니다.
+
+시간이 어려우시면 비대면 수거도 가능합니다.
+문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.
+
+공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.
+
+문의사항은 아래 담당자님께 연락 부탁드립니다.
+담당자님 연락처: 010-2264-4926`;
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const bodyParam = isIOS ? `&body=${encodeURIComponent(message)}` : `?body=${encodeURIComponent(message)}`;
+    const smsLink = `sms:${phone}${bodyParam}`;
     
     window.location.href = smsLink;
   };
@@ -2043,7 +2102,25 @@ export default function AdminDashboard() {
                                   onChange={(e) => handleUpdateDate(req.id, e.target.value)}
                                 />
                                 <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
-                                  📅 날짜 변경
+                                  📅 변경
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1 ml-auto">
+                                <select
+                                  value={req.estimatedPickupHour ?? ''}
+                                  onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
+                                  className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-primary-500"
+                                >
+                                  <option value="">수거 예상 시간</option>
+                                  {Array.from({length: 15}, (_, i) => i + 8).map(hour => (
+                                    <option key={hour} value={hour}>{hour}시</option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
+                                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors"
+                                >
+                                  📱 방문 안내 문자
                                 </button>
                               </div>
                             </div>

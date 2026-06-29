@@ -529,6 +529,23 @@ router.delete('/requests/:id', authenticate, requireRole(['SUPER_ADMIN', 'PARTNE
   }
 });
 
+// 예상 수거 시간 업데이트
+router.patch('/requests/:id/estimated-time', authenticate, requireRole(['SUPER_ADMIN', 'PARTNER']), async (req: any, res: any) => {
+  const { id } = req.params;
+  const { estimatedPickupHour } = req.body;
+  
+  try {
+    const updatedRequest = await prisma.request.update({
+      where: { id },
+      data: { estimatedPickupHour }
+    });
+    res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
+  } catch (error) {
+    console.error('예상 수거 시간 업데이트 오류:', error);
+    res.status(500).json({ error: '업데이트 중 오류가 발생했습니다.' });
+  }
+});
+
 // 다중 수거 요청 수락 취소 (일괄 취소)
 router.post('/requests/bulk-unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { requestIds } = req.body;

@@ -128,6 +128,7 @@ model Request {
   
   // 상태 추적 및 예상 소요 시간
   etaMinutes      Int?         // 기사가 출발 시 계산된 예상 도착 시간 (분)
+  estimatedPickupHour Int?     // 사장님이 입력한 예상 수거 시간 (예: 13)
 
   // 3단계 증빙 사진 (R2 저장용 URL)
   itemPhotoUrl    String?      // 1단계: 수거 전 물품 사진
