@@ -693,6 +693,26 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveMapRouteOrder = async (driverId: string, orderedIds: string[]) => {
+    if (!authToken) return;
+    setSavingOrderDriverId(driverId);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/reorder`, {
+        requestIds: orderedIds
+      }, { headers: { Authorization: `Bearer ${authToken}` } });
+      
+      alert('지도에서 지정한 순서가 성공적으로 저장되었습니다.');
+      setHasUnsavedOrder(prev => ({ ...prev, [driverId]: false }));
+      setMapPreviewDriverId(null); // 모달 닫기
+      fetchData(); // 변경된 순서 반영
+    } catch (error) {
+      console.error('순서 저장 실패:', error);
+      alert('순서 저장 중 오류가 발생했습니다.');
+    } finally {
+      setSavingOrderDriverId(null);
+    }
+  };
+
 
   // 권역 매칭 헬퍼 함수
   const matchesRegion = (req: RequestItem, areas: string[]) => {
@@ -2480,6 +2500,7 @@ export default function AdminDashboard() {
             <div className="flex-1 rounded-2xl overflow-hidden border border-gray-200 relative">
               <DriverMap 
                 requests={requests.filter(r => r.driverId === mapPreviewDriverId && r.status !== 'COMPLETED').sort((a,b) => (a.orderIndex||0) - (b.orderIndex||0))}
+                onSaveRouteOrder={(orderedIds) => handleSaveMapRouteOrder(mapPreviewDriverId, orderedIds)}
               />
             </div>
           </div>
