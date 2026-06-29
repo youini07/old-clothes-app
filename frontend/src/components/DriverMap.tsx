@@ -94,6 +94,15 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
         });
         
         if (result.index !== -1) {
+          // 중복 좌표 체크 및 오프셋 적용 (아파트 등 동일 주소지에서 핀 겹침 방지)
+          const overlapCount = validResults.filter(
+            r => Math.abs(r.lat - result.lat) < 0.00001 && Math.abs(r.lng - result.lng) < 0.00001
+          ).length;
+          
+          if (overlapCount > 0) {
+            // 오른쪽으로 살짝 펼쳐서 표시 (경도 0.00015 ≈ 약 13m 이동)
+            result.lng += overlapCount * 0.00015;
+          }
           validResults.push(result);
         }
         await new Promise(r => setTimeout(r, 150)); // Rate limit 방지
