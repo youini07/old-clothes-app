@@ -5,6 +5,7 @@ import Spinner from '../components/Spinner';
 import { AdminChatDashboard } from '../components/chat/AdminChatDashboard';
 import AddressSearchModal from '../components/AddressSearchModal';
 import CalendarView from '../components/CalendarView';
+import DriverMap from '../components/DriverMap';
 
 interface RequestItem {
   id: string;
@@ -150,6 +151,7 @@ export default function AdminDashboard() {
   const [claimingId, setClaimingId] = useState<string | null>(null);
 
   // --- 추가된 상태 ---
+  const [mapPreviewDriverId, setMapPreviewDriverId] = useState<string | null>(null);
   const [optimizingDriverId, setOptimizingDriverId] = useState<string | null>(null);
   const [savingOrderDriverId, setSavingOrderDriverId] = useState<string | null>(null);
   const [hasUnsavedOrder, setHasUnsavedOrder] = useState<Record<string, boolean>>({});
@@ -1832,15 +1834,23 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-1.5 flex-wrap justify-end">
                         <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기</span>
                         {driverRequests.length > 1 && (
-                          <button
-                            onClick={() => handleOptimizeRoute(driver.id)}
-                            disabled={optimizingDriverId === driver.id}
-                            className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${optimizingDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-500 text-white hover:bg-primary-600'}`}
-                            title="T맵 기반으로 현재 수거 건의 순서를 최적화합니다"
-                          >
-                            {optimizingDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '🗺️'}
-                            동선 최적화
-                          </button>
+                          <>
+                            <button
+                              onClick={() => handleOptimizeRoute(driver.id)}
+                              disabled={optimizingDriverId === driver.id}
+                              className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${optimizingDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-500 text-white hover:bg-primary-600'}`}
+                              title="T맵 기반으로 현재 수거 건의 순서를 최적화합니다"
+                            >
+                              {optimizingDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '🗺️'}
+                              동선 최적화
+                            </button>
+                            <button
+                              onClick={() => setMapPreviewDriverId(driver.id)}
+                              className="shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 shadow-sm flex items-center gap-1"
+                            >
+                              📍 지도 보기
+                            </button>
+                          </>
                         )}
                         {hasUnsavedOrder[driver.id] && (
                           <button
@@ -2454,7 +2464,27 @@ export default function AdminDashboard() {
         </div>
       )}
 
-
+      {/* 동선 지도 미리보기 모달 */}
+      {mapPreviewDriverId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 max-w-4xl w-full h-[80vh] shadow-2xl relative flex flex-col">
+            <button 
+              onClick={() => setMapPreviewDriverId(null)}
+              className="absolute top-4 right-4 bg-white/80 p-2 rounded-full shadow hover:bg-gray-100 z-10 text-gray-600 transition-colors"
+            >
+              ✕
+            </button>
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              🗺️ 기사 동선 미리보기
+            </h3>
+            <div className="flex-1 rounded-2xl overflow-hidden border border-gray-200 relative">
+              <DriverMap 
+                requests={requests.filter(r => r.driverId === mapPreviewDriverId && r.status !== 'COMPLETED').sort((a,b) => (a.orderIndex||0) - (b.orderIndex||0))}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
       <AddressSearchModal 
