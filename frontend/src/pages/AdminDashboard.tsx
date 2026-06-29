@@ -1622,11 +1622,11 @@ export default function AdminDashboard() {
                       selectedUnassignedIds.includes(req.id) ? 'bg-gray-50 border-gray-400' : 'bg-white border-gray-200 hover:border-primary-400'
                     }`}
                   >
-                    <div className="pt-1">
+                    <div className="pt-1" onClick={(e) => e.stopPropagation()}>
                       <input 
                         type="checkbox" 
                         checked={selectedUnassignedIds.includes(req.id)}
-                        onChange={(e) => { e.stopPropagation(); handleToggleOneUnassigned(req.id); }}
+                        onChange={() => { handleToggleOneUnassigned(req.id); }}
                         className="w-5 h-5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 cursor-pointer"
                       />
                     </div>
