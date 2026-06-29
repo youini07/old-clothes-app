@@ -576,7 +576,7 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
       data: {
         driverId,
         status: getStatusForAction.onDriverAssigned(),
-        confirmedDate: new Date(confirmedDate)
+        ...(confirmedDate ? { confirmedDate: new Date(confirmedDate) } : {})
       },
       include: { partner: true }
     });
@@ -618,6 +618,35 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
     res.json({ message: '기사 배정이 완료되었습니다.', request });
   } catch (error) {
     res.status(500).json({ error: '기사 배정 실패' });
+  }
+});
+
+// 3-0. 특정 수거 건의 실제 방문 날짜(confirmedDate) 임의 변경 (동선 최적화용)
+router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  const { confirmedDate } = req.body;
+  const partnerId = req.user!.userId;
+
+  try {
+    const request = await prisma.request.findUnique({ where: { id } });
+    if (!request) {
+      return res.status(404).json({ error: '수거 신청을 찾을 수 없습니다.' });
+    }
+
+    // 본인 배정 건이거나 SUPER_ADMIN인지 체크 (여기선 간략히 체크)
+    if (req.user.role === 'PARTNER' && request.partnerId !== partnerId) {
+       return res.status(403).json({ error: '본인에게 배정된 건만 수정할 수 있습니다.' });
+    }
+
+    const updated = await prisma.request.update({
+      where: { id },
+      data: { confirmedDate: new Date(confirmedDate) }
+    });
+
+    res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
+  } catch (error) {
+    console.error('날짜 변경 에러:', error);
+    res.status(500).json({ error: '날짜 변경에 실패했습니다.' });
   }
 });
 

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import DriverMap from '../components/DriverMap';
 import Spinner from '../components/Spinner';
+import CalendarView from '../components/CalendarView';
 import { Camera, X, Plus, Trash2, ChevronRight, Receipt } from 'lucide-react';
 
 interface RequestItem {
@@ -17,6 +18,8 @@ interface RequestItem {
   totalPrice?: number;
   customerPackedPhotoUrl?: string | null;
   isMustPickupDate?: boolean;
+  desiredDate?: string | Date; // 고객 수거 희망일
+  confirmedDate?: string | Date | null; // 사장님 확정 방문일
   createdAt?: string | Date;
   collectionItems?: CollectionItemData[];
 }
@@ -131,7 +134,7 @@ export default function DriverDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
-  const [activeMainTab, setActiveMainTab] = useState<'route' | 'profile'>('route');
+  const [activeMainTab, setActiveMainTab] = useState<'route' | 'calendar' | 'profile'>('route');
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token') || localStorage.getItem('admin_token'));
   const [showMap, setShowMap] = useState(false);
 
@@ -617,7 +620,31 @@ export default function DriverDashboard() {
                     )}
                     <p className="text-gray-600 text-sm">{req.address}</p>
                     <p className="text-gray-800 font-medium text-sm mt-1">{req.detailAddress}</p>
-                    <div className="mt-3 inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">예상 무게: {req.estimatedVolume}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-block px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-semibold">예상 무게: {req.estimatedVolume}</span>
+                      {/* 방문 확정일 우선, 없으면 희망일 표시 */}
+                      {(req.confirmedDate || req.desiredDate) && (() => {
+                        const targetDateStr = req.confirmedDate || req.desiredDate;
+                        const isConfirmed = !!req.confirmedDate;
+                        const desired = new Date(targetDateStr as string | Date);
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const desiredDay = new Date(desired);
+                        desiredDay.setHours(0, 0, 0, 0);
+                        const diffDays = Math.round((desiredDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+                        const month = desired.getMonth() + 1;
+                        const day = desired.getDate();
+                        const dayName = dayNames[desired.getDay()];
+                        const dateLabel = `${month}/${day}(${dayName})`;
+                        
+                        if (isConfirmed) return <span className="inline-flex items-center gap-0.5 bg-purple-100 text-purple-700 px-2 py-0.5 rounded text-xs font-bold border border-purple-200">📌 {dateLabel} 방문 확정</span>;
+                        if (diffDays < 0) return <span className="inline-flex items-center gap-0.5 bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-bold">⚠️ {dateLabel} (지연)</span>;
+                        if (diffDays === 0) return <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded text-xs font-bold">📅 오늘 희망</span>;
+                        if (diffDays === 1) return <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded text-xs font-bold">📅 내일 ({dateLabel})</span>;
+                        return <span className="inline-flex items-center gap-0.5 bg-blue-50 text-blue-600 px-2 py-0.5 rounded text-xs font-bold">📅 {dateLabel}</span>;
+                      })()}
+                    </div>
                     {req.status === 'COMPLETED' && req.actualWeight && (
                       <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
                     )}
@@ -676,6 +703,11 @@ export default function DriverDashboard() {
             )}
           </div>
         </>
+      ) : activeMainTab === 'calendar' ? (
+        /* 📅 캘린더 뷰 — 기사님에게 배정된 수거 건만 캘린더에 표시 */
+        <div className="p-4">
+          <CalendarView requests={requests} compact />
+        </div>
       ) : (
         <div className="p-4">
           {authToken ? <DriverProfileForm authToken={authToken} /> : <div className="text-center py-10">로그인이 필요합니다.</div>}
@@ -969,11 +1001,15 @@ export default function DriverDashboard() {
         </div>
       )}
 
-      {/* Bottom Tab Bar */}
+      {/* Bottom Tab Bar (3탭: 동선 / 캘린더 / 내 정보) */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around py-3 pb-safe shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
         <button onClick={() => setActiveMainTab('route')} className={`flex flex-col items-center transition-colors ${activeMainTab === 'route' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
           <span className="text-[10px] font-bold">동선</span>
+        </button>
+        <button onClick={() => setActiveMainTab('calendar')} className={`flex flex-col items-center transition-colors ${activeMainTab === 'calendar' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
+          <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+          <span className="text-[10px] font-bold">캘린더</span>
         </button>
         <button onClick={() => setActiveMainTab('profile')} className={`flex flex-col items-center transition-colors ${activeMainTab === 'profile' ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'}`}>
           <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>

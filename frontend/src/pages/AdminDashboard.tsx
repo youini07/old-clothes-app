@@ -4,6 +4,7 @@ import AdminMapDispatch from '../components/AdminMapDispatch';
 import Spinner from '../components/Spinner';
 import { AdminChatDashboard } from '../components/chat/AdminChatDashboard';
 import AddressSearchModal from '../components/AddressSearchModal';
+import CalendarView from '../components/CalendarView';
 
 interface RequestItem {
   id: string;
@@ -24,6 +25,8 @@ interface RequestItem {
   extraPhotoUrl?: string | null;
   customerPackedPhotoUrl?: string | null;
   completedDate?: string | Date | null;
+  desiredDate?: string | Date; // 고객 수거 희망일
+  confirmedDate?: string | Date | null; // 사장님 확정 방문일
   isMustPickupDate?: boolean;
   createdAt?: string | Date;
   displayId?: number;
@@ -39,6 +42,42 @@ interface RequestItem {
     photoUrl: string | null;
   }>;
 }
+
+// 수거 희망일 뱃지 렌더링 헬퍼 함수
+// 수거 희망일(또는 확정일) 뱃지 렌더링 헬퍼 함수
+const DesiredDateBadge = ({ desiredDate, confirmedDate }: { desiredDate?: string | Date, confirmedDate?: string | Date | null }) => {
+  const targetDate = confirmedDate || desiredDate;
+  if (!targetDate) return null;
+  const isConfirmed = !!confirmedDate;
+  const desired = new Date(targetDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const desiredDay = new Date(desired);
+  desiredDay.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((desiredDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  
+  const dayNames = ['일', '월', '화', '수', '목', '금', '토'];
+  const month = desired.getMonth() + 1;
+  const day = desired.getDate();
+  const dayName = dayNames[desired.getDay()];
+  const dateLabel = `${month}/${day}(${dayName})`;
+
+  if (isConfirmed) {
+    return <span className="inline-flex items-center gap-0.5 bg-purple-100 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap" title="사장님이 방문일을 임의 변경함">📌 {dateLabel} 방문 확정</span>;
+  }
+
+  // 지연(과거), 오늘, 내일, 그 외에 따라 색상 분기
+  if (diffDays < 0) {
+    return <span className="inline-flex items-center gap-0.5 bg-red-100 text-red-700 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap">⚠️ {dateLabel} 희망 (지연)</span>;
+  }
+  if (diffDays === 0) {
+    return <span className="inline-flex items-center gap-0.5 bg-red-50 text-red-600 border border-red-200 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap">📅 오늘 수거 희망</span>;
+  }
+  if (diffDays === 1) {
+    return <span className="inline-flex items-center gap-0.5 bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap">📅 내일 ({dateLabel})</span>;
+  }
+  return <span className="inline-flex items-center gap-0.5 bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[10px] font-bold whitespace-nowrap">📅 {dateLabel} 희망</span>;
+};
 
 interface CustomRegion {
   id: string;
@@ -60,7 +99,7 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('dispatch');
+  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings' | 'calendar'>('dispatch');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
@@ -485,8 +524,7 @@ export default function AdminDashboard() {
       if (targetDriverId) {
         await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
           requestId,
-          driverId: targetDriverId,
-          confirmedDate: new Date()
+          driverId: targetDriverId
         }, { headers: { Authorization: `Bearer ${authToken}` } });
       } else {
         // 배정 해제
@@ -501,6 +539,20 @@ export default function AdminDashboard() {
     }
   };
 
+  // 날짜 임의 변경 핸들러
+  const handleUpdateDate = async (requestId: string, dateStr: string) => {
+    if (!dateStr || !authToken) return;
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/date`, {
+        confirmedDate: dateStr
+      }, { headers: { Authorization: `Bearer ${authToken}` } });
+      // UI 즉각 반영 또는 fetchData() 호출
+      fetchData();
+    } catch (error) {
+      console.error('날짜 변경 실패:', error);
+      alert('방문 확정일 변경에 실패했습니다.');
+    }
+  };
 
 
   // 권역 매칭 헬퍼 함수
@@ -859,10 +911,11 @@ export default function AdminDashboard() {
 
         {/* 탭 전환 */}
         <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
-          <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차 관리</button>
-          <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도 배정</button>
-          <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산/통계</button>
-          <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 환경 설정</button>
+          <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차</button>
+          <button onClick={() => setActiveView('calendar')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'calendar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📅 캘린더</button>
+          <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도</button>
+          <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산</button>
+          <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
         </div>
 
         {/* 환경 설정 뷰 */}
@@ -1161,7 +1214,12 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* 지도 기반 배정 뷰 (임시) */}
+        {/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}
+        {activeView === 'calendar' && (
+          <CalendarView requests={requests} />
+        )}
+
+        {/* 지도 기반 배정 뷰 */}
         {activeView === 'mapDispatch' && (
           <AdminMapDispatch 
             requests={requests} 
@@ -1407,10 +1465,23 @@ export default function AdminDashboard() {
                           </h3>
                         </div>
                         <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                        <div className="flex justify-between items-center mt-3">
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
                           <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
                             {req.estimatedVolume}
                           </span>
+                          <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                          <div className="relative inline-block ml-1">
+                            <input 
+                              type="date"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                            />
+                            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
+                              📅 날짜 변경
+                            </button>
+                          </div>
+                        </div>
+                        <div className="flex justify-end items-center mt-2">
                           {!selectedRequestIds.includes(req.id) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
@@ -1514,10 +1585,23 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                      <div className="mt-3 flex justify-between items-center">
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
                         <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
                           {req.estimatedVolume}
                         </span>
+                        <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                        <div className="relative inline-block ml-1">
+                          <input 
+                            type="date"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                          />
+                          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
+                            📅 날짜 변경
+                          </button>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex justify-end items-center">
                         {!selectedUnassignedIds.includes(req.id) && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
@@ -1710,6 +1794,19 @@ export default function AdminDashboard() {
                               </button>
                             </div>
                             <p className="text-xs text-gray-500 mt-1">{req.address}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                              <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                              <div className="relative inline-block ml-1">
+                                <input 
+                                  type="date"
+                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                  onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                                />
+                                <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
+                                  📅 날짜 변경
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))
