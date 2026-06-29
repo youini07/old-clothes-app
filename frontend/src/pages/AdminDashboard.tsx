@@ -1785,6 +1785,8 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </div>
+
           {/* Right Column: Drivers */}
           <div className={`lg:col-span-2 flex-col gap-4 ${dispatchTab === 'drivers' ? 'flex' : 'hidden lg:flex'}`}>
             {/* 기사 선택 탭 */}
