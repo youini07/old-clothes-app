@@ -99,7 +99,7 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'dispatch' | 'mapDispatch' | 'stats' | 'settings' | 'calendar'>('dispatch');
+  const [activeView, setActiveView] = useState<'calendar' | 'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('calendar');
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
@@ -911,8 +911,8 @@ export default function AdminDashboard() {
 
         {/* 탭 전환 */}
         <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
-          <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차</button>
           <button onClick={() => setActiveView('calendar')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'calendar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📅 캘린더</button>
+          <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차</button>
           <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산</button>
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
@@ -1216,7 +1216,16 @@ export default function AdminDashboard() {
 
         {/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}
         {activeView === 'calendar' && (
-          <CalendarView requests={requests} />
+          <CalendarView 
+            requests={requests}
+            drivers={drivers}
+            onAssignDriver={async (reqId, driverId, dateStr) => {
+              if (dateStr) {
+                await handleUpdateDate(reqId, dateStr);
+              }
+              await assignDriver(reqId, driverId);
+            }}
+          />
         )}
 
         {/* 지도 기반 배정 뷰 */}

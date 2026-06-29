@@ -28,10 +28,10 @@ interface CalendarRequestItem {
 
 interface CalendarViewProps {
   requests: CalendarRequestItem[];
-  // 캘린더에서 특정 날짜의 수거 건을 클릭했을 때 상세 액션을 위한 콜백 (선택)
   onRequestClick?: (request: CalendarRequestItem) => void;
-  // 기사님 앱에서는 심플 모드 사용 (더 작은 셀, 간결한 정보)
   compact?: boolean;
+  drivers?: { id: string; user?: { name: string } | null; name?: string }[];
+  onAssignDriver?: (requestId: string, driverId: string | null, dateStr?: string) => void;
 }
 
 // 상태별 색상 맵 (뱃지 UI에 사용)
@@ -52,9 +52,13 @@ const toDateKey = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-export default function CalendarView({ requests, onRequestClick, compact = false }: CalendarViewProps) {
+export default function CalendarView({ requests, onRequestClick, compact = false, drivers, onAssignDriver }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
+  // 기사 배정 인라인 UI를 위한 상태
+  const [assigningRequestId, setAssigningRequestId] = useState<string | null>(null);
+  const [assignForm, setAssignForm] = useState({ driverId: '', dateStr: '' });
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -363,6 +367,71 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                         </a>
                       </div>
                     </div>
+                    {/* 배정 폼 인라인 렌더링 */}
+                    {assigningRequestId === req.id && drivers && onAssignDriver && (
+                      <div 
+                        className="mt-3 p-3 bg-white rounded-lg border border-blue-200 shadow-inner"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex flex-col gap-2">
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">담당 기사 선택</label>
+                            <select 
+                              value={assignForm.driverId} 
+                              onChange={(e) => setAssignForm({ ...assignForm, driverId: e.target.value })}
+                              className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                            >
+                              <option value="">-- 기사 선택 --</option>
+                              {drivers.map(d => (
+                                <option key={d.id} value={d.id}>{d.user?.name || d.name}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-bold text-gray-700 mb-1">방문 확정일 (선택)</label>
+                            <input 
+                              type="date" 
+                              value={assignForm.dateStr}
+                              onChange={(e) => setAssignForm({ ...assignForm, dateStr: e.target.value })}
+                              className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                          <div className="flex gap-2 justify-end mt-1">
+                            <button 
+                              onClick={() => setAssigningRequestId(null)}
+                              className="px-3 py-1.5 bg-gray-200 text-gray-700 text-xs font-bold rounded-lg hover:bg-gray-300"
+                            >
+                              취소
+                            </button>
+                            <button 
+                              onClick={() => {
+                                if (!assignForm.driverId) return alert('기사를 선택해주세요.');
+                                onAssignDriver(req.id, assignForm.driverId, assignForm.dateStr);
+                                setAssigningRequestId(null);
+                              }}
+                              className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm"
+                            >
+                              배정 완료
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {/* 배정 버튼 (PENDING, ASSIGNED 상태에서만 노출) */}
+                    {!assigningRequestId && (req.status === 'PENDING' || req.status === 'ASSIGNED') && drivers && onAssignDriver && (
+                      <div className="mt-2 text-right">
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssigningRequestId(req.id);
+                            setAssignForm({ driverId: req.driverId || '', dateStr: (req.confirmedDate || req.desiredDate) ? new Date(req.confirmedDate || req.desiredDate as Date).toISOString().split('T')[0] : '' });
+                          }}
+                          className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors"
+                        >
+                          🚚 기사 배정 / 날짜 변경
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}
