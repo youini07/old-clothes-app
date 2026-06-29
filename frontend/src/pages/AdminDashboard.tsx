@@ -514,13 +514,18 @@ export default function AdminDashboard() {
   };
 
   // 공통 기사 배정 함수 (드래그앤드롭 & 모바일 클릭 모두 사용)
-  const assignDriver = async (requestId: string, targetDriverId: string | null) => {
+  const assignDriver = async (requestId: string, targetDriverId: string | null, dateStr?: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');
 
     // UI 즉시 업데이트 (Optimistic Update)
     setRequests(prev => prev.map(req => {
       if (req.id === requestId) {
-        return { ...req, driverId: targetDriverId, status: targetDriverId ? 'SCHEDULED' : 'ASSIGNED' };
+        return { 
+          ...req, 
+          driverId: targetDriverId, 
+          status: targetDriverId ? 'SCHEDULED' : 'ASSIGNED',
+          ...(dateStr ? { confirmedDate: new Date(dateStr) } : {})
+        };
       }
       return req;
     }));
@@ -529,7 +534,8 @@ export default function AdminDashboard() {
       if (targetDriverId) {
         await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
           requestId,
-          driverId: targetDriverId
+          driverId: targetDriverId,
+          ...(dateStr ? { confirmedDate: dateStr } : {})
         }, { headers: { Authorization: `Bearer ${authToken}` } });
       } else {
         // 배정 해제
@@ -537,6 +543,7 @@ export default function AdminDashboard() {
           driverId: null
         }, { headers: { Authorization: `Bearer ${authToken}` } });
       }
+      fetchData(); // 성공 후 동기화
     } catch (error) {
       console.error('배정 실패, 롤백');
       alert('기사 배정에 실패했습니다.');
@@ -581,15 +588,24 @@ export default function AdminDashboard() {
   // 날짜 임의 변경 핸들러
   const handleUpdateDate = async (requestId: string, dateStr: string) => {
     if (!dateStr || !authToken) return;
+
+    // Optimistic Update
+    setRequests(prev => prev.map(req => {
+      if (req.id === requestId) {
+        return { ...req, confirmedDate: new Date(dateStr) };
+      }
+      return req;
+    }));
+
     try {
       await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/date`, {
         confirmedDate: dateStr
       }, { headers: { Authorization: `Bearer ${authToken}` } });
-      // UI 즉각 반영 또는 fetchData() 호출
       fetchData();
     } catch (error) {
       console.error('날짜 변경 실패:', error);
       alert('방문 확정일 변경에 실패했습니다.');
+      fetchData();
     }
   };
 
@@ -1259,10 +1275,11 @@ export default function AdminDashboard() {
             requests={requests}
             drivers={drivers}
             onAssignDriver={async (reqId, driverId, dateStr) => {
-              if (dateStr) {
+              if (driverId) {
+                await assignDriver(reqId, driverId, dateStr);
+              } else if (dateStr) {
                 await handleUpdateDate(reqId, dateStr);
               }
-              await assignDriver(reqId, driverId);
             }}
             onBulkAssignClick={(ids) => {
               setCalendarBulkSelectedIds(ids);

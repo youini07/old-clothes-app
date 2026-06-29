@@ -395,6 +395,13 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                             </span>
                           )}
                         </div>
+                        {req.confirmedDate && req.desiredDate && toDateKey(new Date(req.confirmedDate)) !== toDateKey(new Date(req.desiredDate as Date)) && (
+                          <div className="text-[10px] text-purple-600 mt-1 font-bold flex items-center gap-1">
+                            <span className="opacity-70 line-through">희망 {new Date(req.desiredDate as Date).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric'})}</span>
+                            <span>➔</span>
+                            <span>확정 {new Date(req.confirmedDate).toLocaleDateString('ko-KR', { month: 'short', day: 'numeric'})}</span>
+                          </div>
+                        )}
                         <p className="text-xs text-gray-500 mt-1 truncate">{req.address} {req.detailAddress}</p>
                         <span className="text-[10px] text-gray-400 font-medium">{req.estimatedVolume}</span>
                         {req.status === 'COMPLETED' && req.totalPrice != null && (
