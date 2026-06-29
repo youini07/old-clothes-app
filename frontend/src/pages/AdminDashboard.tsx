@@ -521,6 +521,24 @@ export default function AdminDashboard() {
     setIsDriverModalOpen(true);
   };
 
+  const handleDeleteDriver = async (driverId: string) => {
+    if (!authToken) return;
+    if (!window.confirm('정말 이 기사님을 삭제하시겠습니까?\n기사님께 배정된 수거 건은 기사 미배정 상태로 변경됩니다.')) return;
+    try {
+      await axios.delete(`http://localhost:3001/api/admin/drivers/${driverId}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('기사님이 성공적으로 삭제되었습니다.');
+      if (activeDriverId === driverId) {
+        setActiveDriverId(null);
+      }
+      fetchData();
+    } catch (error: any) {
+      alert(error.response?.data?.error || '기사 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+
   const handleDeleteRequest = async (requestId: string) => {
     if (!authToken) return;
     if (!confirm('이 수거 요청을 정말 강제로 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
@@ -1924,6 +1942,7 @@ export default function AdminDashboard() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-extrabold text-gray-800 break-keep">🚚 {driver.user?.name || driver.name}</h2>
                         <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
+                        <button onClick={() => handleDeleteDriver(driver.id)} className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-md hover:bg-red-200 transition-colors font-bold shrink-0">삭제</button>
                       </div>
                       {driver.customRegion ? (
                         <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block break-keep leading-tight">

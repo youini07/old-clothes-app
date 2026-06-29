@@ -1368,6 +1368,55 @@ router.patch('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req:
   }
 });
 
+// 기사 삭제
+router.delete('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.userId;
+    const driverId = req.params.id;
+
+    // 본인 소속 기사인지 확인
+    const driver = await prisma.driverProfile.findUnique({
+      where: { id: driverId }
+    });
+    
+    if (!driver || driver.partnerId !== partnerId) {
+      return res.status(403).json({ error: '권한이 없거나 존재하지 않는 기사입니다.' });
+    }
+
+    // 기사에게 배정된 수거 건을 미배정 상태로 변경 (status는 뷰에 따라 유동적일 수 있으나 기본적으로 유지하거나 ASSIGNED로 변경)
+    await prisma.request.updateMany({
+      where: { driverId: driverId, status: { not: 'COMPLETED' } },
+      data: {
+        driverId: null,
+        status: 'ASSIGNED',
+        confirmedDate: null,
+        etaMinutes: null
+      }
+    });
+
+    // 완료된 건이 있을 수 있으므로 단순히 driverId만 null 처리
+    await prisma.request.updateMany({
+      where: { driverId: driverId, status: 'COMPLETED' },
+      data: {
+        driverId: null
+      }
+    });
+
+    // 사장님 본인 계정인 경우 User는 놔두고 DriverProfile만 삭제
+    if (driver.userId === partnerId) {
+      await prisma.driverProfile.delete({ where: { id: driverId } });
+    } else {
+      await prisma.driverProfile.delete({ where: { id: driverId } });
+      await prisma.user.delete({ where: { id: driver.userId } });
+    }
+
+    res.json({ message: '기사가 성공적으로 삭제되었습니다.' });
+  } catch (error) {
+    console.error('기사 삭제 에러:', error);
+    res.status(500).json({ error: '기사 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
 // ==========================================
 // [PARTNER 전용] 정산 및 통계 기능
 // ==========================================
