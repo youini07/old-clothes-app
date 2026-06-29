@@ -148,6 +148,11 @@ export default function AdminDashboard() {
   const [isBulkUnclaiming, setIsBulkUnclaiming] = useState(false);
   const [isBulkAssigning, setIsBulkAssigning] = useState(false);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+
+  // --- 추가된 상태 ---
+  const [optimizingDriverId, setOptimizingDriverId] = useState<string | null>(null);
+  const [savingOrderDriverId, setSavingOrderDriverId] = useState<string | null>(null);
+  const [hasUnsavedOrder, setHasUnsavedOrder] = useState<Record<string, boolean>>({});
   const [unclaimingId, setUnclaimingId] = useState<string | null>(null);
 
   // 모바일/클릭 배정용 상태
@@ -603,6 +608,86 @@ export default function AdminDashboard() {
       console.error('날짜 변경 실패:', error);
       alert('방문 확정일 변경에 실패했습니다.');
       fetchData();
+    }
+  };
+
+  // --- 동선 최적화 및 순서 수동 변경 핸들러 ---
+  const handleOptimizeRoute = async (driverId: string) => {
+    if (!authToken) return;
+    if (!window.confirm('기사의 동선을 카카오/T맵 기반으로 최적화하시겠습니까?\n(수거 건이 많을 경우 시간이 다소 소요될 수 있습니다)')) return;
+    
+    setOptimizingDriverId(driverId);
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/admin/drivers/${driverId}/optimize-route`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(res.data.message);
+      setHasUnsavedOrder(prev => ({ ...prev, [driverId]: false }));
+      fetchData(); // 최적화 후 데이터 리로드
+    } catch (error: any) {
+      console.error('동선 최적화 실패:', error);
+      alert(error.response?.data?.error || '동선 최적화 중 오류가 발생했습니다.');
+    } finally {
+      setOptimizingDriverId(null);
+    }
+  };
+
+  const handleMoveOrder = (driverId: string, index: number, direction: 'up' | 'down') => {
+    setRequests(prev => {
+      const allRequests = [...prev];
+      // 1. 해당 기사의 수거 목록 필터링 후 orderIndex 기준으로 정렬
+      const driverRequests = allRequests
+        .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
+        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+
+      // 2. 바꿀 대상이 없거나 경계를 벗어나는지 확인
+      if (direction === 'up' && index === 0) return prev;
+      if (direction === 'down' && index === driverRequests.length - 1) return prev;
+
+      // 3. 배열에서 위치 변경
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      const temp = driverRequests[index];
+      driverRequests[index] = driverRequests[targetIndex];
+      driverRequests[targetIndex] = temp;
+
+      // 4. 새로운 순서대로 orderIndex 할당
+      driverRequests.forEach((req, idx) => {
+        req.orderIndex = idx;
+      });
+
+      // 5. 전체 배열 업데이트
+      return allRequests.map(req => {
+        const updated = driverRequests.find(dr => dr.id === req.id);
+        return updated ? updated : req;
+      });
+    });
+
+    setHasUnsavedOrder(prev => ({ ...prev, [driverId]: true }));
+  };
+
+  const handleSaveOrder = async (driverId: string) => {
+    if (!authToken) return;
+    setSavingOrderDriverId(driverId);
+    try {
+      const driverRequests = requests
+        .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
+        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+        
+      const requestIds = driverRequests.map(r => r.id);
+
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/reorder`, {
+        requestIds
+      }, { headers: { Authorization: `Bearer ${authToken}` } });
+      
+      alert('순서가 성공적으로 저장되었습니다.');
+      setHasUnsavedOrder(prev => ({ ...prev, [driverId]: false }));
+      // fetchData() // optimistic update가 이미 반영되어 있으므로 필수사항은 아님
+    } catch (error) {
+      console.error('순서 저장 실패:', error);
+      alert('순서 저장 중 오류가 발생했습니다.');
+      fetchData(); // 롤백
+    } finally {
+      setSavingOrderDriverId(null);
     }
   };
 
@@ -1744,7 +1829,30 @@ export default function AdminDashboard() {
                       )}
                     </div>
                     <div className="flex flex-col items-end gap-2 shrink-0">
-                      <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm mt-1">{driverRequests.length}건 대기</span>
+                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                        <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기</span>
+                        {driverRequests.length > 1 && (
+                          <button
+                            onClick={() => handleOptimizeRoute(driver.id)}
+                            disabled={optimizingDriverId === driver.id}
+                            className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${optimizingDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-500 text-white hover:bg-primary-600'}`}
+                            title="T맵 기반으로 현재 수거 건의 순서를 최적화합니다"
+                          >
+                            {optimizingDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '🗺️'}
+                            동선 최적화
+                          </button>
+                        )}
+                        {hasUnsavedOrder[driver.id] && (
+                          <button
+                            onClick={() => handleSaveOrder(driver.id)}
+                            disabled={savingOrderDriverId === driver.id}
+                            className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${savingOrderDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 animate-pulse'}`}
+                          >
+                            {savingOrderDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '💾'}
+                            순서 저장
+                          </button>
+                        )}
+                      </div>
                       {driverRequests.length > 0 && (
                         <div className="flex items-center gap-1.5">
                           <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer hover:text-gray-900">
@@ -1797,7 +1905,7 @@ export default function AdminDashboard() {
                           key={req.id} 
                           className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
                         >
-                          <div className="flex flex-col items-center gap-2 shrink-0">
+                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1">
                             <input
                               type="checkbox"
                               checked={selectedAssignedIds.includes(req.id)}
@@ -1811,8 +1919,24 @@ export default function AdminDashboard() {
                               className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
                               onClick={e => e.stopPropagation()}
                             />
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-primary-100 text-primary-800'}`}>
-                              {index + 1}
+                            <div className="flex flex-col items-center border border-gray-200 rounded-lg overflow-hidden mt-1 shadow-sm bg-gray-50">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'up'); }}
+                                disabled={index === 0}
+                                className={`w-7 h-5 flex items-center justify-center transition-colors ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
+                              >
+                                ▴
+                              </button>
+                              <div className={`w-7 h-6 flex items-center justify-center text-xs font-bold border-y border-gray-200 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>
+                                {index + 1}
+                              </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'down'); }}
+                                disabled={index === driverRequests.length - 1}
+                                className={`w-7 h-5 flex items-center justify-center transition-colors ${index === driverRequests.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
+                              >
+                                ▾
+                              </button>
                             </div>
                           </div>
                           <div className="flex-1">
