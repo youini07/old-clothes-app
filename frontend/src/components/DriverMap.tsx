@@ -77,7 +77,7 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       for (let i = 0; i < requests.length; i++) {
         if (isCancelled) break;
         const req = requests[i];
-        const result = await new Promise<{ lat: number; lng: number; req: any; index: number }>((resolve) => {
+        const result = await new Promise<{ lat: number; lng: number; req: any; index: number; overlapIndex?: number }>((resolve) => {
           geocoder.addressSearch(req.address, (result: any, status: any) => {
             if (status === kakao.maps.services.Status.OK) {
               resolve({
@@ -94,15 +94,12 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
         });
         
         if (result.index !== -1) {
-          // 중복 좌표 체크 및 오프셋 적용 (아파트 등 동일 주소지에서 핀 겹침 방지)
+          // 중복 좌표 체크 (아파트 등 동일 주소지)
           const overlapCount = validResults.filter(
             r => Math.abs(r.lat - result.lat) < 0.00001 && Math.abs(r.lng - result.lng) < 0.00001
           ).length;
           
-          if (overlapCount > 0) {
-            // 오른쪽으로 살짝 펼쳐서 표시 (경도 0.00015 ≈ 약 13m 이동)
-            result.lng += overlapCount * 0.00015;
-          }
+          result.overlapIndex = overlapCount;
           validResults.push(result);
         }
         await new Promise(r => setTimeout(r, 150)); // Rate limit 방지
@@ -226,6 +223,7 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
         }
       }
 
+      const overlapIndex = res.overlapIndex || 0;
       const el = document.createElement('div');
       el.style.backgroundColor = bgColor;
       el.style.color = textColor;
@@ -242,6 +240,11 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       el.style.cursor = isSettingOrder ? 'pointer' : 'default';
       el.style.zIndex = String(zIndex);
       el.innerText = String(displayIndex);
+      
+      // 겹침 방지 픽셀 이동 (줌 레벨과 무관하게 항상 일정 간격으로 펼쳐짐)
+      if (overlapIndex > 0) {
+        el.style.transform = `translateX(${overlapIndex * 36}px)`;
+      }
 
       if (isSettingOrder) {
         // 호버 효과
@@ -267,7 +270,7 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       });
       overlaysRef.current.push(markerOverlay);
 
-      const labelHtml = `<div style="background-color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #ccc; transform: translateY(15px); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.1); z-index: ${zIndex};">${res.req.userName}</div>`;
+      const labelHtml = `<div style="background-color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #ccc; transform: translate(${overlapIndex * 36}px, 15px); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.1); z-index: ${zIndex};">${res.req.userName}</div>`;
       const labelOverlay = new kakao.maps.CustomOverlay({
         map: map,
         position: pos,
