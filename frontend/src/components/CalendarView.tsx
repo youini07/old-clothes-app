@@ -30,8 +30,7 @@ interface CalendarViewProps {
   requests: CalendarRequestItem[];
   onRequestClick?: (request: CalendarRequestItem) => void;
   compact?: boolean;
-  drivers?: { id: string; user?: { name: string } | null; name?: string }[];
-  onAssignDriver?: (requestId: string, driverId: string | null, dateStr?: string) => void;
+  onUpdateDate?: (requestId: string, dateStr: string) => void;
   onBulkAssignClick?: (selectedIds: string[]) => void;
 }
 
@@ -53,7 +52,7 @@ const toDateKey = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-export default function CalendarView({ requests, onRequestClick, compact = false, drivers, onAssignDriver, onBulkAssignClick }: CalendarViewProps) {
+export default function CalendarView({ requests, onRequestClick, compact = false, onUpdateDate, onBulkAssignClick }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   
@@ -345,7 +344,7 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                       onClick={() => onBulkAssignClick(checkedIds)}
                       className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg shadow-sm hover:bg-blue-700 transition-colors animate-fade-in"
                     >
-                      🚀 선택된 {checkedIds.length}건 일괄 기사 배정 및 날짜 변경
+                      🚀 선택된 {checkedIds.length}건 방문일 일괄 변경
                     </button>
                   )}
                 </div>
@@ -430,25 +429,13 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                       </div>
                     </div>
                     {/* 배정 폼 인라인 렌더링 */}
-                    {assigningRequestId === req.id && drivers && onAssignDriver && (
+                    {assigningRequestId === req.id && onUpdateDate && (
                       <div 
                         className="mt-3 p-3 bg-white rounded-lg border border-blue-200 shadow-inner"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex flex-col gap-2">
-                          <div>
-                            <label className="block text-xs font-bold text-gray-700 mb-1">담당 기사 선택</label>
-                            <select 
-                              value={assignForm.driverId} 
-                              onChange={(e) => setAssignForm({ ...assignForm, driverId: e.target.value })}
-                              className="w-full p-2 border border-gray-300 rounded-lg text-sm bg-gray-50 focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value="">-- 기사 선택 --</option>
-                              {drivers.map(d => (
-                                <option key={d.id} value={d.id}>{d.user?.name || d.name}</option>
-                              ))}
-                            </select>
-                          </div>
+                            {/* 담당 기사 선택 UI 제거 (배차 화면에서만 가능) */}
                           <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">방문 확정일 (선택)</label>
                             <input 
@@ -467,30 +454,30 @@ export default function CalendarView({ requests, onRequestClick, compact = false
                             </button>
                             <button 
                               onClick={() => {
-                                if (!assignForm.driverId) return alert('기사를 선택해주세요.');
-                                onAssignDriver(req.id, assignForm.driverId, assignForm.dateStr);
+                                if (!assignForm.dateStr) return alert('변경할 방문 확정일을 선택해주세요.');
+                                onUpdateDate(req.id, assignForm.dateStr);
                                 setAssigningRequestId(null);
                               }}
                               className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 shadow-sm"
                             >
-                              배정 완료
+                              날짜 변경 완료
                             </button>
                           </div>
                         </div>
                       </div>
                     )}
                     {/* 배정 버튼 (PENDING, ASSIGNED 상태에서만 노출) */}
-                    {!assigningRequestId && (req.status === 'PENDING' || req.status === 'ASSIGNED') && drivers && onAssignDriver && (
+                    {!assigningRequestId && (req.status === 'PENDING' || req.status === 'ASSIGNED') && onUpdateDate && (
                       <div className="mt-2 text-right">
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
                             setAssigningRequestId(req.id);
-                            setAssignForm({ driverId: req.driverId || '', dateStr: (req.confirmedDate || req.desiredDate) ? new Date(req.confirmedDate || req.desiredDate as Date).toISOString().split('T')[0] : '' });
+                            setAssignForm({ driverId: '', dateStr: (req.confirmedDate || req.desiredDate) ? new Date(req.confirmedDate || req.desiredDate as Date).toISOString().split('T')[0] : '' });
                           }}
                           className="px-3 py-1.5 bg-indigo-50 text-indigo-700 text-xs font-bold rounded-lg border border-indigo-200 hover:bg-indigo-100 transition-colors"
                         >
-                          🚚 기사 배정 / 날짜 변경
+                          📅 방문일 변경
                         </button>
                       </div>
                     )}

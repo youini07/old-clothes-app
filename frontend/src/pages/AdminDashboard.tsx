@@ -551,10 +551,10 @@ export default function AdminDashboard() {
     }
   };
 
-  // 캘린더 전용 일괄 처리 핸들러
+  // 캘린더 전용 일괄 방문일 변경 핸들러
   const handleCalendarBulkAssignSubmit = async () => {
-    if (!calendarBulkForm.driverId && !calendarBulkForm.dateStr) {
-      return alert('기사 배정 또는 방문 확정일 중 하나 이상을 입력해주세요.');
+    if (!calendarBulkForm.dateStr) {
+      return alert('방문 확정일을 입력해주세요.');
     }
     setIsBulkAssigning(true);
     try {
@@ -1270,14 +1270,7 @@ export default function AdminDashboard() {
         {activeView === 'calendar' && (
           <CalendarView 
             requests={requests}
-            drivers={drivers}
-            onAssignDriver={async (reqId, driverId, dateStr) => {
-              if (driverId) {
-                await assignDriver(reqId, driverId, dateStr);
-              } else if (dateStr) {
-                await handleUpdateDate(reqId, dateStr);
-              }
-            }}
+            onUpdateDate={handleUpdateDate}
             onBulkAssignClick={(ids) => {
               setCalendarBulkSelectedIds(ids);
               setCalendarBulkForm({ driverId: '', dateStr: '' });
@@ -2105,23 +2098,11 @@ export default function AdminDashboard() {
       {isCalendarBulkModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 md:p-8 w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">선택한 {calendarBulkSelectedIds.length}건 일괄 변경</h3>
-            <p className="text-sm text-gray-500 mb-6 text-center">변경하고 싶은 항목만 입력하세요. 입력하지 않은 항목은 기존 상태가 유지됩니다.</p>
+            <h3 className="text-xl font-bold text-gray-900 mb-2 text-center">선택한 {calendarBulkSelectedIds.length}건 방문일 일괄 변경</h3>
+            <p className="text-sm text-gray-500 mb-6 text-center">선택한 수거 건의 방문 확정일을 일괄 변경합니다.</p>
             
             <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-2">🚚 담당 기사 배정</label>
-                <select 
-                  value={calendarBulkForm.driverId} 
-                  onChange={(e) => setCalendarBulkForm({ ...calendarBulkForm, driverId: e.target.value })}
-                  className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 text-gray-900"
-                >
-                  <option value="">-- 기사 선택 (변경 안 함) --</option>
-                  {drivers.map(driver => (
-                    <option key={driver.id} value={driver.id}>{driver.user?.name || driver.name} 기사님</option>
-                  ))}
-                </select>
-              </div>
+              {/* 기사 배정 기능 제거됨 (배차 탭에서만 가능) */}
 
               <div>
                 <label className="block text-sm font-bold text-gray-700 mb-2">📅 방문 확정일 변경</label>
@@ -2146,7 +2127,7 @@ export default function AdminDashboard() {
                   className={`flex-1 py-4 text-white font-bold rounded-xl shadow-lg transition-colors flex items-center justify-center gap-2 ${isBulkAssigning ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
                 >
                   {isBulkAssigning && <Spinner className="w-5 h-5" />}
-                  일괄 적용하기
+                  일괄 변경하기
                 </button>
               </div>
             </div>
