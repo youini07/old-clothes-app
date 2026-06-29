@@ -1072,6 +1072,9 @@ export default function AdminDashboard() {
     const endHour = req.estimatedPickupHour + 1;
     const timeWindow = `${formatAmPm(startHour)}~${formatAmPm(endHour)}`;
 
+    const assignedDriver = drivers.find(d => d.id === req.driverId);
+    const driverPhone = assignedDriver?.user?.phone || '010-2264-4926';
+
     const message = `안녕하세요, 올클헌옷입니다.
 내일 ${timeWindow} 사이 방문 예정입니다.
 
@@ -1081,7 +1084,7 @@ export default function AdminDashboard() {
 공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.
 
 문의사항은 아래 담당자님께 연락 부탁드립니다.
-담당자님 연락처: 010-2264-4926`;
+담당자님 연락처: ${driverPhone}`;
 
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
     const bodyParam = isIOS ? `&body=${encodeURIComponent(message)}` : `?body=${encodeURIComponent(message)}`;
