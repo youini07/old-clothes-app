@@ -506,6 +506,29 @@ router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER
   }
 });
 
+// 개별 수거 요청 강제 삭제
+router.delete('/requests/:id', authenticate, requireRole(['SUPER_ADMIN', 'PARTNER']), async (req: any, res: any) => {
+  const { id } = req.params;
+  
+  try {
+    const existingRequest = await prisma.request.findUnique({ where: { id } });
+    if (!existingRequest) {
+      return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
+    }
+
+    // Google Sheets 연동되어 있다면 삭제 표시(상태 업데이트로 우회하거나 시트 지원 안하면 무시)
+    // 현재는 DB 삭제만 진행
+    await prisma.request.delete({
+      where: { id }
+    });
+
+    res.json({ message: '수거 요청이 성공적으로 삭제되었습니다.' });
+  } catch (error) {
+    console.error('수거 요청 삭제 오류:', error);
+    res.status(500).json({ error: '수거 요청 삭제 중 오류가 발생했습니다.' });
+  }
+});
+
 // 다중 수거 요청 수락 취소 (일괄 취소)
 router.post('/requests/bulk-unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { requestIds } = req.body;

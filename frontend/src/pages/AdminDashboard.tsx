@@ -520,6 +520,22 @@ export default function AdminDashboard() {
     setIsDriverModalOpen(true);
   };
 
+  const handleDeleteRequest = async (requestId: string) => {
+    if (!authToken) return;
+    if (!confirm('이 수거 요청을 정말 강제로 삭제하시겠습니까? 삭제 후 복구할 수 없습니다.')) return;
+    
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('수거 요청이 성공적으로 삭제되었습니다.');
+      fetchData(); // 삭제 후 목록 리프레시
+    } catch (error) {
+      console.error('삭제 오류:', error);
+      alert('삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   // 공통 기사 배정 함수 (드래그앤드롭 & 모바일 클릭 모두 사용)
   const assignDriver = async (requestId: string, targetDriverId: string | null, dateStr?: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');
@@ -1648,7 +1664,13 @@ export default function AdminDashboard() {
                             </button>
                           </div>
                         </div>
-                        <div className="flex justify-end items-center mt-2">
+                        <div className="flex justify-end items-center mt-2 gap-2">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                            className="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1"
+                          >
+                            🗑️ 강제 삭제
+                          </button>
                           {!selectedRequestIds.includes(req.id) && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
@@ -1768,7 +1790,13 @@ export default function AdminDashboard() {
                           </button>
                         </div>
                       </div>
-                      <div className="mt-2 flex justify-end items-center">
+                      <div className="mt-2 flex justify-end items-center gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                          className="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1"
+                        >
+                          🗑️ 강제 삭제
+                        </button>
                         {!selectedUnassignedIds.includes(req.id) && (
                           <button
                             onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
