@@ -14,14 +14,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
+const axios_1 = __importDefault(require("axios"));
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const statusService_1 = require("../services/statusService");
+const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
 const googleSheets_1 = require("../services/googleSheets");
 const socket_1 = require("../socket");
 const router = express_1.default.Router();
+// 유클리드 거리 계산 헬퍼
+function getDistance(x1, y1, x2, y2) {
+    const dx = x1 - x2;
+    const dy = y1 - y2;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+// 용량 제한 기반 지리적 클러스터 생성 함수
+function createClusters(destinations, startX, startY, maxPerCluster) {
+    let unvisited = [...destinations];
+    let clusters = [];
+    let currentX = startX;
+    let currentY = startY;
+    while (unvisited.length > 0) {
+        let cluster = [];
+        let cx = currentX;
+        let cy = currentY;
+        for (let i = 0; i < maxPerCluster && unvisited.length > 0; i++) {
+            let minDist = Infinity;
+            let nextIdx = 0;
+            for (let j = 0; j < unvisited.length; j++) {
+                let dist = getDistance(unvisited[j].x, unvisited[j].y, cx, cy);
+                if (dist < minDist) {
+                    minDist = dist;
+                    nextIdx = j;
+                }
+            }
+            let target = unvisited.splice(nextIdx, 1)[0];
+            cluster.push(target);
+            cx = target.x;
+            cy = target.y;
+        }
+        clusters.push(cluster);
+        currentX = cx;
+        currentY = cy;
+    }
+    return clusters;
+}
 // ==========================================
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
 // ==========================================
@@ -419,6 +458,42 @@ router.post('/requests/bulk-claim', authMiddleware_1.authenticate, (0, authMiddl
         res.status(500).json({ error: '일괄 수락 중 오류가 발생했습니다.' });
     }
 }));
+// 개별 수거 요청 강제 삭제
+router.delete('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    try {
+        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        if (!existingRequest) {
+            return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
+        }
+        // Google Sheets 연동되어 있다면 삭제 표시(상태 업데이트로 우회하거나 시트 지원 안하면 무시)
+        // 현재는 DB 삭제만 진행
+        yield prisma_1.prisma.request.delete({
+            where: { id }
+        });
+        res.json({ message: '수거 요청이 성공적으로 삭제되었습니다.' });
+    }
+    catch (error) {
+        console.error('수거 요청 삭제 오류:', error);
+        res.status(500).json({ error: '수거 요청 삭제 중 오류가 발생했습니다.' });
+    }
+}));
+// 예상 수거 시간 업데이트
+router.patch('/requests/:id/estimated-time', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const { estimatedPickupHour } = req.body;
+    try {
+        const updatedRequest = yield prisma_1.prisma.request.update({
+            where: { id },
+            data: { estimatedPickupHour }
+        });
+        res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
+    }
+    catch (error) {
+        console.error('예상 수거 시간 업데이트 오류:', error);
+        res.status(500).json({ error: '업데이트 중 오류가 발생했습니다.' });
+    }
+}));
 // 다중 수거 요청 수락 취소 (일괄 취소)
 router.post('/requests/bulk-unclaim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestIds } = req.body;
@@ -704,6 +779,208 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
         res.status(500).json({ error: '일괄 기사 배정 중 오류가 발생했습니다.' });
     }
 }));
+// 3-2. 특정 기사의 수거 목록 순서 수동 변경 (Custom Reordering)
+router.post('/requests/reorder', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { requestIds } = req.body;
+    if (!Array.isArray(requestIds) || requestIds.length === 0) {
+        return res.status(400).json({ error: '순서를 변경할 요청 ID 목록이 필요합니다.' });
+    }
+    try {
+        const partnerId = req.user.userId;
+        // 본인 권한 소속인지 검증 (성능을 위해 count 사용)
+        const validCount = yield prisma_1.prisma.request.count({
+            where: { id: { in: requestIds }, partnerId }
+        });
+        if (validCount !== requestIds.length) {
+            return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청이 포함되어 있습니다.' });
+        }
+        // 트랜잭션으로 일괄 업데이트
+        yield prisma_1.prisma.$transaction(requestIds.map((id, index) => prisma_1.prisma.request.update({
+            where: { id },
+            data: { orderIndex: index }
+        })));
+        res.json({ message: '순서가 성공적으로 저장되었습니다.' });
+    }
+    catch (error) {
+        console.error('순서 변경 에러:', error);
+        res.status(500).json({ error: '순서 변경 중 오류가 발생했습니다.' });
+    }
+}));
+// 3-3. 특정 기사의 동선 최적화 (카카오/T맵 좌표 API 기반 첫번째 수거지 출발 정렬)
+router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { driverId } = req.params;
+    const partnerId = req.user.userId;
+    try {
+        // 기사 프로필 확인
+        const driver = yield prisma_1.prisma.driverProfile.findUnique({
+            where: { id: driverId }
+        });
+        // 파트너 본인의 기사인지 확인
+        if (!driver || driver.partnerId !== partnerId) {
+            return res.status(403).json({ error: '권한이 없거나 기사 프로필을 찾을 수 없습니다.' });
+        }
+        // 기사에게 배정된 미완료 수거 건 조회
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId }
+        });
+        if (requests.length <= 1) {
+            return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
+        }
+        // 각 수거지의 좌표 변환
+        const destinations = [];
+        for (const r of requests) {
+            const coords = yield (0, kakaoRoute_1.getCoordinates)(r.address);
+            if (coords) {
+                destinations.push({
+                    request: r,
+                    x: parseFloat(coords.x),
+                    y: parseFloat(coords.y)
+                });
+            }
+        }
+        if (destinations.length === 0) {
+            return res.status(400).json({ error: '주소의 좌표를 찾을 수 없습니다.' });
+        }
+        // 출발지를 첫 번째 수거지의 위치로 설정
+        const currentLat = destinations[0].y;
+        const currentLng = destinations[0].x;
+        // T맵 API 키 확인
+        const tmapAppKey = process.env.TMAP_APP_KEY;
+        let optimizedList = [];
+        let totalTimeSec = 0;
+        let totalDistanceMeter = 0;
+        let usedTmap = false;
+        if (tmapAppKey && tmapAppKey.length > 0) {
+            try {
+                const clusters = createClusters(destinations, currentLng, currentLat, 20);
+                let currentStartX = currentLng;
+                let currentStartY = currentLat;
+                for (const cluster of clusters) {
+                    if (cluster.length === 0)
+                        continue;
+                    const clusterDest = cluster[cluster.length - 1];
+                    const payload = {
+                        reqCoordType: "WGS84GEO",
+                        resCoordType: "WGS84GEO",
+                        startName: "출발지",
+                        startX: currentStartX.toString(),
+                        startY: currentStartY.toString(),
+                        startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
+                        endName: "도착지",
+                        endX: clusterDest.x.toString(),
+                        endY: clusterDest.y.toString(),
+                        searchOption: "0",
+                        viaPoints: cluster.map((d, i) => ({
+                            viaPointId: d.request.id,
+                            viaPointName: encodeURIComponent(d.request.userName || `수거지${i + 1}`).substring(0, 20),
+                            viaX: d.x.toString(),
+                            viaY: d.y.toString()
+                        }))
+                    };
+                    const tmapRes = yield axios_1.default.post('https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1', payload, { headers: { appKey: tmapAppKey, 'Content-Type': 'application/json' } });
+                    if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
+                        totalTimeSec += tmapRes.data.properties.totalTime || 0;
+                        totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
+                        usedTmap = true;
+                        const features = tmapRes.data.features;
+                        const orderedVias = features.filter((f) => f.properties && f.properties.viaPointId);
+                        for (const via of orderedVias) {
+                            const dest = cluster.find((d) => d.request.id === via.properties.viaPointId);
+                            if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
+                                optimizedList.push(dest.request);
+                            }
+                        }
+                        for (const dest of cluster) {
+                            if (!optimizedList.find(r => r.id === dest.request.id)) {
+                                optimizedList.push(dest.request);
+                            }
+                        }
+                        const lastProcessed = optimizedList[optimizedList.length - 1];
+                        const lastDestCoords = cluster.find((d) => d.request.id === lastProcessed.id);
+                        if (lastDestCoords) {
+                            currentStartX = lastDestCoords.x;
+                            currentStartY = lastDestCoords.y;
+                        }
+                    }
+                    else {
+                        throw new Error('T맵 응답 형식 오류');
+                    }
+                }
+            }
+            catch (tmapError) {
+                console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.message);
+                optimizedList = [];
+                usedTmap = false;
+                totalTimeSec = 0;
+                totalDistanceMeter = 0;
+            }
+        }
+        if (optimizedList.length === 0) {
+            const startX = currentLng;
+            const startY = currentLat;
+            const unvisited = [...destinations];
+            let route = [];
+            let cx = startX;
+            let cy = startY;
+            while (unvisited.length > 0) {
+                let minDistance = Infinity;
+                let nextIndex = 0;
+                for (let i = 0; i < unvisited.length; i++) {
+                    const dx = unvisited[i].x - cx;
+                    const dy = unvisited[i].y - cy;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        nextIndex = i;
+                    }
+                }
+                const nextTarget = unvisited.splice(nextIndex, 1)[0];
+                route.push(nextTarget);
+                cx = nextTarget.x;
+                cy = nextTarget.y;
+            }
+            let improved = true;
+            let iterations = 0;
+            while (improved && iterations < 1000) {
+                improved = false;
+                iterations++;
+                for (let i = 0; i < route.length - 1; i++) {
+                    for (let k = i + 1; k < route.length; k++) {
+                        const node_i_minus_1 = i === 0 ? { x: startX, y: startY } : route[i - 1];
+                        const node_i = route[i];
+                        const node_k = route[k];
+                        const node_k_plus_1 = k === route.length - 1 ? null : route[k + 1];
+                        const d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_i.x, 2) + Math.pow(node_i_minus_1.y - node_i.y, 2));
+                        const d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_k.x - node_k_plus_1.x, 2) + Math.pow(node_k.y - node_k_plus_1.y, 2)) : 0;
+                        const new_d1 = Math.sqrt(Math.pow(node_i_minus_1.x - node_k.x, 2) + Math.pow(node_i_minus_1.y - node_k.y, 2));
+                        const new_d2 = node_k_plus_1 ? Math.sqrt(Math.pow(node_i.x - node_k_plus_1.x, 2) + Math.pow(node_i.y - node_k_plus_1.y, 2)) : 0;
+                        if (new_d1 + new_d2 < d1 + d2 - 0.0000001) {
+                            const segment = route.slice(i, k + 1).reverse();
+                            route.splice(i, segment.length, ...segment);
+                            improved = true;
+                        }
+                    }
+                }
+            }
+            optimizedList = route.map(r => r.request);
+        }
+        // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
+        yield prisma_1.prisma.$transaction(optimizedList.map((reqItem, idx) => prisma_1.prisma.request.update({
+            where: { id: reqItem.id },
+            data: { orderIndex: idx }
+        })));
+        // 변경된 요청 목록을 순서대로 다시 반환
+        const updatedRequests = yield prisma_1.prisma.request.findMany({
+            where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId },
+            orderBy: { orderIndex: 'asc' }
+        });
+        res.json({ message: '동선 최적화가 완료되었습니다!', requests: updatedRequests });
+    }
+    catch (error) {
+        console.error('관리자 동선 최적화 에러:', error);
+        res.status(500).json({ error: '동선 최적화 중 오류가 발생했습니다.' });
+    }
+}));
 // 4. 배정 취소 (기사에게 배정한 수거건 다시 회수)
 router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
@@ -897,6 +1174,50 @@ router.patch('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
     catch (error) {
         console.error('기사 수정 에러:', error);
         res.status(500).json({ error: '기사 수정 중 오류가 발생했습니다.' });
+    }
+}));
+// 기사 삭제
+router.delete('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const driverId = req.params.id;
+        // 본인 소속 기사인지 확인
+        const driver = yield prisma_1.prisma.driverProfile.findUnique({
+            where: { id: driverId }
+        });
+        if (!driver || driver.partnerId !== partnerId) {
+            return res.status(403).json({ error: '권한이 없거나 존재하지 않는 기사입니다.' });
+        }
+        // 기사에게 배정된 수거 건을 미배정 상태로 변경 (status는 뷰에 따라 유동적일 수 있으나 기본적으로 유지하거나 ASSIGNED로 변경)
+        yield prisma_1.prisma.request.updateMany({
+            where: { driverId: driverId, status: { not: 'COMPLETED' } },
+            data: {
+                driverId: null,
+                status: 'ASSIGNED',
+                confirmedDate: null,
+                etaMinutes: null
+            }
+        });
+        // 완료된 건이 있을 수 있으므로 단순히 driverId만 null 처리
+        yield prisma_1.prisma.request.updateMany({
+            where: { driverId: driverId, status: 'COMPLETED' },
+            data: {
+                driverId: null
+            }
+        });
+        // 사장님 본인 계정인 경우 User는 놔두고 DriverProfile만 삭제
+        if (driver.userId === partnerId) {
+            yield prisma_1.prisma.driverProfile.delete({ where: { id: driverId } });
+        }
+        else {
+            yield prisma_1.prisma.driverProfile.delete({ where: { id: driverId } });
+            yield prisma_1.prisma.user.delete({ where: { id: driver.userId } });
+        }
+        res.json({ message: '기사가 성공적으로 삭제되었습니다.' });
+    }
+    catch (error) {
+        console.error('기사 삭제 에러:', error);
+        res.status(500).json({ error: '기사 삭제 중 오류가 발생했습니다.' });
     }
 }));
 // ==========================================

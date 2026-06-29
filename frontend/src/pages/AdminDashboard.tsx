@@ -525,7 +525,7 @@ export default function AdminDashboard() {
     if (!authToken) return;
     if (!window.confirm('정말 이 기사님을 삭제하시겠습니까?\n기사님께 배정된 수거 건은 기사 미배정 상태로 변경됩니다.')) return;
     try {
-      await axios.delete(`http://localhost:3001/api/admin/drivers/${driverId}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/drivers/${driverId}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       alert('기사님이 성공적으로 삭제되었습니다.');
