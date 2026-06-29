@@ -650,6 +650,102 @@ router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_
   }
 });
 
+// 3-1-2. 수거 신청건 다중 일괄 변경 (기사 배정 및 방문 확정일 변경)
+router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const { requestIds, driverId, confirmedDate } = req.body;
+  
+  if (!Array.isArray(requestIds) || requestIds.length === 0) {
+    return res.status(400).json({ error: '변경할 수거 건을 선택해주세요.' });
+  }
+  if (!driverId && !confirmedDate) {
+    return res.status(400).json({ error: '기사 배정 또는 방문 확정일 중 하나 이상을 입력해주세요.' });
+  }
+
+  try {
+    const partnerId = req.user!.userId;
+    const isAdmin = req.user!.role === 'SUPER_ADMIN';
+
+    // 권한 확인: SUPER_ADMIN은 모두 허용, PARTNER는 본인 건만 허용
+    const whereClause = isAdmin ? { id: { in: requestIds } } : { id: { in: requestIds }, partnerId };
+    
+    const requests = await prisma.request.findMany({
+      where: whereClause,
+      include: { partner: true }
+    });
+
+    if (requests.length === 0) {
+      return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
+    }
+
+    const validIds = requests.map(r => r.id);
+    const updateData: any = {};
+    
+    if (confirmedDate) {
+      updateData.confirmedDate = new Date(confirmedDate);
+    }
+    if (driverId) {
+      updateData.driverId = driverId;
+      updateData.status = getStatusForAction.onDriverAssigned();
+    }
+
+    const updatePromises = requestIds.map((id, index) => {
+      if (!validIds.includes(id)) return null;
+      const data = { ...updateData };
+      if (driverId) {
+        data.orderIndex = index + 1;
+      }
+      return prisma.request.update({
+        where: { id },
+        data
+      });
+    }).filter(Boolean);
+
+    await prisma.$transaction(updatePromises as any);
+
+    if (driverId) {
+      // 구글 시트 비동기 업데이트
+      validIds.forEach(id => {
+        updateRequestStatusInSheet(id, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
+      });
+
+      // 채팅 자동 응답 일괄 발송 및 알림톡
+      try {
+        const driverProfile = await prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true }});
+        const driverPhone = driverProfile?.user?.phone;
+        
+        requests.forEach(req => {
+          // 기사가 배정되고 날짜도 확정된 경우 알림톡 발송
+          if (confirmedDate && req.partner?.useBizMessage) {
+            sendScheduleConfirmedToCustomer(
+              req.phone,
+              req.userName,
+              new Date(confirmedDate),
+              req.partner.useBizMessage,
+              driverPhone
+            ).catch(err => console.error('일정 확정 알림톡 전송 실패:', err));
+          }
+
+          if (req.customerId && req.partnerId && driverPhone) {
+            sendDriverAssignedSystemMessage(
+              req.customerId,
+              req.partnerId,
+              driverPhone,
+              (confirmedDate ? new Date(confirmedDate) : req.confirmedDate) as Date
+            );
+          }
+        });
+      } catch (e) {
+        console.error('채팅/알림톡 일괄 발송 에러:', e);
+      }
+    }
+
+    res.json({ message: `${validIds.length}건이 일괄 변경되었습니다.` });
+  } catch (error) {
+    console.error('일괄 변경 에러:', error);
+    res.status(500).json({ error: '일괄 변경 중 오류가 발생했습니다.' });
+  }
+});
+
 // 3-1. 기사에게 수거 신청건 다중 일괄 배정 (지도 기반 등)
 router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { requestIds, driverId } = req.body;

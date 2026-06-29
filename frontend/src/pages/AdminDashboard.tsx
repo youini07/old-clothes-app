@@ -558,19 +558,16 @@ export default function AdminDashboard() {
     }
     setIsBulkAssigning(true);
     try {
-      for (const reqId of calendarBulkSelectedIds) {
-        if (calendarBulkForm.dateStr) {
-          await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${reqId}/date`, {
-            confirmedDate: calendarBulkForm.dateStr
-          }, { headers: { Authorization: `Bearer ${authToken}` } });
-        }
-        if (calendarBulkForm.driverId) {
-          await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
-            requestId: reqId,
-            driverId: calendarBulkForm.driverId
-          }, { headers: { Authorization: `Bearer ${authToken}` } });
-        }
-      }
+      const payload: any = {
+        requestIds: calendarBulkSelectedIds
+      };
+      if (calendarBulkForm.dateStr) payload.confirmedDate = calendarBulkForm.dateStr;
+      if (calendarBulkForm.driverId) payload.driverId = calendarBulkForm.driverId;
+      
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/batch-update`, payload, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+
       setIsCalendarBulkModalOpen(false);
       setCalendarBulkSelectedIds([]);
       setCalendarBulkForm({ driverId: '', dateStr: '' });
