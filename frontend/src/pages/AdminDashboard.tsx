@@ -519,21 +519,80 @@ export default function AdminDashboard() {
 
     const todayStr = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
+    const timeSlots = Array.from({ length: 22 }, (_, i) => 8 + i * 0.5); // 08:00 ~ 18:30
+    const groupedRequests: Record<string, RequestItem[]> = {};
+    const unassignedTimeRequests: RequestItem[] = [];
+
+    driverRequests.forEach(req => {
+      if (req.estimatedPickupHour !== null && req.estimatedPickupHour !== undefined) {
+        const key = String(req.estimatedPickupHour);
+        if (!groupedRequests[key]) groupedRequests[key] = [];
+        groupedRequests[key].push(req);
+      } else {
+        unassignedTimeRequests.push(req);
+      }
+    });
+
+    let htmlRows = '';
+    let seqIndex = 1;
+
+    // 빈 시간이 포함된 시간표 생성
+    timeSlots.forEach(hour => {
+      const h = Math.floor(hour);
+      const m = hour % 1 === 0 ? '00' : '30';
+      const timeLabel = `${h}:${m}`;
+      const key = String(hour);
+      const reqs = groupedRequests[key] || [];
+
+      if (reqs.length > 0) {
+        reqs.forEach(req => {
+          const detailStr = `${req.address} ${req.detailAddress || ''} / ${req.phone} ${req.estimatedVolume ? `/ ${req.estimatedVolume}` : ''} ${req.driverNote ? `/ ${req.driverNote}` : ''}`;
+          htmlRows += `
+            <tr>
+              <td class="index">${seqIndex})</td>
+              <td class="time">${timeLabel}</td>
+              <td class="details">${detailStr}</td>
+            </tr>
+          `;
+          seqIndex++;
+        });
+      } else {
+        htmlRows += `
+          <tr>
+            <td class="index">${seqIndex})</td>
+            <td class="time">${timeLabel}</td>
+            <td class="details"></td>
+          </tr>
+        `;
+        seqIndex++;
+      }
+    });
+
+    // 시간 미정 건 추가
+    unassignedTimeRequests.forEach(req => {
+      const detailStr = `${req.address} ${req.detailAddress || ''} / ${req.phone} ${req.estimatedVolume ? `/ ${req.estimatedVolume}` : ''} ${req.driverNote ? `/ ${req.driverNote}` : ''}`;
+      htmlRows += `
+        <tr>
+          <td class="index">${seqIndex})</td>
+          <td class="time">시간 미정</td>
+          <td class="details">${detailStr}</td>
+        </tr>
+      `;
+      seqIndex++;
+    });
+
     const htmlContent = `
       <html>
         <head>
           <title>${driver.user?.name || driver.name} 기사님 배정 리스트</title>
           <style>
             body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 20px; color: #333; }
-            h1 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
-            .header-info { margin-bottom: 20px; font-weight: bold; font-size: 1.1em; display: flex; justify-content: space-between; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 0.9em; word-break: keep-all; }
-            th { background-color: #f5f5f5; font-weight: bold; }
-            .index { text-align: center; font-weight: bold; width: 40px; }
-            .phone { font-family: monospace; font-size: 1.05em; color: #555; }
-            .volume { white-space: nowrap; }
-            .address { min-width: 200px; }
+            th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; font-size: 0.95em; word-break: keep-all; }
+            .header-table td { font-size: 1.1em; font-weight: bold; border: none; padding: 10px 0; border-bottom: 2px solid #ccc; }
+            .index { text-align: center; width: 30px; font-weight: bold; color: #555; }
+            .time { text-align: center; width: 60px; }
+            .details { min-width: 300px; }
             @media print {
               @page { margin: 1cm; size: A4 portrait; }
               body { -webkit-print-color-adjust: exact; padding: 0; }
@@ -541,38 +600,15 @@ export default function AdminDashboard() {
           </style>
         </head>
         <body>
-          <h1>📦 수거 배정 리스트</h1>
-          <div class="header-info">
-            <div>담당 기사: ${driver.user?.name || driver.name} 기사님</div>
-            <div>총 배정 건수: ${driverRequests.length}건</div>
-            <div>출력 일자: ${todayStr}</div>
-          </div>
+          <table class="header-table" style="margin-bottom: 10px;">
+            <tr>
+              <td style="width: 50%;">${driver.user?.name || driver.name}<br/>기사님</td>
+              <td style="width: 50%; text-align: center;">${todayStr}</td>
+            </tr>
+          </table>
           <table>
-            <thead>
-              <tr>
-                <th class="index">순번</th>
-                <th>방문/희망일</th>
-                <th class="address">주소</th>
-                <th>고객명 / 연락처</th>
-                <th class="volume">수거 예상량</th>
-                <th>예상/메모</th>
-              </tr>
-            </thead>
             <tbody>
-              ${driverRequests.length > 0 ? driverRequests.map((req, i) => {
-                const dateVal = req.confirmedDate || req.desiredDate;
-                const dateStr = dateVal ? new Date(dateVal).toLocaleDateString() : '';
-                return \`
-                  <tr>
-                    <td class="index">\${i + 1}</td>
-                    <td>\${dateStr}</td>
-                    <td class="address">\${req.address} \${req.detailAddress || ''}</td>
-                    <td>\${req.userName} <br/> <span class="phone">\${req.phone}</span></td>
-                    <td class="volume">\${req.estimatedVolume}</td>
-                    <td>\${req.estimatedPickupHour ? req.estimatedPickupHour + '시 경' : ''}</td>
-                  </tr>
-                \`;
-              }).join('') : '<tr><td colspan="6" style="text-align:center; padding:20px;">배정된 수거 건이 없습니다.</td></tr>'}
+              ${htmlRows}
             </tbody>
           </table>
           <script>
