@@ -1721,7 +1721,7 @@ export default function AdminDashboard() {
         {activeView === 'dispatch' && <div className="flex flex-col gap-4">
           
           {/* 모바일 탭 */}
-          <div className="flex lg:hidden bg-gray-100 rounded-2xl p-1 mb-2">
+          <div className="flex xl:hidden bg-gray-100 rounded-2xl p-1 mb-2">
             <button 
               onClick={() => setDispatchTab('requests')} 
               className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${dispatchTab === 'requests' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
@@ -1736,11 +1736,11 @@ export default function AdminDashboard() {
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
           
           {/* Left Column: 수거 요청 (수락 대기 + 기사 미배정) */}
           <div 
-            className={`lg:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] lg:sticky lg:top-6 lg:h-[calc(100vh-120px)] overflow-y-auto ${dispatchTab === 'requests' ? 'block' : 'hidden lg:block'}`}
+            className={`xl:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] xl:sticky xl:top-6 xl:h-[calc(100vh-120px)] overflow-y-auto ${dispatchTab === 'requests' ? 'block' : 'hidden xl:block'}`}
           >
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-xl font-bold text-gray-900">신규/미배정 리스트</h2>

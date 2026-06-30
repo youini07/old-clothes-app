@@ -194,7 +194,8 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       const isCompleted = res.req.status === 'COMPLETED';
       const isInProgress = res.req.status === 'IN_PROGRESS';
       
-      let displayIndex: string | number = i + 1;
+      const originalIndex = requests.findIndex(r => r.id === res.req.id);
+      let displayIndex: string | number = originalIndex !== -1 ? originalIndex + 1 : i + 1;
       let bgColor = '#FECACA'; 
       let textColor = '#991B1B'; 
       let borderStyle = '2px solid white';
