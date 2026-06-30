@@ -652,12 +652,15 @@ router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), 
 router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { requestId, driverId, confirmedDate } = req.body;
   try {
+    const existingReq = await prisma.request.findUnique({ where: { id: requestId } });
+    if (!existingReq) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+
     const request = await prisma.request.update({
       where: { id: requestId },
       data: {
         driverId,
         status: getStatusForAction.onDriverAssigned(),
-        ...(confirmedDate ? { confirmedDate: new Date(confirmedDate) } : {})
+        confirmedDate: confirmedDate ? new Date(confirmedDate) : (existingReq.confirmedDate || existingReq.desiredDate)
       },
       include: { partner: true }
     });
@@ -851,12 +854,14 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
     // 각 요청에 대해 orderIndex를 순차적으로 부여 (전달된 requestIds 순서 기준)
     const updatePromises = requestIds.map((id, index) => {
       if (!validIds.includes(id)) return null;
+      const existingReq = requests.find(r => r.id === id);
       return prisma.request.update({
         where: { id },
         data: {
           driverId,
           status: getStatusForAction.onDriverAssigned(),
-          orderIndex: index + 1
+          orderIndex: index + 1,
+          confirmedDate: existingReq?.confirmedDate || existingReq?.desiredDate
         }
       });
     }).filter(Boolean);
@@ -2006,7 +2011,7 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
         bname: addressParts[2] || null,
         desiredDate: requestData.desiredDate ? new Date(requestData.desiredDate) : new Date(),
         estimatedVolume: requestData.estimatedVolume || '수동 접수 (상세불명)',
-        status: 'ACCEPTED', // 사장님이 직접 등록하므로 바로 수락 완료
+        status: 'ASSIGNED', // 사장님이 직접 등록하므로 바로 수락 및 배정 탭으로 이동
         partnerId,
         regionId,
         customerId: null, // 비회원

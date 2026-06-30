@@ -593,9 +593,16 @@ router.post('/drivers', validateMiddleware_1.validateDriver, authMiddleware_1.au
 router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestId, driverId, confirmedDate } = req.body;
     try {
+        const existingReq = yield prisma_1.prisma.request.findUnique({ where: { id: requestId } });
+        if (!existingReq)
+            return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
         const request = yield prisma_1.prisma.request.update({
             where: { id: requestId },
-            data: Object.assign({ driverId, status: statusService_1.getStatusForAction.onDriverAssigned() }, (confirmedDate ? { confirmedDate: new Date(confirmedDate) } : {})),
+            data: {
+                driverId,
+                status: statusService_1.getStatusForAction.onDriverAssigned(),
+                confirmedDate: confirmedDate ? new Date(confirmedDate) : (existingReq.confirmedDate || existingReq.desiredDate)
+            },
             include: { partner: true }
         });
         // 구글 시트 상태 연동
@@ -743,12 +750,14 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
         const updatePromises = requestIds.map((id, index) => {
             if (!validIds.includes(id))
                 return null;
+            const existingReq = requests.find(r => r.id === id);
             return prisma_1.prisma.request.update({
                 where: { id },
                 data: {
                     driverId,
                     status: statusService_1.getStatusForAction.onDriverAssigned(),
-                    orderIndex: index + 1
+                    orderIndex: index + 1,
+                    confirmedDate: (existingReq === null || existingReq === void 0 ? void 0 : existingReq.confirmedDate) || (existingReq === null || existingReq === void 0 ? void 0 : existingReq.desiredDate)
                 }
             });
         }).filter(Boolean);
@@ -1756,7 +1765,7 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
                 bname: addressParts[2] || null,
                 desiredDate: requestData.desiredDate ? new Date(requestData.desiredDate) : new Date(),
                 estimatedVolume: requestData.estimatedVolume || '수동 접수 (상세불명)',
-                status: 'ACCEPTED', // 사장님이 직접 등록하므로 바로 수락 완료
+                status: 'ASSIGNED', // 사장님이 직접 등록하므로 바로 수락 및 배정 탭으로 이동
                 partnerId,
                 regionId,
                 customerId: null, // 비회원

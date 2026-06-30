@@ -157,6 +157,7 @@ export default function AdminDashboard() {
   const [savingOrderDriverId, setSavingOrderDriverId] = useState<string | null>(null);
   const [hasUnsavedOrder, setHasUnsavedOrder] = useState<Record<string, boolean>>({});
   const [unclaimingId, setUnclaimingId] = useState<string | null>(null);
+  const [unassignedSortOrder, setUnassignedSortOrder] = useState<'ASC' | 'DESC'>('ASC');
 
   // 모바일/클릭 배정용 상태
   const [selectedRequestIdForAssign, setSelectedRequestIdForAssign] = useState<string | null>(null);
@@ -832,7 +833,11 @@ export default function AdminDashboard() {
   };
 
   const pendingRequests = getFilteredRequests(allPendingRequests);
-  const unassignedRequests = getFilteredRequests(allAcceptedUnassigned);
+  const unassignedRequests = getFilteredRequests(allAcceptedUnassigned)
+    .sort((a, b) => {
+      const diff = new Date(a.desiredDate || 0).getTime() - new Date(b.desiredDate || 0).getTime();
+      return unassignedSortOrder === 'ASC' ? diff : -diff;
+    });
 
   // 일괄 기사 배정 핸들러
   const handleBulkAssign = async (targetDriverId: string | 'AUTO') => {
@@ -866,7 +871,7 @@ export default function AdminDashboard() {
         await axios.post(`${import.meta.env.VITE_API_URL}/admin/assign-driver`, {
           requestId: reqId,
           driverId: finalDriverId,
-          confirmedDate: new Date()
+          confirmedDate: req.desiredDate
         }, { headers: { Authorization: `Bearer ${authToken}` } });
         successCount++;
       } catch (err) {
@@ -1051,7 +1056,7 @@ export default function AdminDashboard() {
   };
 
   const handleUpdateEstimatedTime = async (requestId: string, hourStr: string) => {
-    const hour = parseInt(hourStr, 10);
+    const hour = parseFloat(hourStr);
     const estimatedPickupHour = isNaN(hour) ? null : hour;
 
     setRequests(prev => prev.map(r => r.id === requestId ? { ...r, estimatedPickupHour } : r));
@@ -1078,17 +1083,19 @@ export default function AdminDashboard() {
       return;
     }
 
-    const formatAmPm = (h: number) => {
+    const formatAmPm = (timeNum: number) => {
+      let h = Math.floor(timeNum);
+      const m = timeNum % 1 === 0 ? '00' : '30';
       if (h < 0) h = 0;
       if (h > 23) h = 23;
       const ampm = h < 12 ? '오전' : '오후';
       const displayHour = h % 12 === 0 ? 12 : h % 12;
-      return `${ampm} ${displayHour}시`;
+      return `${ampm} ${displayHour}시 ${m === '30' ? '30분' : ''}`.trim();
     };
 
-    const startHour = req.estimatedPickupHour - 1;
-    const endHour = req.estimatedPickupHour + 1;
-    const timeWindow = `${formatAmPm(startHour)}~${formatAmPm(endHour)}`;
+    const startHourNum = req.estimatedPickupHour - 1;
+    const endHourNum = req.estimatedPickupHour + 1;
+    const timeWindow = `${formatAmPm(startHourNum)}~${formatAmPm(endHourNum)}`;
 
     const assignedDriver = drivers.find(d => d.id === req.driverId);
     const driverPhone = assignedDriver?.user?.phone || '010-2264-4926';
@@ -1776,6 +1783,12 @@ export default function AdminDashboard() {
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
+                  onClick={() => setUnassignedSortOrder(prev => prev === 'ASC' ? 'DESC' : 'ASC')}
+                  className="text-xs font-bold text-gray-600 bg-white border border-gray-200 px-3 py-2 rounded-xl shadow-sm hover:bg-gray-50 transition-colors flex items-center gap-1"
+                >
+                  📅 날짜 {unassignedSortOrder === 'ASC' ? '▲' : '▼'}
+                </button>
+                <button
                   onClick={handleToggleAllUnassigned}
                   className="bg-gray-100 p-2.5 rounded-xl hover:bg-gray-200 transition-colors flex items-center justify-center"
                   title="전체 선택"
@@ -2134,9 +2147,11 @@ export default function AdminDashboard() {
                                   className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-primary-500"
                                 >
                                   <option value="">수거 예상 시간</option>
-                                  {Array.from({length: 15}, (_, i) => i + 8).map(hour => (
-                                    <option key={hour} value={hour}>{hour}시</option>
-                                  ))}
+                                  {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
+                                    const h = Math.floor(hour);
+                                    const m = hour % 1 === 0 ? '00' : '30';
+                                    return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
+                                  })}
                                 </select>
                                 <button
                                   onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
