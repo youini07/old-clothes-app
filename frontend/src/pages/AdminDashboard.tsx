@@ -510,6 +510,81 @@ export default function AdminDashboard() {
     }
   };
 
+  const handlePrintDriverList = (driver: Driver, driverRequests: RequestItem[]) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('팝업 차단이 설정되어 있는지 확인해주세요.');
+      return;
+    }
+
+    const todayStr = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>${driver.user?.name || driver.name} 기사님 배정 리스트</title>
+          <style>
+            body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 20px; color: #333; }
+            h1 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 20px; }
+            .header-info { margin-bottom: 20px; font-weight: bold; font-size: 1.1em; display: flex; justify-content: space-between; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 1px solid #ccc; padding: 10px; text-align: left; font-size: 0.9em; word-break: keep-all; }
+            th { background-color: #f5f5f5; font-weight: bold; }
+            .index { text-align: center; font-weight: bold; width: 40px; }
+            .phone { font-family: monospace; font-size: 1.05em; color: #555; }
+            .volume { white-space: nowrap; }
+            .address { min-width: 200px; }
+            @media print {
+              @page { margin: 1cm; size: A4 portrait; }
+              body { -webkit-print-color-adjust: exact; padding: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <h1>📦 수거 배정 리스트</h1>
+          <div class="header-info">
+            <div>담당 기사: ${driver.user?.name || driver.name} 기사님</div>
+            <div>총 배정 건수: ${driverRequests.length}건</div>
+            <div>출력 일자: ${todayStr}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="index">순번</th>
+                <th>방문/희망일</th>
+                <th class="address">주소</th>
+                <th>고객명 / 연락처</th>
+                <th class="volume">수거 예상량</th>
+                <th>예상/메모</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${driverRequests.length > 0 ? driverRequests.map((req, i) => {
+                const dateVal = req.confirmedDate || req.desiredDate;
+                const dateStr = dateVal ? new Date(dateVal).toLocaleDateString() : '';
+                return \`
+                  <tr>
+                    <td class="index">\${i + 1}</td>
+                    <td>\${dateStr}</td>
+                    <td class="address">\${req.address} \${req.detailAddress || ''}</td>
+                    <td>\${req.userName} <br/> <span class="phone">\${req.phone}</span></td>
+                    <td class="volume">\${req.estimatedVolume}</td>
+                    <td>\${req.estimatedPickupHour ? req.estimatedPickupHour + '시 경' : ''}</td>
+                  </tr>
+                \`;
+              }).join('') : '<tr><td colspan="6" style="text-align:center; padding:20px;">배정된 수거 건이 없습니다.</td></tr>'}
+            </tbody>
+          </table>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `;
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   const openDriverModalForEdit = (driver: Driver) => {
     setEditingDriverId(driver.id);
     setDriverForm({
@@ -1954,6 +2029,7 @@ export default function AdminDashboard() {
                     <div className="flex flex-col flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-extrabold text-gray-800 break-keep">🚚 {driver.user?.name || driver.name}</h2>
+                        <button onClick={() => handlePrintDriverList(driver, driverRequests)} className="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-md hover:bg-blue-200 transition-colors font-bold shrink-0 flex items-center gap-1">🖨️ 인쇄</button>
                         <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
                         <button onClick={() => handleDeleteDriver(driver.id)} className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-md hover:bg-red-200 transition-colors font-bold shrink-0">삭제</button>
                       </div>
