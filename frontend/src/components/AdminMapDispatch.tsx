@@ -212,7 +212,8 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       const customOverlay = new window.kakao.maps.CustomOverlay({
         position: position,
         content: content,
-        yAnchor: 1
+        yAnchor: 1,
+        clickable: true // 오버레이 클릭 이벤트를 활성화하기 위해 필수
       });
       
       // 클러스터 클릭 시 ID를 가져오기 위해 커스텀 프로퍼티 추가

@@ -534,7 +534,6 @@ export default function AdminDashboard() {
     });
 
     let htmlRows = '';
-    let seqIndex = 1;
 
     // 빈 시간이 포함된 시간표 생성
     timeSlots.forEach(hour => {
@@ -547,38 +546,38 @@ export default function AdminDashboard() {
       if (reqs.length > 0) {
         reqs.forEach(req => {
           const detailStr = `${req.address} ${req.detailAddress || ''} / ${req.phone} ${req.estimatedVolume ? `/ ${req.estimatedVolume}` : ''} ${req.driverNote ? `/ ${req.driverNote}` : ''}`;
+          // 실제 배정된 방문순서 번호 (driverRequests 배열 내에서의 인덱스 + 1)
+          const actualOrderNum = driverRequests.indexOf(req) + 1;
           htmlRows += `
             <tr>
-              <td class="index">${seqIndex})</td>
+              <td class="index">${actualOrderNum})</td>
               <td class="time">${timeLabel}</td>
               <td class="details">${detailStr}</td>
             </tr>
           `;
-          seqIndex++;
         });
       } else {
         htmlRows += `
           <tr>
-            <td class="index">${seqIndex})</td>
+            <td class="index"></td>
             <td class="time">${timeLabel}</td>
             <td class="details"></td>
           </tr>
         `;
-        seqIndex++;
       }
     });
 
     // 시간 미정 건 추가
     unassignedTimeRequests.forEach(req => {
       const detailStr = `${req.address} ${req.detailAddress || ''} / ${req.phone} ${req.estimatedVolume ? `/ ${req.estimatedVolume}` : ''} ${req.driverNote ? `/ ${req.driverNote}` : ''}`;
+      const actualOrderNum = driverRequests.indexOf(req) + 1;
       htmlRows += `
         <tr>
-          <td class="index">${seqIndex})</td>
+          <td class="index">${actualOrderNum})</td>
           <td class="time">시간 미정</td>
           <td class="details">${detailStr}</td>
         </tr>
       `;
-      seqIndex++;
     });
 
     const htmlContent = `
@@ -1856,6 +1855,7 @@ export default function AdminDashboard() {
                               type="date"
                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                               onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
                             />
                             <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
                               📅 날짜 변경
@@ -1988,6 +1988,7 @@ export default function AdminDashboard() {
                             type="date"
                             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                             onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                           <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
                             📅 날짜 변경
