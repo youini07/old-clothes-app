@@ -57,6 +57,7 @@ model DriverProfile {
   partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
   vehicleInfo String? // 차량 정보
   todayDistanceKm Float? // 누적 주행 거리 (km 단위)
+  smsTemplates    Json?    // 기사용 문자 템플릿 커스텀 저장
   
   customRegionId String?
   customRegion   CustomRegion? @relation(fields: [customRegionId], references: [id], onDelete: SetNull)

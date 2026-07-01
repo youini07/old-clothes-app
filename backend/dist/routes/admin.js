@@ -1322,6 +1322,26 @@ router.get('/monitoring', authMiddleware_1.authenticate, (0, authMiddleware_1.re
             const pRequests = allRequests.filter((r) => r.partnerId === p.id);
             const pCompleted = pRequests.filter((r) => r.status === 'COMPLETED');
             const pWeight = pCompleted.reduce((s, r) => s + (r.actualWeight || 0), 0);
+            const manualCount = pRequests.filter((r) => !r.customerId).length;
+            const customerCount = pRequests.filter((r) => r.customerId).length;
+            const statsByMonth = {};
+            pRequests.forEach((r) => {
+                // 정산 기준일: 수거 완료일이 있으면 완료일, 없으면 접수일
+                const dateToUse = r.completedDate ? new Date(r.completedDate) : new Date(r.createdAt);
+                const monthKey = `${dateToUse.getFullYear()}-${String(dateToUse.getMonth() + 1).padStart(2, '0')}`;
+                if (!statsByMonth[monthKey]) {
+                    statsByMonth[monthKey] = { requests: 0, completed: 0, weight: 0, manual: 0, customer: 0 };
+                }
+                statsByMonth[monthKey].requests += 1;
+                if (!r.customerId)
+                    statsByMonth[monthKey].manual += 1;
+                if (r.customerId)
+                    statsByMonth[monthKey].customer += 1;
+                if (r.status === 'COMPLETED') {
+                    statsByMonth[monthKey].completed += 1;
+                    statsByMonth[monthKey].weight += (r.actualWeight || 0);
+                }
+            });
             return {
                 id: p.id,
                 name: p.businessName || p.name,
@@ -1329,6 +1349,9 @@ router.get('/monitoring', authMiddleware_1.authenticate, (0, authMiddleware_1.re
                 completedCount: pCompleted.length,
                 completionRate: pRequests.length > 0 ? Math.round((pCompleted.length / pRequests.length) * 100) : 0,
                 totalWeight: Math.round(pWeight * 10) / 10,
+                manualCount,
+                customerCount,
+                statsByMonth
             };
         }).sort((a, b) => b.totalRequests - a.totalRequests);
         // 3. 권역별 현황
@@ -1787,6 +1810,75 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
     catch (error) {
         console.error('수동 접수 에러:', error);
         res.status(500).json({ error: '수동 접수 중 오류가 발생했습니다.' });
+    }
+}));
+// ============================================
+// 전체 기사 하루 정산 통계 조회
+// ============================================
+router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.userId;
+        const dateQuery = req.query.date;
+        // 이 파트너 소속의 기사들 찾기
+        const drivers = yield prisma_1.prisma.driverProfile.findMany({
+            where: { partnerId },
+            include: { user: true }
+        });
+        const driverIds = drivers.map(d => d.id);
+        let dateFilter = {};
+        if (dateQuery) {
+            const startOfDay = new Date(dateQuery + 'T00:00:00.000Z');
+            const endOfDay = new Date(dateQuery + 'T23:59:59.999Z');
+            startOfDay.setHours(startOfDay.getHours() - 9);
+            endOfDay.setHours(endOfDay.getHours() - 9);
+            dateFilter = {
+                completedDate: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            };
+        }
+        else {
+            const now = new Date();
+            now.setHours(now.getHours() + 9);
+            const yyyy = now.getFullYear();
+            const mm = String(now.getMonth() + 1).padStart(2, '0');
+            const dd = String(now.getDate()).padStart(2, '0');
+            const startOfDay = new Date(`${yyyy}-${mm}-${dd}T00:00:00.000Z`);
+            const endOfDay = new Date(`${yyyy}-${mm}-${dd}T23:59:59.999Z`);
+            startOfDay.setHours(startOfDay.getHours() - 9);
+            endOfDay.setHours(endOfDay.getHours() - 9);
+            dateFilter = {
+                completedDate: {
+                    gte: startOfDay,
+                    lte: endOfDay
+                }
+            };
+        }
+        const completedRequests = yield prisma_1.prisma.request.findMany({
+            where: Object.assign({ driverId: { in: driverIds }, status: 'COMPLETED' }, dateFilter),
+            select: {
+                driverId: true,
+                actualWeight: true,
+                totalPrice: true
+            }
+        });
+        const statsMap = {};
+        drivers.forEach(d => {
+            statsMap[d.id] = { driverId: d.id, driverName: d.user.name, count: 0, totalWeight: 0, totalPrice: 0 };
+        });
+        completedRequests.forEach((req) => {
+            if (statsMap[req.driverId]) {
+                statsMap[req.driverId].count += 1;
+                statsMap[req.driverId].totalWeight += (req.actualWeight || 0);
+                statsMap[req.driverId].totalPrice += (req.totalPrice || 0);
+            }
+        });
+        res.json(Object.values(statsMap));
+    }
+    catch (error) {
+        console.error('관리자 기사 통계 조회 실패:', error);
+        res.status(500).json({ error: '기사별 통계를 불러오는데 실패했습니다.' });
     }
 }));
 exports.default = router;

@@ -58,12 +58,17 @@ const DEFAULT_PRICE_TABLE: PriceTableItem[] = [
   { category: 'AC_WALL',  label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT', icon: '🌀' },
 ];
 
-const DriverProfileForm = ({ authToken }: { authToken: string }) => {
+const DriverProfileForm = ({ authToken, dailyStats, smsTemplates, setSmsTemplates }: any) => {
   const [profile, setProfile] = useState({ name: '', phone: '', vehicleInfo: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-
+  
+  // 커스텀 문자 상태
+  const [customSms, setCustomSms] = useState({
+    template1: smsTemplates?.template1 || '',
+    template2: smsTemplates?.template2 || '',
+    template3: smsTemplates?.template3 || '',
+  });
 
   async function fetchProfile() {
     try {
@@ -78,36 +83,115 @@ const DriverProfileForm = ({ authToken }: { authToken: string }) => {
   };
 
   useEffect(() => { fetchProfile(); }, []);
+  
+  useEffect(() => {
+    if (smsTemplates) {
+      setCustomSms({
+        template1: smsTemplates.template1 || '',
+        template2: smsTemplates.template2 || '',
+        template3: smsTemplates.template3 || '',
+      });
+    }
+  }, [smsTemplates]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
       await axios.patch(`${import.meta.env.VITE_API_URL}/driver/me`, profile, { headers: { Authorization: `Bearer ${authToken}` } });
-      alert('프로필이 성공적으로 업데이트되었습니다.');
-    } catch { alert('프로필 수정 중 오류가 발생했습니다.'); }
+      
+      // 템플릿 저장
+      await axios.put(`${import.meta.env.VITE_API_URL}/driver/sms-template`, { smsTemplates: customSms }, { headers: { Authorization: `Bearer ${authToken}` } });
+      if (setSmsTemplates) setSmsTemplates(customSms);
+      
+      alert('프로필 및 템플릿이 성공적으로 업데이트되었습니다.');
+    } catch { alert('저장 중 오류가 발생했습니다.'); }
     finally { setSaving(false); }
   };
 
   if (loading) return <div className="text-center py-10 text-gray-500">불러오는 중...</div>;
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
-      <h2 className="text-xl font-bold text-gray-900 mb-4">내 정보 수정</h2>
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">이름</label>
-        <input type="text" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+    <div className="space-y-6 pb-20">
+      {/* 📊 오늘의 정산 요약 카드 */}
+      <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 rounded-2xl shadow-lg text-white">
+        <h2 className="text-lg font-bold mb-4 opacity-90">오늘의 수거 실적</h2>
+        <div className="grid grid-cols-3 gap-4">
+          <div className="text-center bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+            <div className="text-xs opacity-80 mb-1">완료 건수</div>
+            <div className="text-xl font-bold">{dailyStats?.count || 0}건</div>
+          </div>
+          <div className="text-center bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+            <div className="text-xs opacity-80 mb-1">총 무게</div>
+            <div className="text-xl font-bold">{dailyStats?.totalWeight || 0}kg</div>
+          </div>
+          <div className="text-center bg-white/10 rounded-xl p-3 backdrop-blur-sm">
+            <div className="text-xs opacity-80 mb-1">총 정산액</div>
+            <div className="text-xl font-bold">{(dailyStats?.totalPrice || 0).toLocaleString()}원</div>
+          </div>
+        </div>
       </div>
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">핸드폰 번호 (고객에게 발송됩니다)</label>
-        <input type="tel" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="010-0000-0000" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-4">내 정보 수정</h2>
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">이름</label>
+          <input type="text" value={profile.name} onChange={e => setProfile({ ...profile, name: e.target.value })} className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">핸드폰 번호 (고객에게 발송됩니다)</label>
+          <input type="tel" value={profile.phone} onChange={e => setProfile({ ...profile, phone: e.target.value })} placeholder="010-0000-0000" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-gray-700 mb-2">차량 정보</label>
+          <input type="text" value={profile.vehicleInfo} onChange={e => setProfile({ ...profile, vehicleInfo: e.target.value })} placeholder="예: 1톤 탑차 (12가 3456)" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+        </div>
       </div>
-      <div>
-        <label className="block text-sm font-bold text-gray-700 mb-2">차량 정보</label>
-        <input type="text" value={profile.vehicleInfo} onChange={e => setProfile({ ...profile, vehicleInfo: e.target.value })} placeholder="예: 1톤 탑차 (12가 3456)" className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none font-medium" />
+
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4">
+        <h2 className="text-xl font-bold text-gray-900 mb-2">간편 문자 커스터마이징</h2>
+        <p className="text-xs text-gray-500 mb-4 bg-gray-50 p-3 rounded-lg leading-relaxed">
+          고객에게 발송되는 문자 메시지를 수정할 수 있습니다.<br/>
+          빈칸으로 두시면 기본 메시지로 자동 발송됩니다.<br/>
+          <span className="text-blue-600 font-bold">사용 가능한 변수: </span><br/>
+          <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{고객명}}'}</code>, 
+          <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{방문일}}'}</code>, 
+          <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{방문시간}}'}</code>, 
+          <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{기사연락처}}'}</code>, 
+          <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{총금액}}'}</code>
+        </p>
+
+        <div>
+          <label className="block text-sm font-bold text-blue-800 mb-2">1. 내일 방문 안내 (수거일 확정)</label>
+          <textarea 
+            value={customSms.template1} 
+            onChange={e => setCustomSms({ ...customSms, template1: e.target.value })} 
+            placeholder="기본 문구가 사용됩니다." 
+            className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-indigo-800 mb-2">2. 수거 출발 안내</label>
+          <textarea 
+            value={customSms.template2} 
+            onChange={e => setCustomSms({ ...customSms, template2: e.target.value })} 
+            placeholder="기본 문구가 사용됩니다." 
+            className="w-full h-20 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:outline-none text-sm resize-none"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-bold text-green-800 mb-2">3. 수거 완료 안내</label>
+          <textarea 
+            value={customSms.template3} 
+            onChange={e => setCustomSms({ ...customSms, template3: e.target.value })} 
+            placeholder="기본 문구가 사용됩니다." 
+            className="w-full h-24 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:outline-none text-sm resize-none"
+          />
+        </div>
       </div>
-      <button onClick={handleSave} disabled={saving} className="w-full flex items-center justify-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-xl mt-4 active:scale-95 transition-transform shadow-md disabled:opacity-50">
+
+      <button onClick={handleSave} disabled={saving} className="w-full flex items-center justify-center gap-2 py-4 bg-gray-900 text-white font-bold rounded-2xl active:scale-95 transition-transform shadow-xl disabled:opacity-50 text-lg">
         {saving && <Spinner className="w-5 h-5 text-white" />}
-        {saving ? '저장 중...' : '저장하기'}
+        {saving ? '저장 중...' : '모든 정보 저장하기'}
       </button>
     </div>
   );
@@ -145,6 +229,8 @@ export default function DriverDashboard() {
   const [partnerAddress, setPartnerAddress] = useState<string>('');
   const [partnerBusinessName, setPartnerBusinessName] = useState<string>('');
   const [driverPhone, setDriverPhone] = useState<string>('');
+  const [smsTemplates, setSmsTemplates] = useState<any>(null);
+  const [dailyStats, setDailyStats] = useState<{count: number, totalWeight: number, totalPrice: number} | null>(null);
 
   // 문자 템플릿 모달 상태
   const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, displayId: number} | null>(null);
@@ -199,6 +285,14 @@ export default function DriverDashboard() {
       setPartnerAddress(res.data.partnerAddress || '');
       setPartnerBusinessName(res.data.partnerBusinessName || '');
       setDriverPhone(res.data.phone || '');
+      try {
+        const smsRes = await axios.get(`${import.meta.env.VITE_API_URL}/driver/sms-template`, { headers: { Authorization: `Bearer ${authToken}` } });
+        if (smsRes.data.smsTemplates) setSmsTemplates(smsRes.data.smsTemplates);
+      } catch(e) {}
+      try {
+        const statsRes = await axios.get(`${import.meta.env.VITE_API_URL}/driver/daily-stats`, { headers: { Authorization: `Bearer ${authToken}` } });
+        setDailyStats(statsRes.data);
+      } catch(e) {}
     } catch (e) {
       console.error(e);
     }
@@ -738,7 +832,7 @@ export default function DriverDashboard() {
         </div>
       ) : (
         <div className="p-4">
-          {authToken ? <DriverProfileForm authToken={authToken} /> : <div className="text-center py-10">로그인이 필요합니다.</div>}
+          {authToken ? <DriverProfileForm authToken={authToken} dailyStats={dailyStats} smsTemplates={smsTemplates} setSmsTemplates={setSmsTemplates} /> : <div className="text-center py-10">로그인이 필요합니다.</div>}
         </div>
       )}
 
