@@ -1249,6 +1249,201 @@ export default function AdminDashboard() {
 
 공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.
 
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-claim`, {
+        requestIds: selectedRequestIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedRequestIds.length}건의 수거 요청을 한 번에 수락했습니다! 기사를 배정해주세요.`);
+      setSelectedRequestIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 수락에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    } finally {
+      setIsBulkClaiming(false);
+    }
+  };
+
+  // 일괄 수락 취소 핸들러
+  const handleBulkUnclaim = async () => {
+    if (selectedUnassignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    if (!window.confirm(`선택한 ${selectedUnassignedIds.length}건의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.`)) return;
+    setIsBulkUnclaiming(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/bulk-unclaim`, {
+        requestIds: selectedUnassignedIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedUnassignedIds.length}건의 수락이 한 번에 취소되었습니다.`);
+      setSelectedUnassignedIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 취소에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    } finally {
+      setIsBulkUnclaiming(false);
+    }
+  };
+
+  // 일괄 배정 취소 핸들러
+  const handleBatchUnassign = async () => {
+    if (selectedAssignedIds.length === 0) return alert('선택된 수거 요청이 없습니다.');
+    if (!window.confirm(`선택한 ${selectedAssignedIds.length}건의 배정을 일괄 취소하시겠습니까?`)) return;
+    if (isBatchUnassigning) return;
+    setIsBatchUnassigning(true);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/batch-unassign`, {
+        ids: selectedAssignedIds
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert(`${selectedAssignedIds.length}건의 배정이 한 번에 취소되었습니다.`);
+      setSelectedAssignedIds([]);
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '일괄 배정 취소에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    } finally {
+      setIsBatchUnassigning(false);
+    }
+  };
+
+  // 수거 요청 수락 핸들러 (단일 건)
+  const handleClaim = async (requestId: string) => {
+    setClaimingId(requestId);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/claim`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('수거 요청을 수락했습니다! 기사를 배정해주세요.');
+      fetchData(); // 목록 새로고침
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '수락에 실패했습니다.';
+      alert(msg);
+      fetchData();
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  // 수거 요청 수락 취소 핸들러
+  const handleUnclaim = async (requestId: string) => {
+    if (!window.confirm('이 요청의 수락을 취소하시겠습니까? 다시 [신규 수거 요청] 대기 상태로 돌아갑니다.')) return;
+    setUnclaimingId(requestId);
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/unclaim`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('수락이 취소되었습니다.');
+      fetchData();
+    } catch (error: any) {
+      const msg = error?.response?.data?.error || '수락 취소에 실패했습니다.';
+      alert(msg);
+    } finally {
+      setUnclaimingId(null);
+    }
+  };
+
+  // 스마트폰 기본 문자 앱 호출 핸들러
+  const handleSendSMS = (selectedIds: string[]) => {
+    const selectedRequests = requests.filter(r => selectedIds.includes(r.id));
+    const phones = selectedRequests.map(r => r.phone.replace(/[^0-9]/g, '')).filter(Boolean);
+    
+    if (phones.length === 0) {
+      alert('선택된 항목에 유효한 전화번호가 없습니다.');
+      return;
+    }
+
+    if (phones.length > 20) {
+      alert(`스마트폰 스팸 방지 제한으로 인해 한 번에 최대 20명까지만 발송 가능합니다.\n현재 ${phones.length}명이 선택되었습니다. 20명 이하로 나누어서 발송해 주세요.`);
+      return;
+    }
+    
+    // 안드로이드/아이폰 등 다양한 기기 호환을 위해 콤마로 연결
+    const phoneString = phones.join(',');
+    const message = "[헌옷 수거 안내]\n안녕하세요! 내일 수거 방문 예정입니다. 감사합니다.";
+    
+    // 기기에 따라 iOS는 &body= 를 사용하는 경우도 있으나, 최신 기기들은 ?body= 가 표준입니다.
+    // 문제가 있을 경우를 대비하여 우선 가장 널리 쓰이는 표준 방식을 사용합니다.
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const bodyParam = isIOS ? `&body=${encodeURIComponent(message)}` : `?body=${encodeURIComponent(message)}`;
+    const smsLink = `sms:${phoneString}${bodyParam}`;
+    
+    window.location.href = smsLink;
+  };
+
+  const handleUpdateEstimatedTime = async (requestId: string, hourStr: string) => {
+    const hour = parseFloat(hourStr);
+    const estimatedPickupHour = isNaN(hour) ? null : hour;
+
+    setRequests(prev => prev.map(r => r.id === requestId ? { ...r, estimatedPickupHour } : r));
+
+    if (authToken) {
+      try {
+        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${requestId}/estimated-time`, {
+          estimatedPickupHour
+        }, { headers: { Authorization: `Bearer ${authToken}` } });
+      } catch (e) {
+        console.error('예상 방문 시간 저장 실패', e);
+      }
+    }
+  };
+
+  const handleSendAssignedSMS = (req: RequestItem) => {
+    if (req.estimatedPickupHour === undefined || req.estimatedPickupHour === null) {
+      alert('먼저 수거 예상 시간을 선택해주세요.');
+      return;
+    }
+    const phone = req.phone.replace(/[^0-9]/g, '');
+    if (!phone) {
+      alert('유효한 연락처가 없습니다.');
+      return;
+    }
+
+    const formatAmPm = (timeNum: number) => {
+      let h = Math.floor(timeNum);
+      const m = timeNum % 1 === 0 ? '00' : '30';
+      if (h < 0) h = 0;
+      if (h > 23) h = 23;
+      const ampm = h < 12 ? '오전' : '오후';
+      const displayHour = h % 12 === 0 ? 12 : h % 12;
+      return `${ampm} ${displayHour}시 ${m === '30' ? '30분' : ''}`.trim();
+    };
+
+    const startHourNum = req.estimatedPickupHour - 1;
+    const endHourNum = req.estimatedPickupHour + 1;
+    const timeWindow = `${formatAmPm(startHourNum)}~${formatAmPm(endHourNum)}`;
+
+    const formatPhoneNumber = (phoneStr: string) => {
+      const cleaned = ('' + phoneStr).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
+      if (match) {
+        return `${match[1]}-${match[2]}-${match[3]}`;
+      }
+      return phoneStr;
+    };
+
+    const assignedDriver = drivers.find(d => d.id === req.driverId);
+    const driverPhone = formatPhoneNumber(assignedDriver?.user?.phone || '010-2264-4926');
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getMonth() + 1}/${tomorrow.getDate()}`;
+
+    const message = `안녕하세요, 올클헌옷입니다.
+내일(${tomorrowStr}) ${timeWindow} 사이 방문 예정입니다.
+
+시간이 어려우시면 비대면 수거도 가능합니다.
+문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.
+
+공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.
+
 문의사항은 아래 담당자님께 연락 부탁드립니다.
 담당자님 연락처: ${driverPhone}`;
 
@@ -1723,6 +1918,68 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
+                </div>
+                
+                {/* 월별 수거량 차트 (CSS 바 차트) */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">📈 월별 수거 현황 (최근 6개월)</h3>
+                  <div className="space-y-3">
+                    {stats.monthlyStats.map((m: any) => {
+                      const maxCount = Math.max(...stats.monthlyStats.map((s: any) => s.count), 1);
+                      const barWidth = (m.count / maxCount) * 100;
+                      return (
+                        <div key={m.month} className="flex items-center gap-3">
+                          <span className="text-sm font-bold text-gray-500 w-16 shrink-0">{m.month}</span>
+                          <div className="flex-1 bg-gray-100 rounded-full h-8 relative overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500 flex items-center" style={{ width: `${Math.max(barWidth, 2)}%` }}>
+                              {m.count > 0 && <span className="text-[10px] font-bold text-white ml-2 whitespace-nowrap">{m.count}건 / {m.weight}kg</span>}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 완료된 수거 증빙 확인 섹션 */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-lg font-bold text-gray-900 mb-4">📸 완료된 수거 증빙 확인</h3>
+                  {allCompletedRequests.length === 0 ? (
+                    <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
+                      완료된 수거 건이 없습니다.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {allCompletedRequests.map(req => {
+                        const driverObj = drivers.find(d => d.id === req.driverId);
+                        const driverName = driverObj?.user?.name || driverObj?.name || '미지정';
+                        return (
+                          <div 
+                            key={req.id}
+                            onClick={() => setSelectedCompletedRequest(req)}
+                            className="p-4 bg-gray-50 hover:bg-primary-50/50 border border-gray-100 hover:border-primary-300 rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col justify-between gap-3"
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <h4 className="font-extrabold text-gray-900 text-base">{req.userName} <span className="text-xs font-normal text-gray-500">{req.phone}</span></h4>
+                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{req.address} {req.detailAddress}</p>
+                              </div>
+                              <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg shrink-0">
+                                {req.actualWeight}kg
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-200/50">
+                              <span>담당 기사: <strong className="text-gray-700">{driverName}</strong></span>
+                              <span>{req.completedDate ? new Date(req.completedDate).toLocaleDateString('ko-KR') : ''}</span>
+                            </div>
+                            <div className="flex items-center justify-center py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-primary-600 hover:bg-primary-50 transition-colors">
+                              📸 완료 증빙 사진 및 내역 보기
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             ) : (
