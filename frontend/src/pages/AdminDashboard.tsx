@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import axios from 'axios';
 import AdminMapDispatch from '../components/AdminMapDispatch';
 import Spinner from '../components/Spinner';
@@ -780,30 +781,26 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleMoveOrder = (driverId: string, index: number, direction: 'up' | 'down') => {
+
+  const handleDragEnd = (result: any) => {
+    if (!result.destination) return;
+    const { source, destination } = result;
+    if (source.droppableId !== destination.droppableId) return;
+    const driverId = source.droppableId;
+
     setRequests(prev => {
       const allRequests = [...prev];
-      // 1. 해당 기사의 수거 목록 필터링 후 orderIndex 기준으로 정렬
       const driverRequests = allRequests
         .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
         .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
-      // 2. 바꿀 대상이 없거나 경계를 벗어나는지 확인
-      if (direction === 'up' && index === 0) return prev;
-      if (direction === 'down' && index === driverRequests.length - 1) return prev;
+      const [removed] = driverRequests.splice(source.index, 1);
+      driverRequests.splice(destination.index, 0, removed);
 
-      // 3. 배열에서 위치 변경
-      const targetIndex = direction === 'up' ? index - 1 : index + 1;
-      const temp = driverRequests[index];
-      driverRequests[index] = driverRequests[targetIndex];
-      driverRequests[targetIndex] = temp;
-
-      // 4. 새로운 순서대로 orderIndex 할당
       driverRequests.forEach((req, idx) => {
         req.orderIndex = idx;
       });
 
-      // 5. 전체 배열 업데이트
       return allRequests.map(req => {
         const updated = driverRequests.find(dr => dr.id === req.id);
         return updated ? updated : req;
@@ -1207,11 +1204,24 @@ export default function AdminDashboard() {
     const endHourNum = req.estimatedPickupHour + 1;
     const timeWindow = `${formatAmPm(startHourNum)}~${formatAmPm(endHourNum)}`;
 
+    const formatPhoneNumber = (phoneStr: string) => {
+      const cleaned = ('' + phoneStr).replace(/\D/g, '');
+      const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
+      if (match) {
+        return `${match[1]}-${match[2]}-${match[3]}`;
+      }
+      return phoneStr;
+    };
+
     const assignedDriver = drivers.find(d => d.id === req.driverId);
-    const driverPhone = assignedDriver?.user?.phone || '010-2264-4926';
+    const driverPhone = formatPhoneNumber(assignedDriver?.user?.phone || '010-2264-4926');
+    
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = `${tomorrow.getMonth() + 1}/${tomorrow.getDate()}`;
 
     const message = `안녕하세요, 올클헌옷입니다.
-내일 ${timeWindow} 사이 방문 예정입니다.
+내일(${tomorrowStr}) ${timeWindow} 사이 방문 예정입니다.
 
 시간이 어려우시면 비대면 수거도 가능합니다.
 문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.
@@ -2166,137 +2176,143 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
-                  <div className="flex-1 space-y-4">
-                    {driverRequests.length === 0 ? (
-                      <div className="h-full flex items-center justify-center text-primary-400 font-medium pb-10">
-                        배정된 수거 요청이 없습니다
-                      </div>
-                    ) : (
-                      driverRequests.map((req, index) => (
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId={driver.id}>
+                      {(provided) => (
                         <div 
-                          key={req.id} 
-                          className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
+                          className="flex-1 space-y-4"
+                          {...provided.droppableProps}
+                          ref={provided.innerRef}
                         >
-                          <div className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-1.5 shrink-0">
-                            <div className="flex items-center gap-3 sm:w-full">
-                              <input
-                                type="checkbox"
-                                checked={selectedAssignedIds.includes(req.id)}
-                                onChange={(e) => {
-                                  if (e.target.checked) {
-                                    setSelectedAssignedIds(prev => [...prev, req.id]);
-                                  } else {
-                                    setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
-                                  }
-                                }}
-                                className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
-                                onClick={e => e.stopPropagation()}
-                              />
-                              <div className="flex sm:flex-col items-center border border-gray-200 rounded-lg overflow-hidden shadow-sm bg-gray-50 h-8 sm:h-auto w-auto sm:w-8">
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'up'); }}
-                                  disabled={index === 0}
-                                  className={`px-2 py-1 sm:w-8 sm:h-6 flex items-center justify-center transition-colors ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
-                                >
-                                  <span className="hidden sm:inline">▴</span><span className="sm:hidden">◀</span>
-                                </button>
-                                <div className={`px-3 py-1 sm:w-8 sm:h-7 flex items-center justify-center text-sm font-bold border-x sm:border-x-0 sm:border-y border-gray-200 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>
-                                  {index + 1}
-                                </div>
-                                <button 
-                                  onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'down'); }}
-                                  disabled={index === driverRequests.length - 1}
-                                  className={`px-2 py-1 sm:w-8 sm:h-6 flex items-center justify-center transition-colors ${index === driverRequests.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
-                                >
-                                  <span className="hidden sm:inline">▾</span><span className="sm:hidden">▶</span>
-                                </button>
-                              </div>
+                          {driverRequests.length === 0 ? (
+                            <div className="h-full flex items-center justify-center text-primary-400 font-medium pb-10">
+                              배정된 수거 요청이 없습니다
                             </div>
-                          </div>
-                          
-                          <div className="flex-1 min-w-0 flex flex-col justify-between">
-                            <div>
-                              <div className="flex justify-between items-start">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-bold text-gray-900 text-base">{req.userName}</h3>
-                                  {req.isMustPickupDate && (
-                                    <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
-                                      🚨 필수 수거
-                                    </span>
-                                  )}
-                                  {req.status === 'IN_PROGRESS' && (
-                                    <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
-                                      이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
-                                    </span>
-                                  )}
-                                </div>
-                                <button
-                                  disabled={unassigningReqId === req.id}
-                                  onClick={async (e) => {
-                                    e.stopPropagation();
-                                    if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
-                                    setUnassigningReqId(req.id);
-                                    try {
-                                      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
-                                        headers: { Authorization: `Bearer ${authToken}` }
-                                      });
-                                      fetchData();
-                                    } catch (error) {
-                                      alert('배정 취소에 실패했습니다.');
-                                    } finally {
-                                      setUnassigningReqId(null);
-                                    }
-                                  }}
-                                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
-                                >
-                                  {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
-                                  배정 취소
-                                </button>
-                              </div>
-                              <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
-                            </div>
-                            
-                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3 sm:mt-2 justify-between bg-gray-50/50 p-2 sm:p-0 rounded-xl sm:bg-transparent">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                                <div className="relative inline-block">
-                                  <input 
-                                    type="date"
-                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                    onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                                  />
-                                  <button className="bg-white hover:bg-gray-50 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 shadow-sm transition-colors">
-                                    📅 날짜 변경
-                                  </button>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2 mt-2 sm:mt-0 justify-end w-full sm:w-auto">
-                                <select
-                                  value={req.estimatedPickupHour ?? ''}
-                                  onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
-                                  className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 flex-1 sm:flex-none"
-
-                                >
-                                  <option value="">수거 예상 시간</option>
-                                  {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
-                                    const h = Math.floor(hour);
-                                    const m = hour % 1 === 0 ? '00' : '30';
-                                    return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
-                                  })}
-                                </select>
-                                <button
-                                  onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
-                                  className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors"
-                                >
-                                  📱 방문 안내 문자
-                                </button>
-                              </div>
-                            </div>
-                          </div>
+                          ) : (
+                            driverRequests.map((req, index) => (
+                              <Draggable key={req.id} draggableId={req.id} index={index}>
+                                {(provided, snapshot) => (
+                                  <div 
+                                    ref={provided.innerRef}
+                                    {...provided.draggableProps}
+                                    style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 50 : 'auto' }}
+                                    className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
+                                  >
+                                    <div className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-1.5 shrink-0">
+                                      <div className="flex items-center gap-3 sm:w-full">
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedAssignedIds.includes(req.id)}
+                                          onChange={(e) => {
+                                            if (e.target.checked) {
+                                              setSelectedAssignedIds(prev => [...prev, req.id]);
+                                            } else {
+                                              setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
+                                            }
+                                          }}
+                                          className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                                          onClick={e => e.stopPropagation()}
+                                        />
+                                        <div 
+                                          {...provided.dragHandleProps}
+                                          className="flex items-center justify-center border border-gray-200 rounded-lg shadow-sm bg-gray-50 hover:bg-gray-100 cursor-grab active:cursor-grabbing w-10 h-8 sm:w-8 sm:h-auto sm:flex-col gap-1 px-1 py-1"
+                                        >
+                                          <span className="text-gray-400 text-[10px] hidden sm:block">☰</span>
+                                          <span className="text-sm font-bold text-gray-700">{index + 1}</span>
+                                          <span className="text-gray-400 text-[10px] sm:hidden ml-1">☰</span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
+                                      <div>
+                                        <div className="flex justify-between items-start">
+                                          <div className="flex items-center gap-2 flex-wrap">
+                                            <h3 className="font-bold text-gray-900 text-base">{req.userName}</h3>
+                                            {req.isMustPickupDate && (
+                                              <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
+                                                🚨 필수 수거
+                                              </span>
+                                            )}
+                                            {req.status === 'IN_PROGRESS' && (
+                                              <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                                                이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
+                                              </span>
+                                            )}
+                                          </div>
+                                          <button
+                                            disabled={unassigningReqId === req.id}
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                              setUnassigningReqId(req.id);
+                                              try {
+                                                await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
+                                                  headers: { Authorization: `Bearer ${authToken}` }
+                                                });
+                                                fetchData();
+                                              } catch (error) {
+                                                alert('배정 취소에 실패했습니다.');
+                                              } finally {
+                                                setUnassigningReqId(null);
+                                              }
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                          >
+                                            {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
+                                            배정 취소
+                                          </button>
+                                        </div>
+                                        <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                                      </div>
+                                      
+                                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3 sm:mt-2 justify-between bg-gray-50/50 p-2 sm:p-0 rounded-xl sm:bg-transparent">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                                          <div className="relative inline-block">
+                                            <input 
+                                              type="date"
+                                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                              onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                                            />
+                                            <button className="bg-white hover:bg-gray-50 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 shadow-sm transition-colors">
+                                              📅 날짜 변경
+                                            </button>
+                                          </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 mt-2 sm:mt-0 justify-end w-full sm:w-auto">
+                                          <select
+                                            value={req.estimatedPickupHour ?? ''}
+                                            onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
+                                            className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 flex-1 sm:flex-none"
+                                          >
+                                            <option value="">수거 예상 시간</option>
+                                            {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
+                                              const h = Math.floor(hour);
+                                              const m = hour % 1 === 0 ? '00' : '30';
+                                              return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
+                                            })}
+                                          </select>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
+                                            className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors"
+                                          >
+                                            📱 방문 안내 문자
+                                          </button>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                              </Draggable>
+                            ))
+                          )}
+                          {provided.placeholder}
                         </div>
-                      ))
-                    )}
-                  </div>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
+
 
                   {/* Completed Items Section */}
                   {completedRequests.length > 0 && (
