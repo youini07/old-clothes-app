@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 /**
  * CalendarView — 순수 React 월간 캘린더 컴포넌트
@@ -64,7 +64,7 @@ export default function CalendarView({ requests, onRequestClick, compact = false
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
 
   // selectedDate가 변경될 때 체크박스 초기화
-  useMemo(() => {
+  useEffect(() => {
     setCheckedIds([]);
   }, [selectedDate]);
 

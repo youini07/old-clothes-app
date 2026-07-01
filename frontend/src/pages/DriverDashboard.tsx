@@ -144,6 +144,7 @@ export default function DriverDashboard() {
   // 파트너(사장님) 정보 상태
   const [partnerAddress, setPartnerAddress] = useState<string>('');
   const [partnerBusinessName, setPartnerBusinessName] = useState<string>('');
+  const [driverPhone, setDriverPhone] = useState<string>('');
 
   // 문자 템플릿 모달 상태
   const [selectedSmsReq, setSelectedSmsReq] = useState<{req: RequestItem, displayId: number} | null>(null);
@@ -197,6 +198,7 @@ export default function DriverDashboard() {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/me`, { headers: { Authorization: `Bearer ${authToken}` } });
       setPartnerAddress(res.data.partnerAddress || '');
       setPartnerBusinessName(res.data.partnerBusinessName || '');
+      setDriverPhone(res.data.phone || '');
     } catch (e) {
       console.error(e);
     }
@@ -439,21 +441,45 @@ export default function DriverDashboard() {
     }
   };
 
-  // 기사앱 원본 리스트(백엔드에서는 orderIndex -> createdAt 순으로 정렬되어 넘어옴)
-  // 배열의 전체 순서(index)가 곧 사용자의 고정된 순번이 되므로, 완료되어도 번호가 바뀌지 않음
-  const requestsWithDisplayId = React.useMemo(() => {
-    return requests.map((req, index) => ({ ...req, displayId: index + 1 }));
-  }, [requests]);
+  const filteredRequests = React.useMemo(() => {
+    return requests
+      .filter(r => (activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'))
+      .map((req, index) => ({ ...req, displayId: index + 1 }));
+  }, [requests, activeTab]);
 
-  const filteredRequests = requestsWithDisplayId.filter(r =>
-    activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'
-  );
-
-  const getSmsTemplate1 = (displayId: number) => {
+  const getSmsTemplate1 = (req: RequestItem) => {
+    let timeString = '오후 12시~2시';
+    if (req.confirmedDate || req.desiredDate) {
+      const targetDateStr = req.confirmedDate || req.desiredDate;
+      const d = new Date(targetDateStr as string | Date);
+      const h = d.getHours();
+      if (h > 0) {
+        const startH = h - 1;
+        const endH = h + 1;
+        const formatHour = (hour: number) => {
+          if (hour === 12) return '오후 12';
+          if (hour > 12) return `오후 ${hour - 12}`;
+          return `오전 ${hour}`;
+        };
+        const startAMPM = startH >= 12 ? '오후' : '오전';
+        const endAMPM = endH >= 12 ? '오후' : '오전';
+        
+        const startStr = formatHour(startH);
+        let endStr = (endH > 12 ? endH - 12 : endH).toString();
+        
+        if (startAMPM !== endAMPM) {
+          endStr = `${endAMPM} ${endStr}`;
+        }
+        
+        timeString = `${startStr}시~${endStr}시`;
+      }
+    }
+    
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day = tomorrow.getDate();
-    return `안녕하세요! 올클입니다.\n\n내일(${day}일) 헌옷 수거 방문 예정입니다.\n고객님의 수거 순번은 [${displayId}번째] 입니다.\n\n수거할 옷과 물품들은 미리 포장하여 문 앞에 내놓아 주시면 감사하겠습니다!`;
+    
+    return `안녕하세요, 올클헌옷입니다.\n내일(${day}일) ${timeString} 사이 방문 예정입니다.\n\n시간이 어려우시면 비대면 수거도 가능합니다.\n문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.\n\n공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.\n\n문의사항은 아래 담당자님께 연락 부탁드립니다.\n담당자님 연락처: ${driverPhone}`;
   };
 
   const getSmsTemplate2 = () => {
@@ -971,12 +997,12 @@ export default function DriverDashboard() {
             
             <div className="space-y-3">
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.displayId))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.req))}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
               >
                 <div className="font-bold text-blue-800 mb-1">1. 내일 방문 안내 (수거일 확정)</div>
-                <div className="text-xs text-blue-600 line-clamp-2">"안녕하세요! 올클입니다. 내일 헌옷 수거 방문 예정입니다. 수거할 옷과 물품들은..."</div>
+                <div className="text-xs text-blue-600 line-clamp-2">"안녕하세요, 올클헌옷입니다. 내일 방문 예정입니다. 시간이 어려우시면 비대면 수거도..."</div>
               </a>
               
               <a 

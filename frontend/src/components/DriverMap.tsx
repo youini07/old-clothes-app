@@ -25,12 +25,13 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
 
   // 1. 지도 컨테이너 초기화
   useEffect(() => {
-    let checkInterval: any;
+    // eslint-disable-next-line prefer-const
+    let intervalId: any;
     const initMap = () => {
       const { kakao } = window as any;
       if (!kakao || !kakao.maps || !kakao.maps.load) return;
       
-      if (checkInterval) clearInterval(checkInterval);
+      if (intervalId) clearInterval(intervalId);
 
       kakao.maps.load(() => {
         if (!mapContainer.current) return;
@@ -51,10 +52,10 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       });
     };
 
-    checkInterval = setInterval(initMap, 500);
+    intervalId = setInterval(initMap, 500);
     initMap();
 
-    return () => clearInterval(checkInterval);
+    return () => clearInterval(intervalId);
   }, []);
 
   // 2. 주소 -> 좌표 변환 (requests가 바뀔 때만)
