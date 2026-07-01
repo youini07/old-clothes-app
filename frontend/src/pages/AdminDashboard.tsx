@@ -1822,63 +1822,68 @@ export default function AdminDashboard() {
                   {pendingRequests.map(req => (
                     <div 
                       key={req.id} 
-                      className={`p-4 sm:p-5 border rounded-2xl flex items-start gap-3 transition-all cursor-pointer ${selectedRequestIds.includes(req.id) ? 'bg-orange-50 border-orange-400 ring-1 ring-orange-400 shadow-sm' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'}`}
+                      className={`p-4 border rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col gap-3 ${selectedRequestIds.includes(req.id) ? 'bg-orange-50 border-orange-400 ring-2 ring-orange-200' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`}
                       onClick={() => handleToggleOnePending(req.id)}
                     >
-                      <div className="pt-1">
-                        <input 
-                          type="checkbox" 
-                          checked={selectedRequestIds.includes(req.id)}
-                          readOnly
-                          className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className="font-bold text-gray-900">
-                            {req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span>
-                            {req.isMustPickupDate && (
-                              <span className="ml-2 inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap">
-                                🚨 지정일 필수 수거
-                              </span>
-                            )}
-                          </h3>
+                      <div className="flex items-start gap-3">
+                        <div className="pt-0.5">
+                          <input 
+                            type="checkbox" 
+                            checked={selectedRequestIds.includes(req.id)}
+                            readOnly
+                            className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
+                          />
                         </div>
-                        <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                          <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                            {req.estimatedVolume}
-                          </span>
-                          <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                          <div className="relative inline-block ml-1">
-                            <input 
-                              type="date"
-                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                              onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
-                              📅 날짜 변경
-                            </button>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                            <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
+                              <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
+                              <span className="text-sm font-normal text-gray-500 shrink-0">{req.phone}</span>
+                              {req.isMustPickupDate && (
+                                <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
+                                  🚨 지정일 필수
+                                </span>
+                              )}
+                            </h3>
                           </div>
+                          <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
                         </div>
-                        <div className="flex justify-end items-center mt-2 gap-2">
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                            className="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1"
-                          >
-                            🗑️ 강제 삭제
+                      </div>
+                      
+                      <div className="flex flex-wrap items-center gap-2 pl-8">
+                        <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                          {req.estimatedVolume}
+                        </span>
+                        <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                        <div className="relative inline-block">
+                          <input 
+                            type="date"
+                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
+                            📅 날짜 변경
                           </button>
-                          {!selectedRequestIds.includes(req.id) && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
-                              disabled={claimingId === req.id}
-                              className={`px-4 py-2 bg-orange-500 text-white text-sm font-bold rounded-xl transition-all shadow-sm flex items-center gap-1 ${claimingId === req.id ? 'opacity-70 cursor-not-allowed' : 'hover:bg-orange-600 active:scale-95'}`}
-                            >
-                              {claimingId === req.id ? <Spinner className="w-4 h-4" /> : '✋'} 수락
-                            </button>
-                          )}
                         </div>
+                      </div>
+                      
+                      <div className="mt-1 pl-8 flex justify-end gap-2">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
+                        >
+                          🗑️ 강제 삭제
+                        </button>
+                        {!selectedRequestIds.includes(req.id) && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
+                            disabled={claimingId === req.id}
+                            className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm justify-center flex items-center gap-1 ${claimingId === req.id ? 'opacity-70 cursor-not-allowed bg-orange-300' : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'}`}
+                          >
+                            {claimingId === req.id ? <Spinner className="w-4 h-4 text-white" /> : '✋ 수락'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1950,69 +1955,74 @@ export default function AdminDashboard() {
                   <div 
                     key={req.id} 
                     onClick={() => setSelectedRequestIdForAssign(req.id)}
-                    className={`p-4 sm:p-5 border rounded-2xl shadow-sm cursor-pointer transition-all flex items-start gap-3 ${
+                    className={`p-4 border rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col gap-3 ${
                       selectedRequestIdForAssign === req.id ? 'bg-primary-50 border-primary-500 ring-2 ring-primary-200' : 
                       selectedUnassignedIds.includes(req.id) ? 'bg-gray-50 border-gray-400' : 'bg-white border-gray-200 hover:border-primary-400'
                     }`}
                   >
-                    <div className="pt-1" onClick={(e) => e.stopPropagation()}>
-                      <input 
-                        type="checkbox" 
-                        checked={selectedUnassignedIds.includes(req.id)}
-                        onChange={() => { handleToggleOneUnassigned(req.id); }}
-                        className="w-5 h-5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 cursor-pointer"
-                      />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex justify-between items-start">
-                        <h3 className="font-bold text-gray-900">
-                          {req.userName} <span className="text-sm font-normal text-gray-500">{req.phone}</span>
-                          {req.isMustPickupDate && (
-                            <span className="ml-2 inline-block bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-xs font-bold whitespace-nowrap">
-                              🚨 지정일 필수 수거
-                            </span>
+                    <div className="flex items-start gap-3">
+                      <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+                        <input 
+                          type="checkbox" 
+                          checked={selectedUnassignedIds.includes(req.id)}
+                          onChange={() => { handleToggleOneUnassigned(req.id); }}
+                          className="w-5 h-5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 cursor-pointer"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
+                          <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
+                            <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
+                            <span className="text-sm font-normal text-gray-500 shrink-0">{req.phone}</span>
+                            {req.isMustPickupDate && (
+                              <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
+                                🚨 지정일 필수
+                              </span>
+                            )}
+                          </h3>
+                          {selectedRequestIdForAssign === req.id && (
+                            <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg font-bold shadow-sm shrink-0 self-start">배정 대기중</span>
                           )}
-                        </h3>
-                        {selectedRequestIdForAssign === req.id && (
-                          <span className="text-xs bg-blue-100 text-blue-700 border border-blue-200 px-2.5 py-1 rounded-full font-bold shadow-sm">배정 대기중</span>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mt-2 line-clamp-2">{req.address} {req.detailAddress}</p>
-                      <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                        <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                          {req.estimatedVolume}
-                        </span>
-                        <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                        <div className="relative inline-block ml-1">
-                          <input 
-                            type="date"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
-                            📅 날짜 변경
-                          </button>
                         </div>
+                        <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
                       </div>
-                      <div className="mt-2 flex justify-end items-center gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                          className="px-3 py-1.5 text-xs font-bold rounded-lg text-red-600 bg-red-50 hover:bg-red-100 transition-colors flex items-center gap-1"
-                        >
-                          🗑️ 강제 삭제
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-2 pl-8">
+                      <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
+                        {req.estimatedVolume}
+                      </span>
+                      <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                      <div className="relative inline-block">
+                        <input 
+                          type="date"
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                          onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
+                          📅 날짜 변경
                         </button>
-                        {!selectedUnassignedIds.includes(req.id) && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
-                            disabled={unclaimingId === req.id}
-                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-gray-100 hover:bg-gray-200 text-gray-600 active:scale-95'}`}
-                          >
-                            {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
-                            수락 취소
-                          </button>
-                        )}
                       </div>
+                    </div>
+                    
+                    <div className="mt-1 pl-8 flex justify-end gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                        className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
+                      >
+                        🗑️ 강제 삭제
+                      </button>
+                      {!selectedUnassignedIds.includes(req.id) && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
+                          disabled={unclaimingId === req.id}
+                          className={`flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl transition-colors justify-center flex items-center gap-1 border ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600 active:scale-95'}`}
+                        >
+                          {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
+                          수락 취소
+                        </button>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -2062,20 +2072,20 @@ export default function AdminDashboard() {
                   key={driver.id} 
                   className="bg-gray-50/50 border border-gray-200 rounded-3xl p-6 min-h-[500px] flex flex-col shadow-sm"
                 >
-                  <div className="flex justify-between items-start mb-6 pb-4 border-b border-primary-200 gap-2">
-                    <div className="flex flex-col flex-1">
+                  <div className="flex flex-col sm:flex-row justify-between items-start mb-6 pb-4 border-b border-primary-200 gap-4">
+                    <div className="flex flex-col flex-1 w-full sm:w-auto">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-lg font-extrabold text-gray-800 break-keep">🚚 {driver.user?.name || driver.name}</h2>
-                        <button onClick={() => handlePrintDriverList(driver, driverRequests)} className="text-[10px] bg-blue-100 text-blue-600 px-2 py-1 rounded-md hover:bg-blue-200 transition-colors font-bold shrink-0 flex items-center gap-1">🖨️ 인쇄</button>
-                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[10px] bg-gray-200 text-gray-600 px-2 py-1 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
-                        <button onClick={() => handleDeleteDriver(driver.id)} className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-md hover:bg-red-200 transition-colors font-bold shrink-0">삭제</button>
+                        <h2 className="text-lg font-extrabold text-gray-800 break-keep mr-2">🚚 {driver.user?.name || driver.name}</h2>
+                        <button onClick={() => handlePrintDriverList(driver, driverRequests)} className="text-[11px] bg-blue-100 text-blue-600 px-2.5 py-1.5 rounded-md hover:bg-blue-200 transition-colors font-bold shrink-0 flex items-center gap-1">🖨️ 인쇄</button>
+                        <button onClick={() => openDriverModalForEdit(driver)} className="text-[11px] bg-gray-200 text-gray-600 px-2.5 py-1.5 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
+                        <button onClick={() => handleDeleteDriver(driver.id)} className="text-[11px] bg-red-100 text-red-600 px-2.5 py-1.5 rounded-md hover:bg-red-200 transition-colors font-bold shrink-0">삭제</button>
                       </div>
                       {driver.customRegion ? (
-                        <span className="text-xs font-bold text-primary-700 mt-1.5 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block break-keep leading-tight">
+                        <span className="text-xs font-bold text-primary-700 mt-2 bg-primary-100 self-start px-2 py-1 rounded-md border border-primary-200 shadow-sm inline-block break-keep leading-tight">
                           {driver.customRegion.name} ({Array.from(new Set(driver.customRegion.areas.map(a => a.split(' ')[0]))).join(', ')})
                         </span>
                       ) : (
-                        <span className="text-xs font-medium text-gray-400 mt-1.5 inline-block">할당된 권역 없음</span>
+                        <span className="text-xs font-medium text-gray-400 mt-2 inline-block">할당된 권역 없음</span>
                       )}
                       {driver.todayDistanceKm && (
                         <span className="text-xs font-medium text-gray-500 mt-1">
@@ -2083,15 +2093,15 @@ export default function AdminDashboard() {
                         </span>
                       )}
                     </div>
-                    <div className="flex flex-col items-end gap-2 shrink-0">
-                      <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                        <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기</span>
+                    <div className="flex flex-col items-start sm:items-end gap-3 w-full sm:w-auto bg-gray-50/50 sm:bg-transparent p-3 sm:p-0 rounded-xl sm:rounded-none">
+                      <div className="flex items-center gap-2 flex-wrap sm:justify-end w-full">
+                        <span className="shrink-0 whitespace-nowrap bg-blue-50 text-blue-700 border border-blue-200 px-3 py-1.5 rounded-xl text-xs font-extrabold shadow-sm">{driverRequests.length}건 대기</span>
                         {driverRequests.length > 1 && (
                           <>
                             <button
                               onClick={() => handleOptimizeRoute(driver.id)}
                               disabled={optimizingDriverId === driver.id}
-                              className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${optimizingDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-500 text-white hover:bg-primary-600'}`}
+                              className={`shrink-0 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${optimizingDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-primary-500 text-white hover:bg-primary-600'}`}
                               title="T맵 기반으로 현재 수거 건의 순서를 최적화합니다"
                             >
                               {optimizingDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '🗺️'}
@@ -2099,7 +2109,7 @@ export default function AdminDashboard() {
                             </button>
                             <button
                               onClick={() => setMapPreviewDriverId(driver.id)}
-                              className="shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200 shadow-sm flex items-center gap-1"
+                              className="shrink-0 text-xs px-3 py-1.5 rounded-xl font-bold transition-all bg-white text-gray-700 hover:bg-gray-50 border border-gray-200 shadow-sm flex items-center gap-1"
                             >
                               📍 지도 보기
                             </button>
@@ -2109,7 +2119,7 @@ export default function AdminDashboard() {
                           <button
                             onClick={() => handleSaveOrder(driver.id)}
                             disabled={savingOrderDriverId === driver.id}
-                            className={`shrink-0 text-xs px-2.5 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${savingOrderDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 animate-pulse'}`}
+                            className={`shrink-0 text-xs px-3 py-1.5 rounded-xl font-bold transition-all flex items-center gap-1 shadow-sm ${savingOrderDriverId === driver.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-green-500 text-white hover:bg-green-600 animate-pulse'}`}
                           >
                             {savingOrderDriverId === driver.id ? <Spinner className="w-3.5 h-3.5" /> : '💾'}
                             순서 저장
@@ -2117,8 +2127,8 @@ export default function AdminDashboard() {
                         )}
                       </div>
                       {driverRequests.length > 0 && (
-                        <div className="flex items-center gap-1.5">
-                          <label className="flex items-center gap-1 text-[10px] text-gray-500 font-bold cursor-pointer hover:text-gray-900">
+                        <div className="flex items-center gap-2 flex-wrap w-full">
+                          <label className="flex items-center gap-1.5 text-xs text-gray-600 font-bold cursor-pointer hover:text-gray-900 bg-white border border-gray-200 px-2 py-1.5 rounded-lg shadow-sm">
                             <input
                               type="checkbox"
                               checked={driverRequests.every(r => selectedAssignedIds.includes(r.id))}
@@ -2130,7 +2140,7 @@ export default function AdminDashboard() {
                                   setSelectedAssignedIds(prev => prev.filter(id => !driverRequests.find(r => r.id === id)));
                                 }
                               }}
-                              className="w-3.5 h-3.5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
                             />
                             전체 선택
                           </label>
@@ -2138,7 +2148,7 @@ export default function AdminDashboard() {
                             <button
                               disabled={isBatchUnassigning}
                               onClick={handleBatchUnassign}
-                              className={`text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 ${isBatchUnassigning ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-100 text-red-700 hover:bg-red-200'}`}
+                              className={`text-xs px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1 shadow-sm ${isBatchUnassigning ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-red-50 text-red-700 border border-red-200 hover:bg-red-100'}`}
                             >
                               {isBatchUnassigning && <Spinner className="w-3 h-3" />}
                               일괄 취소
@@ -2147,7 +2157,7 @@ export default function AdminDashboard() {
                           {driverRequests.some(r => selectedAssignedIds.includes(r.id)) && (
                             <button
                               onClick={() => handleSendSMS(selectedAssignedIds.filter(id => driverRequests.find(r => r.id === id)))}
-                              className="text-[10px] px-2 py-1 rounded-md font-bold transition-colors flex items-center gap-1 bg-green-100 text-green-700 hover:bg-green-200"
+                              className="text-xs px-3 py-1.5 rounded-lg font-bold transition-colors flex items-center gap-1 shadow-sm bg-green-50 text-green-700 border border-green-200 hover:bg-green-100"
                             >
                               💬 안내문자
                             </button>
@@ -2156,7 +2166,6 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
-                  
                   <div className="flex-1 space-y-4">
                     {driverRequests.length === 0 ? (
                       <div className="h-full flex items-center justify-center text-primary-400 font-medium pb-10">
@@ -2166,98 +2175,107 @@ export default function AdminDashboard() {
                       driverRequests.map((req, index) => (
                         <div 
                           key={req.id} 
-                          className={`p-4 bg-white border rounded-2xl shadow-[0_2px_10px_rgb(0,0,0,0.04)] transition-all flex gap-3 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-1 ring-blue-400' : 'border-gray-200 hover:border-gray-300'}`}
+                          className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 hover:-translate-y-0.5 hover:shadow-md ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                         >
-                          <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1">
-                            <input
-                              type="checkbox"
-                              checked={selectedAssignedIds.includes(req.id)}
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedAssignedIds(prev => [...prev, req.id]);
-                                } else {
-                                  setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
-                                }
-                              }}
-                              className="w-4 h-4 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
-                              onClick={e => e.stopPropagation()}
-                            />
-                            <div className="flex flex-col items-center border border-gray-200 rounded-lg overflow-hidden mt-1 shadow-sm bg-gray-50">
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'up'); }}
-                                disabled={index === 0}
-                                className={`w-7 h-5 flex items-center justify-center transition-colors ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
-                              >
-                                ▴
-                              </button>
-                              <div className={`w-7 h-6 flex items-center justify-center text-xs font-bold border-y border-gray-200 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>
-                                {index + 1}
-                              </div>
-                              <button 
-                                onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'down'); }}
-                                disabled={index === driverRequests.length - 1}
-                                className={`w-7 h-5 flex items-center justify-center transition-colors ${index === driverRequests.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
-                              >
-                                ▾
-                              </button>
-                            </div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between items-start">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-bold text-gray-900 text-sm">{req.userName}</h3>
-                                {req.isMustPickupDate && (
-                                  <span className="text-[10px] bg-red-100 text-red-600 font-bold px-1.5 py-0.5 rounded-md whitespace-nowrap">
-                                    🚨 필수 수거
-                                  </span>
-                                )}
-                                {req.status === 'IN_PROGRESS' && (
-                                  <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap">
-                                    이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
-                                  </span>
-                                )}
-                              </div>
-                              <button
-                                disabled={unassigningReqId === req.id}
-                                onClick={async (e) => {
-                                  e.stopPropagation();
-                                  if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
-                                  setUnassigningReqId(req.id);
-                                  try {
-                                    await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
-                                      headers: { Authorization: `Bearer ${authToken}` }
-                                    });
-                                    fetchData();
-                                  } catch (error) {
-                                    alert('배정 취소에 실패했습니다.');
-                                  } finally {
-                                    setUnassigningReqId(null);
+                          <div className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-1.5 shrink-0">
+                            <div className="flex items-center gap-3 sm:w-full">
+                              <input
+                                type="checkbox"
+                                checked={selectedAssignedIds.includes(req.id)}
+                                onChange={(e) => {
+                                  if (e.target.checked) {
+                                    setSelectedAssignedIds(prev => [...prev, req.id]);
+                                  } else {
+                                    setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
                                   }
                                 }}
-                                className={`px-2 py-1 text-[10px] font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100'}`}
-                              >
-                                {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
-                                취소
-                              </button>
-                            </div>
-                            <p className="text-xs text-gray-500 mt-1">{req.address}</p>
-                            <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                              <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                              <div className="relative inline-block ml-1">
-                                <input 
-                                  type="date"
-                                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                                  onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                                />
-                                <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-0.5 rounded-md text-[10px] font-bold border border-gray-200 transition-colors">
-                                  📅 변경
+                                className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                                onClick={e => e.stopPropagation()}
+                              />
+                              <div className="flex sm:flex-col items-center border border-gray-200 rounded-lg overflow-hidden shadow-sm bg-gray-50 h-8 sm:h-auto w-auto sm:w-8">
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'up'); }}
+                                  disabled={index === 0}
+                                  className={`px-2 py-1 sm:w-8 sm:h-6 flex items-center justify-center transition-colors ${index === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
+                                >
+                                  <span className="hidden sm:inline">▴</span><span className="sm:hidden">◀</span>
+                                </button>
+                                <div className={`px-3 py-1 sm:w-8 sm:h-7 flex items-center justify-center text-sm font-bold border-x sm:border-x-0 sm:border-y border-gray-200 ${req.status === 'IN_PROGRESS' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700'}`}>
+                                  {index + 1}
+                                </div>
+                                <button 
+                                  onClick={(e) => { e.stopPropagation(); handleMoveOrder(driver.id, index, 'down'); }}
+                                  disabled={index === driverRequests.length - 1}
+                                  className={`px-2 py-1 sm:w-8 sm:h-6 flex items-center justify-center transition-colors ${index === driverRequests.length - 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-200 hover:text-gray-800'}`}
+                                >
+                                  <span className="hidden sm:inline">▾</span><span className="sm:hidden">▶</span>
                                 </button>
                               </div>
-                              <div className="flex items-center gap-1 ml-auto">
+                            </div>
+                          </div>
+                          
+                          <div className="flex-1 min-w-0 flex flex-col justify-between">
+                            <div>
+                              <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <h3 className="font-bold text-gray-900 text-base">{req.userName}</h3>
+                                  {req.isMustPickupDate && (
+                                    <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
+                                      🚨 필수 수거
+                                    </span>
+                                  )}
+                                  {req.status === 'IN_PROGRESS' && (
+                                    <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                                      이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
+                                    </span>
+                                  )}
+                                </div>
+                                <button
+                                  disabled={unassigningReqId === req.id}
+                                  onClick={async (e) => {
+                                    e.stopPropagation();
+                                    if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                    setUnassigningReqId(req.id);
+                                    try {
+                                      await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
+                                        headers: { Authorization: `Bearer ${authToken}` }
+                                      });
+                                      fetchData();
+                                    } catch (error) {
+                                      alert('배정 취소에 실패했습니다.');
+                                    } finally {
+                                      setUnassigningReqId(null);
+                                    }
+                                  }}
+                                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                >
+                                  {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
+                                  배정 취소
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                            </div>
+                            
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3 sm:mt-2 justify-between bg-gray-50/50 p-2 sm:p-0 rounded-xl sm:bg-transparent">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                                <div className="relative inline-block">
+                                  <input 
+                                    type="date"
+                                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                    onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                                  />
+                                  <button className="bg-white hover:bg-gray-50 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 shadow-sm transition-colors">
+                                    📅 날짜 변경
+                                  </button>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2 mt-2 sm:mt-0 justify-end w-full sm:w-auto">
                                 <select
                                   value={req.estimatedPickupHour ?? ''}
                                   onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
-                                  className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1 outline-none focus:border-primary-500"
+                                  className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 flex-1 sm:flex-none"
+
                                 >
                                   <option value="">수거 예상 시간</option>
                                   {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
@@ -2300,7 +2318,7 @@ export default function AdminDashboard() {
                                   </span>
                                 )}
                               </p>
-                              <p className="text-[10px] text-gray-500 truncate w-full mt-0.5">{req.address}</p>
+                              <p className="text-[10px] text-gray-500 truncate w-full mt-0.5">{req.address} {req.detailAddress}</p>
                             </div>
                             <div className="flex items-center gap-1.5 shrink-0">
                               <span className="text-[10px] bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full">

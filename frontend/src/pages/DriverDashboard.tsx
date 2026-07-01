@@ -479,7 +479,9 @@ export default function DriverDashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const day = tomorrow.getDate();
     
-    return `안녕하세요, 올클헌옷입니다.\n내일(${day}일) ${timeString} 사이 방문 예정입니다.\n\n시간이 어려우시면 비대면 수거도 가능합니다.\n문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.\n\n공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.\n\n문의사항은 아래 담당자님께 연락 부탁드립니다.\n담당자님 연락처: ${driverPhone}`;
+    const formattedPhone = driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+    
+    return `안녕하세요, 올클헌옷입니다.\n내일(${day}일) ${timeString} 사이 방문 예정입니다.\n\n시간이 어려우시면 비대면 수거도 가능합니다.\n문 앞에 내놓아 주시면 수거 후 확인 즉시 입금 도와드립니다.\n\n공동현관 비밀번호를 알려주시면 수거가 더욱 원활하게 진행됩니다.\n\n문의사항은 아래 담당자님께 연락 부탁드립니다.\n담당자님 연락처: ${formattedPhone}`;
   };
 
   const getSmsTemplate2 = () => {
