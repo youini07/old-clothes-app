@@ -541,6 +541,16 @@ export default function DriverDashboard() {
       .map((req, index) => ({ ...req, displayId: index + 1 }));
   }, [requests, activeTab]);
 
+  
+  const processSmsTemplate = (template: string, req: any, timeStr: string, phoneStr: string) => {
+    if (!template) return '';
+    let msg = template;
+    msg = msg.replace(/{{고객명}}/g, req.userName || '');
+    msg = msg.replace(/{{방문시간}}/g, timeStr);
+    msg = msg.replace(/{{담당자연락처}}/g, phoneStr);
+    return msg;
+  };
+
   const getSmsTemplate1 = (req: RequestItem) => {
     let timeString = '오후 12시~2시';
     if (req.confirmedDate || req.desiredDate) {
@@ -1118,6 +1128,39 @@ export default function DriverDashboard() {
                 <div className="font-bold text-green-800 mb-1">3. 수거 완료 안내</div>
                 <div className="text-xs text-green-600 line-clamp-2">"안녕하세요! 올클입니다. 고객님의 헌옷 수거가 완료되었습니다..."</div>
               </a>
+
+              {/* 추가 커스텀 메시지들 */}
+              {smsTemplates?.template1 && (
+                <a 
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template1, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  onClick={() => setSelectedSmsReq(null)}
+                  className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-4"
+                >
+                  <div className="font-bold text-gray-800 mb-1">🔹 커스텀 메시지 1</div>
+                  <div className="text-xs text-gray-600 line-clamp-2">{smsTemplates.template1}</div>
+                </a>
+              )}
+              {smsTemplates?.template2 && (
+                <a 
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template2, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  onClick={() => setSelectedSmsReq(null)}
+                  className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
+                >
+                  <div className="font-bold text-gray-800 mb-1">🔹 커스텀 메시지 2</div>
+                  <div className="text-xs text-gray-600 line-clamp-2">{smsTemplates.template2}</div>
+                </a>
+              )}
+              {smsTemplates?.template3 && (
+                <a 
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  onClick={() => setSelectedSmsReq(null)}
+                  className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
+                >
+                  <div className="font-bold text-gray-800 mb-1">🔹 커스텀 메시지 3</div>
+                  <div className="text-xs text-gray-600 line-clamp-2">{smsTemplates.template3}</div>
+                </a>
+              )}
+
             </div>
           </div>
         </div>
