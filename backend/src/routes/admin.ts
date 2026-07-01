@@ -1527,6 +1527,28 @@ router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req
       const pRequests = allRequests.filter((r: any) => r.partnerId === p.id);
       const pCompleted = pRequests.filter((r: any) => r.status === 'COMPLETED');
       const pWeight = pCompleted.reduce((s: number, r: any) => s + (r.actualWeight || 0), 0);
+      const manualCount = pRequests.filter((r: any) => !r.customerId).length;
+      const customerCount = pRequests.filter((r: any) => r.customerId).length;
+      
+      const statsByMonth: Record<string, { requests: number, completed: number, weight: number, manual: number, customer: number }> = {};
+      pRequests.forEach((r: any) => {
+        // 정산 기준일: 수거 완료일이 있으면 완료일, 없으면 접수일
+        const dateToUse = r.completedDate ? new Date(r.completedDate) : new Date(r.createdAt);
+        const monthKey = `${dateToUse.getFullYear()}-${String(dateToUse.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (!statsByMonth[monthKey]) {
+          statsByMonth[monthKey] = { requests: 0, completed: 0, weight: 0, manual: 0, customer: 0 };
+        }
+        statsByMonth[monthKey].requests += 1;
+        if (!r.customerId) statsByMonth[monthKey].manual += 1;
+        if (r.customerId) statsByMonth[monthKey].customer += 1;
+        
+        if (r.status === 'COMPLETED') {
+          statsByMonth[monthKey].completed += 1;
+          statsByMonth[monthKey].weight += (r.actualWeight || 0);
+        }
+      });
+
       return {
         id: p.id,
         name: p.businessName || p.name,
@@ -1534,6 +1556,9 @@ router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req
         completedCount: pCompleted.length,
         completionRate: pRequests.length > 0 ? Math.round((pCompleted.length / pRequests.length) * 100) : 0,
         totalWeight: Math.round(pWeight * 10) / 10,
+        manualCount,
+        customerCount,
+        statsByMonth
       };
     }).sort((a: any, b: any) => b.totalRequests - a.totalRequests);
 

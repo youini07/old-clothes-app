@@ -40,6 +40,7 @@ export default function SuperAdminDashboard() {
   // 모니터링 탭 상태
   const [activeView, setActiveView] = useState<'partners' | 'monitoring'>('partners');
   const [monitoring, setMonitoring] = useState<any>(null);
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   useEffect(() => {
     if (authToken) {
@@ -293,34 +294,73 @@ export default function SuperAdminDashboard() {
 
             {/* 파트너별 성과 테이블 */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="p-5 border-b border-gray-100 bg-gray-50/50">
+              <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900">파트너별 성과 현황</h3>
+                <select 
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">전체 기간</option>
+                  {Array.from({ length: 6 }).map((_, i) => {
+                    const d = new Date();
+                    d.setMonth(d.getMonth() - i);
+                    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                    return <option key={val} value={val}>{val}월</option>;
+                  })}
+                </select>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-5 py-3 text-left text-xs font-bold text-gray-500">파트너</th>
-                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">접수</th>
-                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">완료</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">총 접수(건)</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">수거량(kg)</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">수동 등록(건)</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">고객앱 신청(건)</th>
+                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">완료(건)</th>
                       <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">완료율</th>
-                      <th className="px-5 py-3 text-center text-xs font-bold text-gray-500">무게(kg)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
-                    {monitoring.partnerStats.map((p: any) => (
-                      <tr key={p.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-5 py-4 text-sm font-bold text-gray-900">{p.name}</td>
-                        <td className="px-5 py-4 text-sm text-center text-gray-600">{p.totalRequests}</td>
-                        <td className="px-5 py-4 text-sm text-center font-bold text-green-600">{p.completedCount}</td>
-                        <td className="px-5 py-4 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-bold ${p.completionRate >= 80 ? 'bg-green-100 text-green-700' : p.completionRate >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{p.completionRate}%</span>
-                        </td>
-                        <td className="px-5 py-4 text-sm text-center font-bold text-blue-600">{p.totalWeight}</td>
-                      </tr>
-                    ))}
+                    {monitoring.partnerStats.map((p: any) => {
+                      const stats = selectedMonth === 'all' 
+                        ? {
+                            requests: p.totalRequests,
+                            weight: p.totalWeight,
+                            manual: p.manualCount || 0,
+                            customer: p.customerCount || 0,
+                            completed: p.completedCount,
+                            rate: p.completionRate
+                          }
+                        : {
+                            requests: p.statsByMonth?.[selectedMonth]?.requests || 0,
+                            weight: p.statsByMonth?.[selectedMonth]?.weight || 0,
+                            manual: p.statsByMonth?.[selectedMonth]?.manual || 0,
+                            customer: p.statsByMonth?.[selectedMonth]?.customer || 0,
+                            completed: p.statsByMonth?.[selectedMonth]?.completed || 0,
+                            rate: p.statsByMonth?.[selectedMonth]?.requests > 0 
+                              ? Math.round((p.statsByMonth[selectedMonth].completed / p.statsByMonth[selectedMonth].requests) * 100) 
+                              : 0
+                          };
+
+                      return (
+                        <tr key={p.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-5 py-4 text-sm font-bold text-gray-900">{p.name}</td>
+                          <td className="px-5 py-4 text-sm text-center text-gray-600">{stats.requests}</td>
+                          <td className="px-5 py-4 text-sm text-center font-bold text-blue-600">{Math.round(stats.weight * 10) / 10}</td>
+                          <td className="px-5 py-4 text-sm text-center text-gray-500">{stats.manual}</td>
+                          <td className="px-5 py-4 text-sm text-center text-indigo-600">{stats.customer}</td>
+                          <td className="px-5 py-4 text-sm text-center font-bold text-green-600">{stats.completed}</td>
+                          <td className="px-5 py-4 text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${stats.rate >= 80 ? 'bg-green-100 text-green-700' : stats.rate >= 50 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>{stats.rate}%</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                     {monitoring.partnerStats.length === 0 && (
-                      <tr><td colSpan={5} className="px-5 py-8 text-center text-gray-400">등록된 파트너가 없습니다.</td></tr>
+                      <tr><td colSpan={7} className="px-5 py-8 text-center text-gray-400">등록된 파트너가 없습니다.</td></tr>
                     )}
                   </tbody>
                 </table>
