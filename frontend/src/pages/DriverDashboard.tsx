@@ -151,7 +151,7 @@ const DriverProfileForm = ({ authToken, dailyStats, smsTemplates, setSmsTemplate
         <h2 className="text-xl font-bold text-gray-900 mb-2">간편 문자 커스터마이징</h2>
         <p className="text-xs text-gray-500 mb-4 bg-gray-50 p-3 rounded-lg leading-relaxed">
           고객에게 발송되는 문자 메시지를 수정할 수 있습니다.<br/>
-          빈칸으로 두시면 기본 메시지로 자동 발송됩니다.<br/>
+          빈칸으로 두시면 문자 전송 목록에 나타나지 않습니다.<br/>
           <span className="text-blue-600 font-bold">사용 가능한 변수: </span><br/>
           <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{고객명}}'}</code>, 
           <code className="bg-white px-1 py-0.5 rounded text-gray-800">{'{{방문일}}'}</code>, 
@@ -161,7 +161,7 @@ const DriverProfileForm = ({ authToken, dailyStats, smsTemplates, setSmsTemplate
         </p>
 
         <div>
-          <label className="block text-sm font-bold text-blue-800 mb-2">1. 내일 방문 안내 (수거일 확정)</label>
+          <label className="block text-sm font-bold text-blue-800 mb-2">추가 커스텀 메시지 1</label>
           <textarea 
             value={customSms.template1} 
             onChange={e => setCustomSms({ ...customSms, template1: e.target.value })} 
@@ -170,7 +170,7 @@ const DriverProfileForm = ({ authToken, dailyStats, smsTemplates, setSmsTemplate
           />
         </div>
         <div>
-          <label className="block text-sm font-bold text-indigo-800 mb-2">2. 수거 출발 안내</label>
+          <label className="block text-sm font-bold text-indigo-800 mb-2">추가 커스텀 메시지 2</label>
           <textarea 
             value={customSms.template2} 
             onChange={e => setCustomSms({ ...customSms, template2: e.target.value })} 
@@ -179,7 +179,7 @@ const DriverProfileForm = ({ authToken, dailyStats, smsTemplates, setSmsTemplate
           />
         </div>
         <div>
-          <label className="block text-sm font-bold text-green-800 mb-2">3. 수거 완료 안내</label>
+          <label className="block text-sm font-bold text-green-800 mb-2">추가 커스텀 메시지 3</label>
           <textarea 
             value={customSms.template3} 
             onChange={e => setCustomSms({ ...customSms, template3: e.target.value })} 
