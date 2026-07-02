@@ -89,6 +89,21 @@ export default function ReceiptPage() {
   const itemPhotos = receipt.collectionItems?.filter(i => i.photoUrl) || [];
   const hasPhotos = receipt.itemPhotoUrl || receipt.scalePhotoUrl || receipt.extraPhotoUrl || itemPhotos.length > 0;
 
+  const aggregatedItems = receipt.collectionItems?.reduce((acc, item) => {
+    if (!acc[item.categoryLabel]) {
+      acc[item.categoryLabel] = {
+        categoryLabel: item.categoryLabel,
+        quantity: 0,
+        unitType: item.unitType,
+        subtotal: 0
+      };
+    }
+    acc[item.categoryLabel].quantity += item.quantity;
+    acc[item.categoryLabel].subtotal += item.subtotal;
+    return acc;
+  }, {} as Record<string, { categoryLabel: string; quantity: number; unitType: string; subtotal: number; }>) || {};
+  const aggregatedItemsList = Object.values(aggregatedItems);
+
   return (
     <div className="min-h-[100dvh] bg-gray-100 flex flex-col items-center py-8 px-4 font-sans selection:bg-blue-100">
       
@@ -134,9 +149,9 @@ export default function ReceiptPage() {
             <span>📋</span> 정산 상세 내역
           </h3>
           
-          {receipt.collectionItems && receipt.collectionItems.length > 0 ? (
+          {aggregatedItemsList && aggregatedItemsList.length > 0 ? (
             <div className="space-y-3">
-              {receipt.collectionItems.map((item, idx) => (
+              {aggregatedItemsList.map((item, idx) => (
                 <div key={idx} className="flex justify-between items-center text-sm">
                   <div className="flex items-center gap-2">
                     <span className="text-gray-700 font-medium">{item.categoryLabel}</span>

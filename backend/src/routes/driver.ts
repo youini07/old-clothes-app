@@ -727,14 +727,27 @@ router.get('/daily-stats', authenticate, requireRole(['DRIVER', 'PARTNER']), asy
       },
       select: {
         actualWeight: true,
-        totalPrice: true
+        totalPrice: true,
+        collectionItems: true
       }
     });
 
+    const categoryStatsMap = completedRequests.reduce((acc: any, r: any) => {
+      r.collectionItems?.forEach((item: any) => {
+        if (!acc[item.categoryLabel]) {
+          acc[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+        }
+        acc[item.categoryLabel].quantity += item.quantity;
+        acc[item.categoryLabel].subtotal += item.subtotal;
+      });
+      return acc;
+    }, {});
+    
     const stats = {
       count: completedRequests.length,
       totalWeight: completedRequests.reduce((acc: number, req: any) => acc + (req.actualWeight || 0), 0),
-      totalPrice: completedRequests.reduce((acc: number, req: any) => acc + (req.totalPrice || 0), 0)
+      totalPrice: completedRequests.reduce((acc: number, req: any) => acc + (req.totalPrice || 0), 0),
+      categoryStats: Object.values(categoryStatsMap)
     };
 
     res.json(stats);
