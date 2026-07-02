@@ -536,9 +536,17 @@ export default function DriverDashboard() {
   };
 
   const filteredRequests = React.useMemo(() => {
-    return requests
-      .filter(r => (activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'))
-      .map((req, index) => ({ ...req, displayId: index + 1 }));
+    let filtered = requests.filter(r => (activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'));
+    
+    if (activeTab === 'completed') {
+      filtered = filtered.sort((a, b) => {
+        const dateA = a.completedDate ? new Date(a.completedDate).getTime() : 0;
+        const dateB = b.completedDate ? new Date(b.completedDate).getTime() : 0;
+        return dateB - dateA;
+      });
+    }
+
+    return filtered.map((req, index) => ({ ...req, displayId: index + 1 }));
   }, [requests, activeTab]);
 
   
