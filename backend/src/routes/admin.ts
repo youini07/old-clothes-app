@@ -2198,7 +2198,8 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
         driverId: true,
         actualWeight: true,
         totalPrice: true,
-        completedDate: true
+        completedDate: true,
+        collectionItems: true
       }
     });
 
@@ -2222,35 +2223,58 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
           driverId: req.driverId,
           count: 0,
           totalWeight: 0,
-          totalPrice: 0
+          totalPrice: 0,
+          categoryStats: {}
         };
       }
       
       grouped[dateStr][req.driverId].count += 1;
       grouped[dateStr][req.driverId].totalWeight += (req.actualWeight || 0);
       grouped[dateStr][req.driverId].totalPrice += (req.totalPrice || 0);
+
+      req.collectionItems?.forEach((item: any) => {
+        if (!grouped[dateStr][req.driverId].categoryStats[item.categoryLabel]) {
+          grouped[dateStr][req.driverId].categoryStats[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+        }
+        grouped[dateStr][req.driverId].categoryStats[item.categoryLabel].quantity += item.quantity;
+        grouped[dateStr][req.driverId].categoryStats[item.categoryLabel].subtotal += item.subtotal;
+      });
     });
     
     // 만약 단일 날짜(date) 쿼리라면 기존처럼 평탄화된 배열로 리턴 (호환성)
     if (date || (!startDate && !endDate)) {
       const statsMap: any = {};
       drivers.forEach(d => {
-        statsMap[d.id] = { driverId: d.id, driverName: d.user.name, count: 0, totalWeight: 0, totalPrice: 0 };
+        statsMap[d.id] = { driverId: d.id, driverName: d.user.name, count: 0, totalWeight: 0, totalPrice: 0, categoryStats: {} };
       });
       completedRequests.forEach((req: any) => {
         if (statsMap[req.driverId]) {
           statsMap[req.driverId].count += 1;
           statsMap[req.driverId].totalWeight += (req.actualWeight || 0);
           statsMap[req.driverId].totalPrice += (req.totalPrice || 0);
+
+          req.collectionItems?.forEach((item: any) => {
+            if (!statsMap[req.driverId].categoryStats[item.categoryLabel]) {
+              statsMap[req.driverId].categoryStats[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+            }
+            statsMap[req.driverId].categoryStats[item.categoryLabel].quantity += item.quantity;
+            statsMap[req.driverId].categoryStats[item.categoryLabel].subtotal += item.subtotal;
+          });
         }
       });
-      return res.json(Object.values(statsMap));
+      const flatResults = Object.values(statsMap).map((s: any) => ({
+        ...s,
+        categoryStats: Object.values(s.categoryStats)
+      }));
+      return res.json(flatResults);
     }
     
     // startDate, endDate 쿼리라면 배열로 리턴
     Object.keys(grouped).forEach(dateStr => {
       Object.keys(grouped[dateStr]).forEach(driverId => {
-        results.push(grouped[dateStr][driverId]);
+        const driverStats = grouped[dateStr][driverId];
+        driverStats.categoryStats = Object.values(driverStats.categoryStats);
+        results.push(driverStats);
       });
     });
 
