@@ -103,7 +103,9 @@ router.post('/super/impersonate', authenticate, requireRole(['SUPER_ADMIN']), as
       { expiresIn: '7d' }
     );
 
-    res.json({ token, role: targetUser.role });
+    const { password, ...userWithoutPassword } = targetUser;
+
+    res.json({ token, role: targetUser.role, user: userWithoutPassword });
   } catch (error) {
     console.error('간편 로그인 처리 실패:', error);
     res.status(500).json({ error: '간편 로그인을 처리하는 데 실패했습니다.' });

@@ -82,7 +82,12 @@ export default function SuperAdminDashboard() {
       const res = await axios.post(`${import.meta.env.VITE_API_URL}/admin/super/impersonate`, { userId }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      const { token, role } = res.data;
+      const { token, role, user } = res.data;
+      
+      // 대상 사용자의 범용 인증 토큰과 정보를 덮어씌움 (슈퍼관리자 세션은 superadmin_token으로 유지됨)
+      localStorage.setItem('auth_token', token);
+      localStorage.setItem('user_info', JSON.stringify(user));
+      
       if (role === 'PARTNER') {
         localStorage.setItem('admin_token', token);
         window.open('/admin', '_blank'); // 새 탭으로 여는 것이 편함
