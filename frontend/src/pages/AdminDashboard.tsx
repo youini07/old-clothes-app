@@ -1834,29 +1834,30 @@ export default function AdminDashboard() {
                 </div>
 
                 {dailyStatsMap[statsActiveDriver] && dailyStatsMap[statsActiveDriver].count > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                    <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
-                      <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
-                        <span className="text-2xl">📦</span>
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                      <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mb-3 border border-gray-100">
+                          <span className="text-2xl">📦</span>
+                        </div>
+                        <span className="text-gray-500 text-sm font-bold mb-1">수거 완료</span>
+                        <span className="text-3xl font-extrabold text-gray-900">{dailyStatsMap[statsActiveDriver].count}건</span>
                       </div>
-                      <span className="text-gray-500 text-sm font-bold mb-1">수거 완료</span>
-                      <span className="text-3xl font-extrabold text-gray-900">{dailyStatsMap[statsActiveDriver].count}건</span>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
-                      <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3 border border-blue-100">
-                        <span className="text-2xl">⚖️</span>
+                      <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3 border border-blue-100">
+                          <span className="text-2xl">⚖️</span>
+                        </div>
+                        <span className="text-gray-500 text-sm font-bold mb-1">총 무게</span>
+                        <span className="text-3xl font-extrabold text-blue-600">{dailyStatsMap[statsActiveDriver].totalWeight}kg</span>
                       </div>
-                      <span className="text-gray-500 text-sm font-bold mb-1">총 무게</span>
-                      <span className="text-3xl font-extrabold text-blue-600">{dailyStatsMap[statsActiveDriver].totalWeight}kg</span>
-                    </div>
-                    <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
-                      <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-3 border border-green-100">
-                        <span className="text-2xl">💰</span>
+                      <div className="bg-white p-6 rounded-2xl shadow-sm flex flex-col items-center justify-center text-center">
+                        <div className="w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-3 border border-green-100">
+                          <span className="text-2xl">💰</span>
+                        </div>
+                        <span className="text-gray-500 text-sm font-bold mb-1">총 정산액</span>
+                        <span className="text-3xl font-extrabold text-green-600">{dailyStatsMap[statsActiveDriver].totalPrice.toLocaleString()}원</span>
                       </div>
-                      <span className="text-gray-500 text-sm font-bold mb-1">총 정산액</span>
-                      <span className="text-3xl font-extrabold text-green-600">{dailyStatsMap[statsActiveDriver].totalPrice.toLocaleString()}원</span>
                     </div>
-                  </div>
                   
                   {dailyStatsMap[statsActiveDriver].categoryStats && (
                     <div className="mt-6 bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -1882,6 +1883,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   )}
+                  </>
                 ) : (
                   <div className="bg-white p-12 rounded-2xl text-center text-gray-500 font-medium shadow-sm border border-gray-100 flex flex-col items-center">
                     <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
