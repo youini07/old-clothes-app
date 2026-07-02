@@ -1797,7 +1797,9 @@ router.post('/debug/seed-suwon', async (req, res) => {
                    '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
     const volumes = ['헌옷 15kg', '헌옷 25kg, 신발 3켤레', '30kg 이상 (마대자루 2개)', '소량 (10kg 내외)', '옷 20kg, 가방 5개'];
 
-    await prisma.request.deleteMany({});
+    await prisma.request.deleteMany({
+      where: { userName: { in: names } }
+    });
     
     let count = 0;
     const requestDataToInsert = [];
@@ -1842,6 +1844,21 @@ router.post('/debug/seed-suwon', async (req, res) => {
     res.json({ message: `Successfully seeded ${count} requests.` });
   } catch (error) {
     res.status(500).json({ error: String(error) });
+  }
+});
+
+// [DEBUG] 데모 데이터 일괄 삭제
+router.post('/debug/clear-demo', async (req, res) => {
+  try {
+    const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
+                   '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
+    const result = await prisma.request.deleteMany({
+      where: { userName: { in: names } }
+    });
+    res.json({ message: `데모 데이터 ${result.count}건이 안전하게 삭제되었습니다.` });
+  } catch (error) {
+    console.error('데모 삭제 에러:', error);
+    res.status(500).json({ error: '데모 데이터 삭제 실패' });
   }
 });
 

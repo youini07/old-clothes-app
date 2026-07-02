@@ -29,8 +29,10 @@ function randomPhone() {
 }
 
 async function main() {
-  console.log('Deleting existing requests...');
-  await prisma.request.deleteMany({});
+  console.log('Deleting existing demo requests...');
+  await prisma.request.deleteMany({
+    where: { userName: { in: names } }
+  });
   
   console.log('Seeding demo data for 8 cities...');
   
