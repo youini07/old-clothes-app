@@ -1,6 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import axios from 'axios';
+import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
@@ -56,6 +57,58 @@ function createClusters(destinations: any[], startX: number, startY: number, max
 // ==========================================
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
 // ==========================================
+
+// 0. 전체 계정(파트너/기사) 조회 및 간편 로그인 (Impersonation)
+router.get('/super/accounts', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        role: { in: ['PARTNER', 'DRIVER'] }
+      },
+      include: {
+        driverProfile: {
+          include: {
+            partner: {
+              select: { businessName: true, name: true }
+            }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(users);
+  } catch (error) {
+    console.error('계정 목록 조회 실패:', error);
+    res.status(500).json({ error: '계정 목록을 조회하는 데 실패했습니다.' });
+  }
+});
+
+router.post('/super/impersonate', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'userId가 필요합니다.' });
+
+    const targetUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!targetUser) return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+    if (!['PARTNER', 'DRIVER'].includes(targetUser.role)) {
+      return res.status(400).json({ error: '사장님 또는 기사님 계정으로만 로그인할 수 있습니다.' });
+    }
+
+    const token = jwt.sign(
+      { userId: targetUser.id, role: targetUser.role },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, role: targetUser.role });
+  } catch (error) {
+    console.error('간편 로그인 처리 실패:', error);
+    res.status(500).json({ error: '간편 로그인을 처리하는 데 실패했습니다.' });
+  }
+});
 
 // 1. 전체 지역 파트너(업체 사장님) 목록 및 신청 내역 조회
 router.get('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {

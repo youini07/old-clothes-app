@@ -38,14 +38,16 @@ export default function SuperAdminDashboard() {
   const [newRegionData, setNewRegionData] = useState({ province: '', city: '', dong: '' });
 
   // 모니터링 탭 상태
-  const [activeView, setActiveView] = useState<'partners' | 'monitoring'>('partners');
+  const [activeView, setActiveView] = useState<'partners' | 'monitoring' | 'accounts'>('partners');
   const [monitoring, setMonitoring] = useState<any>(null);
+  const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
 
   useEffect(() => {
     if (authToken) {
       fetchPartners();
       fetchMonitoring();
+      fetchAccounts();
     } else {
       navigate('/login');
     }
@@ -60,6 +62,37 @@ export default function SuperAdminDashboard() {
       setMonitoring(res.data);
     } catch (error) {
       console.error('모니터링 데이터 조회 실패:', error);
+    }
+  }
+
+  async function fetchAccounts() {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/accounts`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setAccounts(res.data);
+    } catch (error) {
+      console.error('계정 목록 조회 실패:', error);
+    }
+  }
+
+  const handleImpersonate = async (userId: string) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    try {
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/admin/super/impersonate`, { userId }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const { token, role } = res.data;
+      if (role === 'PARTNER') {
+        localStorage.setItem('admin_token', token);
+        window.open('/admin', '_blank'); // 새 탭으로 여는 것이 편함
+      } else if (role === 'DRIVER') {
+        localStorage.setItem('driver_token', token);
+        window.open('/driver', '_blank');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('간편 로그인 중 오류가 발생했습니다.');
     }
   }
 
@@ -248,9 +281,10 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
         {/* 탭 전환 */}
-        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
-          <button onClick={() => setActiveView('partners')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'partners' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCB'} 파트너 관리</button>
-          <button onClick={() => setActiveView('monitoring')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'monitoring' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCA'} 통합 모니터링</button>
+        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6 flex-wrap md:flex-nowrap gap-1">
+          <button onClick={() => setActiveView('partners')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'partners' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCB'} 파트너 관리</button>
+          <button onClick={() => setActiveView('monitoring')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'monitoring' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCA'} 통합 모니터링</button>
+          <button onClick={() => setActiveView('accounts')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'accounts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🚀 전체 계정 로그인</button>
         </div>
 
         {/* 모니터링 뷰 */}
@@ -615,6 +649,74 @@ export default function SuperAdminDashboard() {
                   >
                     추가하기
                   </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 계정 관리 및 간편 로그인 뷰 */}
+      {activeView === 'accounts' && (
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">전체 계정 간편 로그인</h3>
+                <p className="text-sm text-gray-500 mt-1">비밀번호 없이 클릭 한 번으로 사장님 또는 기사님 계정에 접속합니다.</p>
+              </div>
+              <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold">
+                총 {accounts.length}명
+              </div>
+            </div>
+            
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {accounts.map(acc => (
+                <div key={acc.id} className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all bg-white flex flex-col justify-between">
+                  <div>
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+                        acc.role === 'PARTNER' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {acc.role === 'PARTNER' ? '🏢 사장님' : '🚚 기사님'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        가입일: {new Date(acc.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    <h4 className="text-lg font-extrabold text-gray-900 mt-2">
+                      {acc.name} <span className="text-sm font-medium text-gray-500">({acc.businessName || '이름/상호명 없음'})</span>
+                    </h4>
+                    
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <span className="opacity-70">📧</span> {acc.email || '이메일 없음'}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <span className="opacity-70">📞</span> {acc.phone || '연락처 없음'}
+                      </p>
+                      
+                      {acc.role === 'DRIVER' && acc.driverProfile?.partner && (
+                        <p className="text-sm text-blue-600 flex items-center gap-2 mt-2 bg-blue-50 p-2 rounded-lg font-medium">
+                          <span className="opacity-70">🏢</span> 소속: {acc.driverProfile.partner.businessName} ({acc.driverProfile.partner.name})
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={() => handleImpersonate(acc.id)}
+                    className="mt-5 w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
+                  >
+                    🚀 간편 로그인
+                  </button>
+                </div>
+              ))}
+              
+              {accounts.length === 0 && (
+                <div className="col-span-full py-12 text-center text-gray-400">
+                  계정이 없습니다.
                 </div>
               )}
             </div>
