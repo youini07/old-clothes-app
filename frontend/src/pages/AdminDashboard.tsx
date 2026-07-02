@@ -175,7 +175,12 @@ export default function AdminDashboard() {
   // 권역별 보기 탭
   const [activeRegionTab, setActiveRegionTab] = useState<string>('ALL');
 
-  const [statsDate, setStatsDate] = useState<string>(''); // YYYY-MM-DD
+  const getTodayLocalStr = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    return d.toISOString().split('T')[0];
+  };
+  const [statsDate, setStatsDate] = useState<string>(getTodayLocalStr()); // YYYY-MM-DD
   const [dailyStatsMap, setDailyStatsMap] = useState<Record<string, any>>({});
   const [statsActiveDriver, setStatsActiveDriver] = useState<string>('all');
 
@@ -384,6 +389,7 @@ export default function AdminDashboard() {
         fetchSettings();
         fetchGlobalSettings();
         fetchCustomRegions();
+        fetchDailyStats(statsDate);
       }
     } else {
       setTimeout(() => setLoading(false), 0);
