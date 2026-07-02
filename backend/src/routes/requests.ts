@@ -9,6 +9,45 @@ import { sendNewRequestToPartner } from '../services/notificationService';
 
 const router = express.Router();
 
+// 퍼블릭 영수증(수거 내역) 조회 API
+router.get('/:id/receipt', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const request = await prisma.request.findUnique({
+      where: { id },
+      include: {
+        collectionItems: true
+      }
+    });
+
+    if (!request) {
+      return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    }
+
+    // 개인정보 보호를 위해 상세 주소와 전화번호는 제외하고 전송 (마스킹 등)
+    // 보안을 위해 프론트엔드 영수증 페이지에서 사용할 데이터만 내려줍니다.
+    const receiptData = {
+      id: request.id,
+      userName: request.userName,
+      // 예: "경기도 수원시 영통구 이의동" 까지만 노출하고 상세 주소는 제외
+      address: request.address,
+      actualWeight: request.actualWeight,
+      totalPrice: request.totalPrice,
+      itemPhotoUrl: request.itemPhotoUrl,
+      scalePhotoUrl: request.scalePhotoUrl,
+      extraPhotoUrl: request.extraPhotoUrl,
+      completedDate: request.completedDate,
+      collectionItems: request.collectionItems,
+      status: request.status
+    };
+
+    res.json(receiptData);
+  } catch (error) {
+    console.error('영수증 조회 실패:', error);
+    res.status(500).json({ error: '영수증 조회에 실패했습니다.' });
+  }
+});
+
 // 새로운 수거 신청 생성 (입력값 검증 포함)
 router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest, res) => {
   const requestData = req.body;

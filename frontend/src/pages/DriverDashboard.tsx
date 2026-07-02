@@ -596,6 +596,7 @@ export default function DriverDashboard() {
   const getSmsTemplate3 = (req: RequestItem) => {
     const price = req.totalPrice || 0;
     const items = req.collectionItems || [];
+    const receiptLink = `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${req.id}`;
     
     if (items.length > 0) {
       // 항목별 정산 내역이 있는 경우 영수증 형태
@@ -603,11 +604,11 @@ export default function DriverDashboard() {
         const unitLabel = item.unitType === 'KG' ? 'kg' : '대';
         return `· ${item.categoryLabel}: ${item.quantity}${unitLabel} × ${item.unitPrice.toLocaleString()}원 = ${item.subtotal.toLocaleString()}원`;
       }).join('\n');
-      return `안녕하세요! 올클입니다.\n\n고객님의 수거가 완료되었습니다!\n\n[정산서]\n${itemLines}\n────────\n합계: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.`;
+      return `안녕하세요! 올클입니다.\n\n고객님의 수거가 완료되었습니다!\n\n[정산서]\n${itemLines}\n────────\n합계: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.${receiptLink}`;
     }
     // 기존 호환: 항목 데이터 없는 경우 (이전 방식으로 완료된 건)
     const weight = req.actualWeight || 0;
-    return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!`;
+    return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!${receiptLink}`;
   };
 
   return (
@@ -1152,7 +1153,7 @@ export default function DriverDashboard() {
               )}
               {smsTemplates?.template3 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')) + `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${selectedSmsReq.req.id}`)}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
                 >
