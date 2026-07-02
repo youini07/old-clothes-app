@@ -407,101 +407,11 @@ router.post('/optimize-route', authenticate, requireRole(['DRIVER', 'PARTNER']),
       }
     }
 
-    // T맵 API 키 확인
-    const tmapAppKey = process.env.TMAP_APP_KEY;
     let optimizedList: any[] = [];
 
     let totalTimeSec = 0;
     let totalDistanceMeter = 0;
     let usedTmap = false;
-
-    if (tmapAppKey && tmapAppKey.length > 0) {
-      try {
-        // 1. 목적지들을 최대 20개 단위의 지리적 클러스터로 분할
-        const clusters = createClusters(destinations, parseFloat(currentLng), parseFloat(currentLat), 20);
-        let currentStartX = parseFloat(currentLng);
-        let currentStartY = parseFloat(currentLat);
-
-        for (const cluster of clusters) {
-          if (cluster.length === 0) continue;
-
-          // 2. T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
-          // 마지막 요소를 목적지로 임시 설정
-          const clusterDest = cluster[cluster.length - 1];
-          
-          const payload = {
-            reqCoordType: "WGS84GEO",
-            resCoordType: "WGS84GEO",
-            startName: "출발지",
-            startX: currentStartX.toString(),
-            startY: currentStartY.toString(),
-            startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
-            endName: "도착지",
-            endX: clusterDest.x.toString(),
-            endY: clusterDest.y.toString(),
-            searchOption: "0", // 0: 추천 (가장 빠른 길)
-            viaPoints: cluster.map((d: any, i: number) => ({
-              viaPointId: d.request.id,
-              viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
-              viaX: d.x.toString(),
-              viaY: d.y.toString()
-            }))
-          };
-
-          const tmapRes = await axios.post(
-            'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
-            payload,
-            {
-              headers: {
-                appKey: tmapAppKey,
-                'Content-Type': 'application/json'
-              }
-            }
-          );
-
-          if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
-            totalTimeSec += tmapRes.data.properties.totalTime || 0;
-            totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
-            usedTmap = true;
-
-            // features 안에서 경유지 순서를 파악
-            const features = tmapRes.data.features;
-            const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
-            
-            // 정렬된 순서대로 optimizedList에 추가
-            for (const via of orderedVias) {
-              const dest = cluster.find((d: any) => d.request.id === via.properties.viaPointId);
-              if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
-                optimizedList.push(dest.request);
-              }
-            }
-            
-            // TMAP 결과 누락(도착지 등) 처리
-            for (const dest of cluster) {
-              if (!optimizedList.find(r => r.id === dest.request.id)) {
-                optimizedList.push(dest.request);
-              }
-            }
-
-            // 다음 클러스터 출발지는 현재 클러스터의 마지막 수거지
-            const lastProcessed = optimizedList[optimizedList.length - 1];
-            const lastDestCoords = cluster.find((d: any) => d.request.id === lastProcessed.id);
-            if (lastDestCoords) {
-              currentStartX = lastDestCoords.x;
-              currentStartY = lastDestCoords.y;
-            }
-          } else {
-            throw new Error('T맵 응답 형식 오류');
-          }
-        }
-      } catch (tmapError: any) {
-        console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.response?.data || tmapError.message);
-        optimizedList = [];
-        usedTmap = false;
-        totalTimeSec = 0;
-        totalDistanceMeter = 0;
-      }
-    }
 
     // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor + 2-Opt 폴백
     if (optimizedList.length === 0) {

@@ -1041,88 +1041,11 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
     const currentLat = destinations[0].y;
     const currentLng = destinations[0].x;
 
-    // T맵 API 키 확인
-    const tmapAppKey = process.env.TMAP_APP_KEY;
     let optimizedList: any[] = [];
 
     let totalTimeSec = 0;
     let totalDistanceMeter = 0;
     let usedTmap = false;
-
-    if (tmapAppKey && tmapAppKey.length > 0) {
-      try {
-        const clusters = createClusters(destinations, currentLng, currentLat, 20);
-        let currentStartX = currentLng;
-        let currentStartY = currentLat;
-
-        for (const cluster of clusters) {
-          if (cluster.length === 0) continue;
-
-          const clusterDest = cluster[cluster.length - 1];
-          const payload = {
-            reqCoordType: "WGS84GEO",
-            resCoordType: "WGS84GEO",
-            startName: "출발지",
-            startX: currentStartX.toString(),
-            startY: currentStartY.toString(),
-            startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
-            endName: "도착지",
-            endX: clusterDest.x.toString(),
-            endY: clusterDest.y.toString(),
-            searchOption: "0", 
-            viaPoints: cluster.map((d: any, i: number) => ({
-              viaPointId: d.request.id,
-              viaPointName: encodeURIComponent(d.request.userName || `수거지${i+1}`).substring(0, 20),
-              viaX: d.x.toString(),
-              viaY: d.y.toString()
-            }))
-          };
-
-          const tmapRes = await axios.post(
-            'https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1',
-            payload,
-            { headers: { appKey: tmapAppKey, 'Content-Type': 'application/json' } }
-          );
-
-          if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
-            totalTimeSec += tmapRes.data.properties.totalTime || 0;
-            totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
-            usedTmap = true;
-
-            const features = tmapRes.data.features;
-            const orderedVias = features.filter((f: any) => f.properties && f.properties.viaPointId);
-            
-            for (const via of orderedVias) {
-              const dest = cluster.find((d: any) => d.request.id === via.properties.viaPointId);
-              if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
-                optimizedList.push(dest.request);
-              }
-            }
-            
-            for (const dest of cluster) {
-              if (!optimizedList.find(r => r.id === dest.request.id)) {
-                optimizedList.push(dest.request);
-              }
-            }
-
-            const lastProcessed = optimizedList[optimizedList.length - 1];
-            const lastDestCoords = cluster.find((d: any) => d.request.id === lastProcessed.id);
-            if (lastDestCoords) {
-              currentStartX = lastDestCoords.x;
-              currentStartY = lastDestCoords.y;
-            }
-          } else {
-            throw new Error('T맵 응답 형식 오류');
-          }
-        }
-      } catch (tmapError: any) {
-        console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.message);
-        optimizedList = [];
-        usedTmap = false;
-        totalTimeSec = 0;
-        totalDistanceMeter = 0;
-      }
-    }
 
     if (optimizedList.length === 0) {
       const startX = currentLng;
