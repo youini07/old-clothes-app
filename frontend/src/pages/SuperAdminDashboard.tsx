@@ -332,22 +332,28 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* 항목별 수거 내역 (전국) */}
-            {monitoring.overview.categoryStats && monitoring.overview.categoryStats.length > 0 && (
+            {monitoring.overview.categoryStats && (
               <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
                 <h3 className="text-lg font-bold text-gray-900 mb-4">📦 항목별 수거 내역 (전국 통합)</h3>
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {monitoring.overview.categoryStats.map((cat: any, i: number) => (
-                    <div key={i} className="border border-gray-200 rounded-xl p-4 flex justify-between items-center bg-gray-50">
-                      <div>
-                        <p className="font-bold text-gray-900">{cat.categoryLabel}</p>
-                        <p className="text-xs text-gray-500 mt-1">{cat.quantity}{cat.unitType === 'KG' ? 'kg' : '대'}</p>
+                {monitoring.overview.categoryStats.length > 0 ? (
+                  <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {monitoring.overview.categoryStats.map((cat: any, i: number) => (
+                      <div key={i} className="border border-gray-200 rounded-xl p-4 flex justify-between items-center bg-gray-50">
+                        <div>
+                          <p className="font-bold text-gray-900">{cat.categoryLabel}</p>
+                          <p className="text-xs text-gray-500 mt-1">{cat.quantity}{cat.unitType === 'KG' ? 'kg' : '대'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-extrabold text-blue-600">{cat.subtotal.toLocaleString()}원</p>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-lg font-extrabold text-blue-600">{cat.subtotal.toLocaleString()}원</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-4 bg-gray-50 rounded-xl text-center text-gray-500 text-sm font-medium">
+                    항목별 통계 기능 도입 전의 과거 데이터는 세부 내역이 표시되지 않습니다.
+                  </div>
+                )}
               </div>
             )}
 
