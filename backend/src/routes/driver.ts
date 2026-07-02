@@ -67,6 +67,20 @@ function createClusters(destinations: any[], startX: number, startY: number, max
 
 const router = express.Router();
 
+const demoExcludeFilter = {
+  NOT: [
+    {
+      userName: {
+        in: ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
+             '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은']
+      },
+      customerId: null
+    },
+    { userName: { contains: '테스트' } }
+  ]
+};
+
+
 
 // ==========================================
 // [DRIVER 전용] 수거 기사 앱 기능
@@ -89,7 +103,7 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
       return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
     }
 
-    const whereCondition = { driverId: driverProfile.id };
+    const whereCondition = { driverId: driverProfile.id, ...demoExcludeFilter };
     const totalCount = await prisma.request.count({ where: whereCondition });
     const requests = await prisma.request.findMany({
       where: whereCondition,
@@ -708,7 +722,8 @@ router.get('/daily-stats', authenticate, requireRole(['DRIVER', 'PARTNER']), asy
       where: {
         driverId: driver.id,
         status: 'COMPLETED',
-        ...dateFilter
+        ...dateFilter,
+        ...demoExcludeFilter
       },
       select: {
         actualWeight: true,

@@ -13,6 +13,20 @@ import { sendDriverAssignedSystemMessage } from '../socket';
 
 const router = express.Router();
 
+const demoExcludeFilter = {
+  NOT: [
+    {
+      userName: {
+        in: ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
+             '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은']
+      },
+      customerId: null
+    },
+    { userName: { contains: '테스트' } }
+  ]
+};
+
+
 // 유클리드 거리 계산 헬퍼
 function getDistance(x1: number, y1: number, x2: number, y2: number) {
   const dx = x1 - x2;
@@ -370,12 +384,7 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 
     if (coverages.length === 0) {
       // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
-      const whereCondition = {
-        OR: [
-          { partnerId: null, status: 'PENDING' },
-          { partnerId: partnerId }
-        ]
-      };
+      const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
       
       totalCount = await prisma.request.count({ where: whereCondition });
       requests = await prisma.request.findMany({
@@ -390,12 +399,7 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
       const cities = coverages.map((c: any) => c.region.city);
       const cityFilters = cities.map((city: string) => ({ address: { contains: city } }));
       
-      const whereCondition = {
-        OR: [
-          { partnerId: null, status: 'PENDING', OR: cityFilters },
-          { partnerId: partnerId }
-        ]
-      };
+      const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
 
       totalCount = await prisma.request.count({ where: whereCondition });
       requests = await prisma.request.findMany({
@@ -1491,7 +1495,8 @@ router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), asyn
     // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
     const allRequests = await prisma.request.findMany({
       where: {
-        partnerId: partnerId
+        partnerId: partnerId,
+        ...demoExcludeFilter
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -2186,7 +2191,8 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
       where: {
         driverId: { in: driverIds },
         status: 'COMPLETED',
-        ...dateFilter
+        ...dateFilter,
+        ...demoExcludeFilter
       },
       select: {
         driverId: true,
