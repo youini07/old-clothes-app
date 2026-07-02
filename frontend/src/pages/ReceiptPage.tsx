@@ -85,7 +85,8 @@ export default function ReceiptPage() {
     return parts.slice(0, 3).join(' ') + ' ...';
   };
 
-  const hasPhotos = receipt.itemPhotoUrl || receipt.scalePhotoUrl || receipt.extraPhotoUrl;
+  const itemPhotos = receipt.collectionItems?.filter(i => i.photoUrl) || [];
+  const hasPhotos = receipt.itemPhotoUrl || receipt.scalePhotoUrl || receipt.extraPhotoUrl || itemPhotos.length > 0;
 
   return (
     <div className="min-h-[100dvh] bg-gray-100 flex flex-col items-center py-8 px-4 font-sans selection:bg-blue-100">
@@ -177,14 +178,23 @@ export default function ReceiptPage() {
                 </div>
               )}
               
-              {receipt.itemPhotoUrl && (
+              {itemPhotos.length > 0 ? (
+                itemPhotos.map((item, idx) => (
+                  <div key={`item-photo-${idx}`} className="relative group rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
+                    <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm z-10">
+                      📦 {item.categoryLabel || '수거 물품'} 사진
+                    </div>
+                    <img src={item.photoUrl!} alt="물품 사진" className="w-full h-auto object-cover" />
+                  </div>
+                ))
+              ) : receipt.itemPhotoUrl ? (
                 <div className="relative group rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
                   <div className="absolute top-3 left-3 bg-black/60 text-white px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm z-10">
                     📦 수거 물품 사진
                   </div>
                   <img src={receipt.itemPhotoUrl} alt="물품 사진" className="w-full h-auto object-cover" />
                 </div>
-              )}
+              ) : null}
 
               {receipt.extraPhotoUrl && (
                 <div className="relative group rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
