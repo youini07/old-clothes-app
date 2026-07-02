@@ -21,6 +21,7 @@ interface RequestItem {
   desiredDate?: string | Date; // 고객 수거 희망일
   confirmedDate?: string | Date | null; // 사장님 확정 방문일
   createdAt?: string | Date;
+  completedDate?: string | Date | null;
   collectionItems?: CollectionItemData[];
 }
 

@@ -10,6 +10,7 @@ interface CollectionItem {
   unitType: string;
   unitPrice: number;
   subtotal: number;
+  photoUrl?: string | null;
 }
 
 interface ReceiptData {
