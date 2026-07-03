@@ -104,53 +104,77 @@ router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async
     });
 
     // 병합을 위한 Map 선언
-    const customerMap = new Map<string, any>();
+    const userMap = new Map<string, any>(); // 키: userId
+    const phoneMap = new Map<string, any>(); // 키: phone
 
-    // 앱 고객 먼저 Map에 등록
+    // 1. 앱 고객 먼저 Map에 등록
     appCustomers.forEach(customer => {
-      // 전화번호가 없는 예외 케이스 처리 (카카오 로그인 등에서 안 넘어올 경우)
-      const phone = customer.phone || `no_phone_${customer.id}`;
-      customerMap.set(phone, {
+      const custData = {
         isAppUser: true,
         userId: customer.id,
         name: customer.name,
-        phone: customer.phone,
+        phone: customer.phone, // 카카오 로그인 등에서 안 넘어올 경우 null일 수 있음
         email: customer.email,
         address: customer.address,
         detailAddress: customer.detailAddress,
         firstRequestDate: customer.createdAt,
         recentCompletedDate: null,
         requestCount: 0
-      });
+      };
+      
+      userMap.set(customer.id, custData);
+      
+      // 전화번호가 존재하면 phoneMap에도 등록하여 비회원 내역과 연동 준비
+      if (customer.phone) {
+        phoneMap.set(customer.phone, custData);
+      }
     });
 
-    // Request 데이터를 돌면서 정보 병합
+    // 2. Request 데이터를 돌면서 정보 병합
     requests.forEach(req => {
-      const phone = req.phone;
-      if (!phone) return;
+      let cust = null;
 
-      let cust = customerMap.get(phone);
-      if (!cust) {
-        // 앱 고객 맵에 없으면 수동 입력(비회원) 고객으로 추가
-        cust = {
-          isAppUser: false,
-          userId: null,
-          name: req.userName,
-          phone: req.phone,
-          email: null,
-          address: req.address,
-          detailAddress: req.detailAddress,
-          firstRequestDate: req.createdAt,
-          recentCompletedDate: null,
-          requestCount: 0
-        };
-        customerMap.set(phone, cust);
+      // 1) 회원이 신청한 내역인 경우 (customerId를 통해 회원 정보 찾기 우선)
+      if (req.customerId && userMap.has(req.customerId)) {
+        cust = userMap.get(req.customerId);
+        
+        // 기존 앱 회원 정보에 전화번호가 없었는데 신청서에 입력한 번호가 있다면 채워줌
+        if (!cust.phone && req.phone) {
+          cust.phone = req.phone;
+          phoneMap.set(req.phone, cust); // 이제부터 이 번호는 앱 회원과 매칭됨
+        }
+      } 
+      // 2) 비회원(수동입력)이거나 회원이지만 customerId가 없는 경우 (전화번호로 매칭)
+      else if (req.phone) {
+        if (phoneMap.has(req.phone)) {
+          // 전화번호가 일치하면 기존 회원 정보이거나 이미 등록된 비회원 정보임
+          cust = phoneMap.get(req.phone);
+        } else {
+          // 맵에 없는 완전 새로운 수동 입력(비회원) 고객
+          cust = {
+            isAppUser: false,
+            userId: null,
+            name: req.userName,
+            phone: req.phone,
+            email: null,
+            address: req.address,
+            detailAddress: req.detailAddress,
+            firstRequestDate: req.createdAt,
+            recentCompletedDate: null,
+            requestCount: 0
+          };
+          phoneMap.set(req.phone, cust);
+        }
       }
 
+      // 전화번호도 없고 customerId도 없는 예외 신청건은 제외
+      if (!cust) return;
+
+      // 통계 누적
       cust.requestCount += 1;
       
-      // 비회원의 경우, 가장 오래된 Request 날짜를 최초 신청일로 간주
-      if (!cust.isAppUser && new Date(req.createdAt) < new Date(cust.firstRequestDate)) {
+      // 최초 신청일 비교 (앱 가입일보다 이전에 사장님이 수동으로 입력한 내역이 있을 수 있으므로 갱신)
+      if (new Date(req.createdAt) < new Date(cust.firstRequestDate)) {
         cust.firstRequestDate = req.createdAt;
       }
       
@@ -162,8 +186,13 @@ router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async
       }
     });
 
+    // 3. 최종 데이터 추출 (중복 제거를 위해 Set 활용)
+    const mergedSet = new Set<any>();
+    userMap.forEach(cust => mergedSet.add(cust));
+    phoneMap.forEach(cust => mergedSet.add(cust));
+
     // 정렬 (최근 활동 순 혹은 가입/최초신청 순)
-    const mergedCustomers = Array.from(customerMap.values()).sort((a, b) => {
+    const mergedCustomers = Array.from(mergedSet).sort((a, b) => {
       const dateA = a.recentCompletedDate || a.firstRequestDate;
       const dateB = b.recentCompletedDate || b.firstRequestDate;
       return new Date(dateB).getTime() - new Date(dateA).getTime();
