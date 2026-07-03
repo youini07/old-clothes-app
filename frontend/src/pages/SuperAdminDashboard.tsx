@@ -38,16 +38,23 @@ export default function SuperAdminDashboard() {
   const [newRegionData, setNewRegionData] = useState({ province: '', city: '', dong: '' });
 
   // 모니터링 탭 상태
-  const [activeView, setActiveView] = useState<'partners' | 'monitoring' | 'accounts'>('partners');
+  const [activeView, setActiveView] = useState<'partners' | 'monitoring' | 'accounts' | 'customers'>('partners');
   const [monitoring, setMonitoring] = useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+
+  // 고객 DB 탭 상태
+  const [customers, setCustomers] = useState<any[]>([]);
+  const [selectedCustomerRequests, setSelectedCustomerRequests] = useState<any[]>([]);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
 
   useEffect(() => {
     if (authToken) {
       fetchPartners();
       fetchMonitoring();
       fetchAccounts();
+      fetchCustomers();
     } else {
       navigate('/login');
     }
@@ -73,6 +80,34 @@ export default function SuperAdminDashboard() {
       setAccounts(res.data);
     } catch (error) {
       console.error('계정 목록 조회 실패:', error);
+    }
+  }
+
+  async function fetchCustomers() {
+    setLoadingCustomers(true);
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/customers`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setCustomers(res.data);
+    } catch (error) {
+      console.error('고객 목록 조회 실패:', error);
+    } finally {
+      setLoadingCustomers(false);
+    }
+  }
+
+  async function handleViewCustomerRequests(phone: string) {
+    if (!phone) return alert('전화번호 정보가 없어 조회할 수 없습니다.');
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/customers/${phone}/requests`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setSelectedCustomerRequests(res.data);
+      setIsCustomerModalOpen(true);
+    } catch (error) {
+      console.error('고객 수거 내역 조회 실패:', error);
+      alert('상세 내역을 불러오는데 실패했습니다.');
     }
   }
 
@@ -290,6 +325,7 @@ export default function SuperAdminDashboard() {
           <button onClick={() => setActiveView('partners')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'partners' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCB'} 파트너 관리</button>
           <button onClick={() => setActiveView('monitoring')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'monitoring' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCA'} 통합 모니터링</button>
           <button onClick={() => setActiveView('accounts')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'accounts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🚀 전체 계정 로그인</button>
+          <button onClick={() => setActiveView('customers')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'customers' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>👥 고객 DB</button>
         </div>
 
         {/* 모니터링 뷰 */}
@@ -543,6 +579,109 @@ export default function SuperAdminDashboard() {
         </div>
       </>}
 
+      {/* 전체 계정 로그인 뷰 (accounts) */}
+      {activeView === 'accounts' && (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50/50">
+            <h2 className="text-xl font-bold text-gray-800">계정 간편 로그인 (Impersonation)</h2>
+          </div>
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {accounts.map(acc => (
+                <div key={acc.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-center bg-gray-50 hover:bg-white hover:shadow-md transition-all">
+                  <div>
+                    <span className={`px-2 py-1 rounded-md text-xs font-bold mr-2 ${acc.role === 'PARTNER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
+                      {acc.role === 'PARTNER' ? '파트너' : '기사'}
+                    </span>
+                    <p className="font-bold text-gray-900 mt-2">{acc.name} <span className="text-sm font-normal text-gray-500">({acc.phone})</span></p>
+                    {acc.role === 'PARTNER' && acc.businessName && <p className="text-xs text-gray-500 mt-1">{acc.businessName}</p>}
+                    {acc.role === 'DRIVER' && acc.driverProfile?.partner?.businessName && <p className="text-xs text-gray-500 mt-1">소속: {acc.driverProfile.partner.businessName}</p>}
+                  </div>
+                  <button 
+                    onClick={() => handleImpersonate(acc.id)}
+                    className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition-colors"
+                  >
+                    로그인
+                  </button>
+                </div>
+              ))}
+              {accounts.length === 0 && (
+                <div className="col-span-full py-8 text-center text-gray-500">등록된 계정이 없습니다.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 고객 DB 뷰 */}
+      {activeView === 'customers' && (
+        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <h2 className="text-xl font-bold text-gray-800">고객 DB 목록 (총 {customers.length}명)</h2>
+            <button onClick={fetchCustomers} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors font-semibold">새로고침</button>
+          </div>
+          
+          {loadingCustomers ? (
+            <div className="p-12 text-center text-gray-400 font-medium">데이터 불러오는 중...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className="bg-gray-50/80 border-b border-gray-100">
+                  <tr>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 whitespace-nowrap">구분</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 whitespace-nowrap">고객명</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 whitespace-nowrap">전화번호</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500">주소</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 whitespace-nowrap">가입/최초신청</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 text-center whitespace-nowrap">최근 수거일</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 text-center whitespace-nowrap">수거 횟수</th>
+                    <th className="px-5 py-4 text-sm font-semibold text-gray-500 text-center whitespace-nowrap">상세보기</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {customers.map((c, i) => (
+                    <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                      <td className="px-5 py-4 whitespace-nowrap">
+                        {c.isAppUser ? (
+                          <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-bold">앱 신청</span>
+                        ) : (
+                          <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs font-bold">직접 입력</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4 text-sm font-bold text-gray-900 whitespace-nowrap">{c.name || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-600 whitespace-nowrap">{c.phone || '-'}</td>
+                      <td className="px-5 py-4 text-sm text-gray-600 truncate max-w-[250px]" title={`${c.address || ''} ${c.detailAddress || ''}`}>
+                        {c.address} {c.detailAddress}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-gray-500 whitespace-nowrap">
+                        {c.firstRequestDate ? new Date(c.firstRequestDate).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-center text-gray-600 whitespace-nowrap">
+                        {c.recentCompletedDate ? new Date(c.recentCompletedDate).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-5 py-4 text-sm text-center font-bold text-blue-600 whitespace-nowrap">
+                        {c.requestCount}회
+                      </td>
+                      <td className="px-5 py-4 text-center whitespace-nowrap">
+                        <button 
+                          onClick={() => handleViewCustomerRequests(c.phone)}
+                          className="px-3 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-xs font-bold transition-colors shadow-sm"
+                        >
+                          상세보기
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {customers.length === 0 && (
+                    <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400">등록된 고객 데이터가 없습니다.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       </div>
 
       {/* Partner Registration Modal */}
@@ -613,6 +752,81 @@ export default function SuperAdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 고객 상세 수거 내역 모달 */}
+      {isCustomerModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-4xl w-full shadow-2xl relative max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <button 
+              onClick={() => setIsCustomerModalOpen(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors text-2xl font-bold"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">고객 상세 수거 내역</h2>
+            
+            {selectedCustomerRequests.length === 0 ? (
+              <div className="text-center text-gray-500 py-10">수거 내역이 없습니다.</div>
+            ) : (
+              <div className="space-y-4">
+                {selectedCustomerRequests.map((req, i) => (
+                  <div key={i} className="border border-gray-100 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow bg-white">
+                    <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
+                      <div className="flex items-center">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold mr-3 shadow-sm
+                          ${req.status === 'COMPLETED' ? 'bg-green-100 text-green-700 border border-green-200' :
+                            req.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                            'bg-blue-100 text-blue-700 border border-blue-200'}`}
+                        >
+                          {req.status === 'COMPLETED' ? '수거완료' : req.status === 'PENDING' ? '대기중' : req.status}
+                        </span>
+                        <span className="text-sm font-semibold text-gray-500">신청일: {new Date(req.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="text-lg font-extrabold text-blue-600 bg-blue-50 px-4 py-1 rounded-xl border border-blue-100">
+                        총 {req.totalPrice ? req.totalPrice.toLocaleString() : 0}원
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4 bg-gray-50/80 p-4 rounded-xl border border-gray-100">
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-xs mb-1">수거지</span>
+                        <span className="font-bold text-gray-800">{req.address} <span className="font-medium text-gray-600">{req.detailAddress}</span></span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-xs mb-1">담당 파트너</span>
+                        <span className="font-bold text-gray-800">{req.partner ? req.partner.businessName : <span className="text-red-400 font-medium">미배정</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-xs mb-1">담당 기사</span>
+                        <span className="font-bold text-gray-800">{req.driver?.user?.name || <span className="text-gray-400 font-medium">미배정</span>}</span>
+                      </div>
+                      <div>
+                        <span className="text-gray-400 font-semibold block text-xs mb-1">완료 일시</span>
+                        <span className="font-bold text-gray-800">{req.completedDate ? new Date(req.completedDate).toLocaleString() : <span className="text-gray-400 font-medium">-</span>}</span>
+                      </div>
+                    </div>
+                    
+                    {req.collectionItems && req.collectionItems.length > 0 && (
+                      <div className="pt-2 border-t border-gray-100">
+                        <p className="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider">상세 품목 및 정산내역</p>
+                        <div className="flex flex-wrap gap-2">
+                          {req.collectionItems.map((item: any, idx: number) => (
+                            <div key={idx} className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm text-gray-700 shadow-sm flex items-center">
+                              <span className="font-bold mr-3">{item.categoryLabel}</span>
+                              <span className="text-gray-500 text-xs mr-3 font-medium bg-gray-100 px-2 py-0.5 rounded-md">{item.quantity}{item.unitType === 'KG' ? 'kg' : '대'}</span>
+                              <span className="font-bold text-blue-600 ml-auto">{item.subtotal.toLocaleString()}원</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -72,6 +72,138 @@ function createClusters(destinations: any[], startX: number, startY: number, max
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
 // ==========================================
 
+// 고객 DB 목록 조회 (앱 회원 + 수동 입력 비회원 병합)
+router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    // 1. 앱 가입 고객 (Role = 'CUSTOMER')
+    const appCustomers = await prisma.user.findMany({
+      where: { role: 'CUSTOMER' },
+      select: {
+        id: true,
+        name: true,
+        phone: true,
+        email: true,
+        address: true,
+        detailAddress: true,
+        createdAt: true,
+      }
+    });
+
+    // 2. 수거 신청서(Request)를 통해 비회원/수동입력 정보 및 통계 추출
+    const requests = await prisma.request.findMany({
+      select: {
+        id: true,
+        customerId: true,
+        userName: true,
+        phone: true,
+        address: true,
+        detailAddress: true,
+        completedDate: true,
+        createdAt: true
+      }
+    });
+
+    // 병합을 위한 Map 선언
+    const customerMap = new Map<string, any>();
+
+    // 앱 고객 먼저 Map에 등록
+    appCustomers.forEach(customer => {
+      // 전화번호가 없는 예외 케이스 처리 (카카오 로그인 등에서 안 넘어올 경우)
+      const phone = customer.phone || `no_phone_${customer.id}`;
+      customerMap.set(phone, {
+        isAppUser: true,
+        userId: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        address: customer.address,
+        detailAddress: customer.detailAddress,
+        firstRequestDate: customer.createdAt,
+        recentCompletedDate: null,
+        requestCount: 0
+      });
+    });
+
+    // Request 데이터를 돌면서 정보 병합
+    requests.forEach(req => {
+      const phone = req.phone;
+      if (!phone) return;
+
+      let cust = customerMap.get(phone);
+      if (!cust) {
+        // 앱 고객 맵에 없으면 수동 입력(비회원) 고객으로 추가
+        cust = {
+          isAppUser: false,
+          userId: null,
+          name: req.userName,
+          phone: req.phone,
+          email: null,
+          address: req.address,
+          detailAddress: req.detailAddress,
+          firstRequestDate: req.createdAt,
+          recentCompletedDate: null,
+          requestCount: 0
+        };
+        customerMap.set(phone, cust);
+      }
+
+      cust.requestCount += 1;
+      
+      // 비회원의 경우, 가장 오래된 Request 날짜를 최초 신청일로 간주
+      if (!cust.isAppUser && new Date(req.createdAt) < new Date(cust.firstRequestDate)) {
+        cust.firstRequestDate = req.createdAt;
+      }
+      
+      // 최근 수거 완료 날짜 갱신
+      if (req.completedDate) {
+        if (!cust.recentCompletedDate || new Date(req.completedDate) > new Date(cust.recentCompletedDate)) {
+          cust.recentCompletedDate = req.completedDate;
+        }
+      }
+    });
+
+    // 정렬 (최근 활동 순 혹은 가입/최초신청 순)
+    const mergedCustomers = Array.from(customerMap.values()).sort((a, b) => {
+      const dateA = a.recentCompletedDate || a.firstRequestDate;
+      const dateB = b.recentCompletedDate || b.firstRequestDate;
+      return new Date(dateB).getTime() - new Date(dateA).getTime();
+    });
+
+    res.json(mergedCustomers);
+  } catch (error) {
+    console.error('고객 목록 조회 실패:', error);
+    res.status(500).json({ error: '고객 목록을 조회하는 데 실패했습니다.' });
+  }
+});
+
+// 특정 고객(전화번호 기준)의 수거 내역 상세 조회
+router.get('/super/customers/:phone/requests', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const { phone } = req.params;
+    
+    // 전화번호를 기준으로 매칭되는 모든 Request 조회
+    const requests = await prisma.request.findMany({
+      where: {
+        OR: [
+          { phone: phone },
+          { customer: { phone: phone } }
+        ]
+      },
+      include: {
+        partner: { select: { businessName: true } },
+        driver: { select: { user: { select: { name: true } } } },
+        collectionItems: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json(requests);
+  } catch (error) {
+    console.error('고객 수거 내역 조회 실패:', error);
+    res.status(500).json({ error: '고객 수거 내역을 조회하는 데 실패했습니다.' });
+  }
+});
+
 // 0. 전체 계정(파트너/기사) 조회 및 간편 로그인 (Impersonation)
 router.get('/super/accounts', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
@@ -2205,6 +2337,74 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
   } catch (error) {
     console.error('관리자 기사 통계 조회 실패:', error);
     res.status(500).json({ error: '기사별 통계를 불러오는데 실패했습니다.' });
+  }
+});
+
+
+// ==========================================
+// [마케팅 센터 / CRM] 고객 목록 집계 API
+// ==========================================
+router.get('/crm/customers', authenticate, requireRole(['SUPER_ADMIN', 'PARTNER']), async (req: any, res: any) => {
+  try {
+    const userRole = req.user.role;
+    const userId = req.user.id;
+    
+    // 파트너인 경우 본인 업체의 수거건만, 슈퍼관리자는 전체
+    const whereClause: any = userRole === 'PARTNER' 
+      ? { partnerId: userId, status: 'COMPLETED' }
+      : { status: 'COMPLETED' };
+
+    const completedRequests = await prisma.request.findMany({
+      where: whereClause,
+      include: {
+        driver: { select: { user: { select: { name: true } } } }
+      },
+      orderBy: { completedDate: 'desc' }
+    });
+
+    const customerMap: Record<string, any> = {};
+
+    for (const r of completedRequests) {
+      // 휴대폰 번호를 기준으로 고객을 식별
+      const phone = r.phone;
+      if (!phone) continue;
+
+      if (!customerMap[phone]) {
+        customerMap[phone] = {
+          phone,
+          userName: r.userName,
+          address: r.address,
+          detailAddress: r.detailAddress || '',
+          totalRequests: 0,
+          totalWeight: 0,
+          totalPaid: 0,
+          lastRequestDate: r.completedDate,
+          lastDriverName: r.driver?.user?.name || '알 수 없음',
+          joinDate: r.createdAt
+        };
+      }
+      
+      const customer = customerMap[phone];
+      customer.totalRequests += 1;
+      customer.totalWeight += r.actualWeight || 0;
+      customer.totalPaid += r.totalPrice || 0;
+      
+      // 최신 정보 유지
+      if (r.completedDate && customer.lastRequestDate && new Date(r.completedDate) > new Date(customer.lastRequestDate)) {
+        customer.lastRequestDate = r.completedDate;
+        customer.lastDriverName = r.driver?.user?.name || '알 수 없음';
+      }
+      if (r.createdAt && customer.joinDate && new Date(r.createdAt) < new Date(customer.joinDate)) {
+        customer.joinDate = r.createdAt;
+      }
+    }
+
+    const customers = Object.values(customerMap).sort((a: any, b: any) => b.totalRequests - a.totalRequests);
+
+    res.json({ customers });
+  } catch (error) {
+    console.error('CRM 고객 목록 집계 오류:', error);
+    res.status(500).json({ error: '고객 목록을 집계하는 중 오류가 발생했습니다.' });
   }
 });
 
