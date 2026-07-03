@@ -170,6 +170,12 @@ router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async
       // 전화번호도 없고 customerId도 없는 예외 신청건은 제외
       if (!cust) return;
 
+      // 주소 정보가 비어있다면 Request의 정보로 보완 (주로 카카오가입 앱 유저)
+      if (!cust.address && req.address) {
+        cust.address = req.address;
+        cust.detailAddress = req.detailAddress;
+      }
+
       // 통계 누적
       cust.requestCount += 1;
       

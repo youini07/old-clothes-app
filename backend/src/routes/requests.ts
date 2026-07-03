@@ -103,8 +103,29 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
         customerId: req.user?.userId || null,
       }
     });
+    // 3. 회원 정보 자동 업데이트 (최초 1회 주소 및 전화번호 보완)
+    if (req.user?.userId) {
+      try {
+        const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+        if (user) {
+          const updateData: any = {};
+          if (!user.phone && requestData.phone) updateData.phone = requestData.phone;
+          if (!user.address && requestData.address) updateData.address = requestData.address;
+          if (!user.detailAddress && requestData.detailAddress) updateData.detailAddress = requestData.detailAddress;
+          
+          if (Object.keys(updateData).length > 0) {
+            await prisma.user.update({
+              where: { id: user.id },
+              data: updateData
+            });
+          }
+        }
+      } catch (err) {
+        console.error('회원 정보 자동 업데이트 실패:', err);
+      }
+    }
 
-    // 3. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
+    // 4. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
     addRequestToSheet({
       id: newRequest.id,
       userName: newRequest.userName,
