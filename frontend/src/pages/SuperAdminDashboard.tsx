@@ -779,9 +779,16 @@ export default function SuperAdminDashboard() {
                         <span className={`px-3 py-1 rounded-full text-xs font-bold mr-3 shadow-sm
                           ${req.status === 'COMPLETED' ? 'bg-green-100 text-green-700 border border-green-200' :
                             req.status === 'PENDING' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                            'bg-blue-100 text-blue-700 border border-blue-200'}`}
+                            req.status === 'ASSIGNED' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                            req.status === 'DRIVER_ASSIGNED' ? 'bg-indigo-100 text-indigo-700 border border-indigo-200' :
+                            req.status === 'CANCELLED' ? 'bg-red-100 text-red-700 border border-red-200' :
+                            'bg-gray-100 text-gray-700 border border-gray-200'}`}
                         >
-                          {req.status === 'COMPLETED' ? '수거완료' : req.status === 'PENDING' ? '대기중' : req.status}
+                          {req.status === 'COMPLETED' ? '수거완료' : 
+                           req.status === 'PENDING' ? '대기중' : 
+                           req.status === 'ASSIGNED' ? '배정됨' : 
+                           req.status === 'DRIVER_ASSIGNED' ? '기사 배정' : 
+                           req.status === 'CANCELLED' ? '취소됨' : req.status}
                         </span>
                         <span className="text-sm font-semibold text-gray-500">신청일: {new Date(req.createdAt).toLocaleString()}</span>
                       </div>
