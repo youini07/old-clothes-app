@@ -48,6 +48,15 @@ export default function SuperAdminDashboard() {
   const [selectedCustomerRequests, setSelectedCustomerRequests] = useState<any[]>([]);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+
+  const filteredCustomers = customers.filter(c => {
+    const term = customerSearchTerm.toLowerCase();
+    const matchName = c.name && c.name.toLowerCase().includes(term);
+    const matchPhone = c.phone && c.phone.includes(term);
+    const matchAddress = c.address && c.address.includes(term);
+    return matchName || matchPhone || matchAddress;
+  });
 
   useEffect(() => {
     if (authToken) {
@@ -616,9 +625,18 @@ export default function SuperAdminDashboard() {
       {/* 고객 DB 뷰 */}
       {activeView === 'customers' && (
         <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-gray-800">고객 DB 목록 (총 {customers.length}명)</h2>
-            <button onClick={fetchCustomers} className="text-sm px-3 py-1 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors font-semibold">새로고침</button>
+          <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <h2 className="text-xl font-bold text-gray-800">고객 DB 목록 (총 {filteredCustomers.length}명)</h2>
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="text"
+                placeholder="고객명, 전화번호, 주소 검색..."
+                value={customerSearchTerm}
+                onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                className="w-full md:w-64 px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm shadow-sm"
+              />
+              <button onClick={fetchCustomers} className="text-sm px-4 py-2 bg-gray-200 rounded-xl hover:bg-gray-300 transition-colors font-semibold shadow-sm whitespace-nowrap">새로고침</button>
+            </div>
           </div>
           
           {loadingCustomers ? (
@@ -639,8 +657,13 @@ export default function SuperAdminDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {customers.map((c, i) => (
-                    <tr key={i} className="hover:bg-gray-50/50 transition-colors">
+                  {filteredCustomers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-5 py-12 text-center text-gray-400 font-medium">검색 결과가 없습니다.</td>
+                    </tr>
+                  ) : (
+                    filteredCustomers.map((c, i) => (
+                      <tr key={i} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-4 whitespace-nowrap">
                         {c.isAppUser ? (
                           <span className="px-2 py-1 bg-green-100 text-green-700 rounded-md text-xs font-bold">앱 신청</span>
@@ -671,10 +694,7 @@ export default function SuperAdminDashboard() {
                         </button>
                       </td>
                     </tr>
-                  ))}
-                  {customers.length === 0 && (
-                    <tr><td colSpan={8} className="px-5 py-8 text-center text-gray-400">등록된 고객 데이터가 없습니다.</td></tr>
-                  )}
+                  )))}
                 </tbody>
               </table>
             </div>

@@ -99,6 +99,7 @@ interface Driver {
 
 export default function AdminDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
+  const [requestSearchTerm, setRequestSearchTerm] = useState('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
@@ -946,11 +947,19 @@ export default function AdminDashboard() {
     }
     return false;
   };
+  const displayRequests = requests.filter(req => {
+    if (!requestSearchTerm) return true;
+    const term = requestSearchTerm.toLowerCase();
+    const matchName = req.userName && req.userName.toLowerCase().includes(term);
+    const matchPhone = req.phone && req.phone.includes(term);
+    const matchAddress = req.address && req.address.includes(term);
+    return matchName || matchPhone || matchAddress;
+  });
 
   // 수락 대기 중인 요청 (아직 아무 사장님도 수락하지 않은 건)
-  const allPendingRequests = requests.filter(r => r.status === 'PENDING' && !r.partnerId);
+  const allPendingRequests = displayRequests.filter(r => r.status === 'PENDING' && !r.partnerId);
   // 수락 완료 + 기사 미배정 건 (사장님이 수락했지만 기사 미배정)
-  const allAcceptedUnassigned = requests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
+  const allAcceptedUnassigned = displayRequests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
 
   // 현재 탭에 맞는 목록 필터링
   const getFilteredRequests = (reqList: RequestItem[]) => {
@@ -1316,6 +1325,17 @@ export default function AdminDashboard() {
               로그아웃
             </button>
           </div>
+        </div>
+
+        {/* 공통 수거내역 검색 */}
+        <div className="mb-6">
+          <input
+            type="text"
+            placeholder="고객명, 전화번호, 주소로 수거 내역 글로벌 검색..."
+            value={requestSearchTerm}
+            onChange={(e) => setRequestSearchTerm(e.target.value)}
+            className="w-full px-5 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm text-gray-800 text-lg placeholder-gray-400 font-medium"
+          />
         </div>
 
         {/* 탭 전환 */}
@@ -2239,7 +2259,7 @@ export default function AdminDashboard() {
             )}
 
             {drivers.filter(d => d.id === activeDriverId).map(driver => {
-              const rawDriverRequests = requests.filter(r => r.driverId === driver.id);
+              const rawDriverRequests = displayRequests.filter(r => r.driverId === driver.id);
               // createdAt(접수시간) 오름차순으로 고유 순번(displayId) 부여
               const driverRequestsWithId = [...rawDriverRequests].sort((a, b) => {
                 const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
