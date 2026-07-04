@@ -314,11 +314,15 @@ export default function DriverDashboard() {
       try {
         const smsRes = await axios.get(`${import.meta.env.VITE_API_URL}/driver/sms-template`, { headers: { Authorization: `Bearer ${authToken}` } });
         if (smsRes.data.smsTemplates) setSmsTemplates(smsRes.data.smsTemplates);
-      } catch(e) {}
+      } catch(e) {
+        console.error('Failed to load SMS templates:', e);
+      }
       try {
         const statsRes = await axios.get(`${import.meta.env.VITE_API_URL}/driver/daily-stats`, { headers: { Authorization: `Bearer ${authToken}` } });
         setDailyStats(statsRes.data);
-      } catch(e) {}
+      } catch(e) {
+        console.error('Failed to load daily stats:', e);
+      }
     } catch (e) {
       console.error(e);
     }

@@ -69,5 +69,66 @@ const initCrmCron = () => {
             console.error('[CRM Automation] 실행 중 오류 발생:', error);
         }
     }));
+    // 매일 새벽 3시에 실행 (30일 경과된 휴지통 계정 영구 삭제)
+    node_cron_1.default.schedule('0 3 * * *', () => __awaiter(void 0, void 0, void 0, function* () {
+        console.log('[Account Cleanup] 30일 경과 휴지통 계정 영구 삭제 스케줄러 실행...');
+        try {
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            const targetUsers = yield prisma_1.prisma.user.findMany({
+                where: {
+                    deletedAt: {
+                        lte: thirtyDaysAgo
+                    }
+                }
+            });
+            console.log(`[Account Cleanup] 삭제 대상 수: ${targetUsers.length}명`);
+            for (const user of targetUsers) {
+                if (user.role === 'PARTNER') {
+                    yield prisma_1.prisma.coverage.deleteMany({ where: { partnerId: user.id } });
+                    yield prisma_1.prisma.customRegion.deleteMany({ where: { partnerId: user.id } });
+                    const drivers = yield prisma_1.prisma.driverProfile.findMany({ where: { partnerId: user.id } });
+                    for (const d of drivers) {
+                        yield prisma_1.prisma.driverProfile.delete({ where: { id: d.id } });
+                        yield prisma_1.prisma.user.delete({ where: { id: d.userId } });
+                    }
+                    yield prisma_1.prisma.request.updateMany({
+                        where: { partnerId: user.id, status: { not: 'COMPLETED' } },
+                        data: { partnerId: null, driverId: null, status: 'PENDING' }
+                    });
+                    yield prisma_1.prisma.request.updateMany({
+                        where: { partnerId: user.id, status: 'COMPLETED' },
+                        data: { partnerId: null, driverId: null }
+                    });
+                    const rooms = yield prisma_1.prisma.chatRoom.findMany({ where: { partnerId: user.id } });
+                    for (const r of rooms) {
+                        yield prisma_1.prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
+                        yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
+                    }
+                    yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: user.id } });
+                    yield prisma_1.prisma.partnerPriceItem.deleteMany({ where: { partnerId: user.id } });
+                    yield prisma_1.prisma.user.delete({ where: { id: user.id } });
+                }
+                else if (user.role === 'DRIVER') {
+                    const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { userId: user.id } });
+                    if (driverProfile) {
+                        yield prisma_1.prisma.request.updateMany({
+                            where: { driverId: driverProfile.id, status: { not: 'COMPLETED' } },
+                            data: { driverId: null, status: 'ASSIGNED', confirmedDate: null, etaMinutes: null }
+                        });
+                        yield prisma_1.prisma.driverProfile.delete({ where: { id: driverProfile.id } });
+                    }
+                    yield prisma_1.prisma.user.delete({ where: { id: user.id } });
+                }
+                else {
+                    yield prisma_1.prisma.user.delete({ where: { id: user.id } });
+                }
+            }
+            console.log(`[Account Cleanup] 영구 삭제 완료: 총 ${targetUsers.length}명`);
+        }
+        catch (error) {
+            console.error('[Account Cleanup] 실행 중 오류 발생:', error);
+        }
+    }));
 };
 exports.initCrmCron = initCrmCron;

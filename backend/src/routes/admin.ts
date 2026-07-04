@@ -309,21 +309,28 @@ router.post('/super/accounts', authenticate, requireRole(['SUPER_ADMIN']), async
   }
 });
 
-// 0-2. 슈퍼관리자 강제 계정 삭제
+// 0-2. 슈퍼관리자 강제 계정 삭제 (Soft Delete 및 비밀번호 검증)
 router.delete('/super/accounts/:id', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
     const { id } = req.params;
+    const { deletePassword } = req.query;
+
+    let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    if (!settings) {
+      settings = await prisma.globalSettings.create({ data: { id: 'global' } });
+    }
+
+    if (settings.deletePassword !== deletePassword) {
+      return res.status(401).json({ error: '삭제 비밀번호가 일치하지 않습니다.' });
+    }
+
     const targetUser = await prisma.user.findUnique({ where: { id }, include: { driverProfile: true } });
     if (!targetUser) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
 
     if (targetUser.role === 'PARTNER') {
-      await prisma.coverage.deleteMany({ where: { partnerId: id } });
-      await prisma.customRegion.deleteMany({ where: { partnerId: id } });
-      
       const drivers = await prisma.driverProfile.findMany({ where: { partnerId: id } });
       for (const d of drivers) {
-        await prisma.driverProfile.delete({ where: { id: d.id } });
-        await prisma.user.delete({ where: { id: d.userId } });
+        await prisma.user.update({ where: { id: d.userId }, data: { deletedAt: new Date() } });
       }
       
       await prisma.request.updateMany({
@@ -335,15 +342,7 @@ router.delete('/super/accounts/:id', authenticate, requireRole(['SUPER_ADMIN']),
         data: { partnerId: null, driverId: null }
       });
 
-      const rooms = await prisma.chatRoom.findMany({ where: { partnerId: id } });
-      for (const r of rooms) {
-        await prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
-        await prisma.chatRoom.delete({ where: { id: r.id } });
-      }
-      await prisma.chatMessage.deleteMany({ where: { senderId: id } });
-      await prisma.partnerPriceItem.deleteMany({ where: { partnerId: id } });
-
-      await prisma.user.delete({ where: { id } });
+      await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
 
     } else if (targetUser.role === 'DRIVER') {
       if (targetUser.driverProfile) {
@@ -351,17 +350,38 @@ router.delete('/super/accounts/:id', authenticate, requireRole(['SUPER_ADMIN']),
           where: { driverId: targetUser.driverProfile.id, status: { not: 'COMPLETED' } },
           data: { driverId: null, status: 'ASSIGNED', confirmedDate: null, etaMinutes: null }
         });
-        await prisma.driverProfile.delete({ where: { id: targetUser.driverProfile.id } });
       }
-      await prisma.user.delete({ where: { id } });
+      await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
     } else {
-      await prisma.user.delete({ where: { id } });
+      await prisma.user.update({ where: { id }, data: { deletedAt: new Date() } });
     }
 
-    res.json({ message: '계정이 성공적으로 삭제되었습니다.' });
+    res.json({ message: '계정이 휴지통으로 이동되었습니다. (30일 후 영구 삭제)' });
   } catch (error) {
     console.error('계정 삭제 실패:', error);
     res.status(500).json({ error: '계정 삭제에 실패했습니다.' });
+  }
+});
+
+// 0-3. 슈퍼관리자 강제 계정 복구
+router.post('/super/accounts/:id/restore', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const targetUser = await prisma.user.findUnique({ where: { id } });
+    if (!targetUser) return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
+
+    if (targetUser.role === 'PARTNER') {
+      const drivers = await prisma.driverProfile.findMany({ where: { partnerId: id } });
+      for (const d of drivers) {
+        await prisma.user.update({ where: { id: d.userId }, data: { deletedAt: null } });
+      }
+    }
+    await prisma.user.update({ where: { id }, data: { deletedAt: null } });
+
+    res.json({ message: '계정이 성공적으로 복구되었습니다.' });
+  } catch (error) {
+    console.error('계정 복구 실패:', error);
+    res.status(500).json({ error: '계정 복구에 실패했습니다.' });
   }
 });
 
@@ -2541,6 +2561,40 @@ router.get('/crm/customers', authenticate, requireRole(['SUPER_ADMIN', 'PARTNER'
   } catch (error) {
     console.error('CRM 고객 목록 집계 오류:', error);
     res.status(500).json({ error: '고객 목록을 집계하는 중 오류가 발생했습니다.' });
+  }
+});
+
+// 0-4. 설정 조회 (삭제 비밀번호 등)
+router.get('/super/settings', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    if (!settings) {
+      settings = await prisma.globalSettings.create({ data: { id: 'global' } });
+    }
+    res.json(settings);
+  } catch (error) {
+    console.error('설정 조회 실패:', error);
+    res.status(500).json({ error: '설정 조회에 실패했습니다.' });
+  }
+});
+
+// 0-5. 설정 업데이트 (삭제 비밀번호 변경)
+router.put('/super/settings', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const { deletePassword } = req.body;
+    let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    if (!settings) {
+      settings = await prisma.globalSettings.create({ data: { id: 'global', deletePassword } });
+    } else {
+      settings = await prisma.globalSettings.update({
+        where: { id: 'global' },
+        data: { deletePassword }
+      });
+    }
+    res.json({ message: '설정이 성공적으로 저장되었습니다.', settings });
+  } catch (error) {
+    console.error('설정 업데이트 실패:', error);
+    res.status(500).json({ error: '설정 업데이트에 실패했습니다.' });
   }
 });
 

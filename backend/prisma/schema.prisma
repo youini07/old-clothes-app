@@ -21,6 +21,7 @@ model User {
   zipCode   String?  // 우편번호
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime? // 30일 보관 휴지통 기능 (Soft Delete)
   
   // 파트너(업체 사장님)일 경우
   isApproved      Boolean  @default(false) // 파트너 승인 여부
@@ -168,6 +169,7 @@ model GlobalSettings {
   globalNotice    String?
   noticeIsActive  Boolean  @default(false)
   globalNoticeDetail String?
+  deletePassword  String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
   updatedAt       DateTime @updatedAt
 }
 

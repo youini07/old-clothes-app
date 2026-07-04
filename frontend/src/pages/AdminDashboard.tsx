@@ -97,7 +97,7 @@ interface Driver {
   customRegionId?: string | null;
 }
 
-export const formatPhoneNumber = (phoneStr: string) => {
+const formatPhoneNumber = (phoneStr: string) => {
   if (!phoneStr) return '';
   const cleaned = ('' + phoneStr).replace(/\D/g, '');
   const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);

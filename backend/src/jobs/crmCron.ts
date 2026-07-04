@@ -66,4 +66,67 @@ export const initCrmCron = () => {
       console.error('[CRM Automation] 실행 중 오류 발생:', error);
     }
   });
+
+  // 매일 새벽 3시에 실행 (30일 경과된 휴지통 계정 영구 삭제)
+  cron.schedule('0 3 * * *', async () => {
+    console.log('[Account Cleanup] 30일 경과 휴지통 계정 영구 삭제 스케줄러 실행...');
+    try {
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+      const targetUsers = await prisma.user.findMany({
+        where: {
+          deletedAt: {
+            lte: thirtyDaysAgo
+          }
+        }
+      });
+
+      console.log(`[Account Cleanup] 삭제 대상 수: ${targetUsers.length}명`);
+
+      for (const user of targetUsers) {
+        if (user.role === 'PARTNER') {
+          await prisma.coverage.deleteMany({ where: { partnerId: user.id } });
+          await prisma.customRegion.deleteMany({ where: { partnerId: user.id } });
+          const drivers = await prisma.driverProfile.findMany({ where: { partnerId: user.id } });
+          for (const d of drivers) {
+            await prisma.driverProfile.delete({ where: { id: d.id } });
+            await prisma.user.delete({ where: { id: d.userId } });
+          }
+          await prisma.request.updateMany({
+            where: { partnerId: user.id, status: { not: 'COMPLETED' } },
+            data: { partnerId: null, driverId: null, status: 'PENDING' }
+          });
+          await prisma.request.updateMany({
+            where: { partnerId: user.id, status: 'COMPLETED' },
+            data: { partnerId: null, driverId: null }
+          });
+          const rooms = await prisma.chatRoom.findMany({ where: { partnerId: user.id } });
+          for (const r of rooms) {
+            await prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
+            await prisma.chatRoom.delete({ where: { id: r.id } });
+          }
+          await prisma.chatMessage.deleteMany({ where: { senderId: user.id } });
+          await prisma.partnerPriceItem.deleteMany({ where: { partnerId: user.id } });
+          await prisma.user.delete({ where: { id: user.id } });
+        } else if (user.role === 'DRIVER') {
+          const driverProfile = await prisma.driverProfile.findUnique({ where: { userId: user.id } });
+          if (driverProfile) {
+            await prisma.request.updateMany({
+              where: { driverId: driverProfile.id, status: { not: 'COMPLETED' } },
+              data: { driverId: null, status: 'ASSIGNED', confirmedDate: null, etaMinutes: null }
+            });
+            await prisma.driverProfile.delete({ where: { id: driverProfile.id } });
+          }
+          await prisma.user.delete({ where: { id: user.id } });
+        } else {
+          await prisma.user.delete({ where: { id: user.id } });
+        }
+      }
+
+      console.log(`[Account Cleanup] 영구 삭제 완료: 총 ${targetUsers.length}명`);
+    } catch (error) {
+      console.error('[Account Cleanup] 실행 중 오류 발생:', error);
+    }
+  });
 };

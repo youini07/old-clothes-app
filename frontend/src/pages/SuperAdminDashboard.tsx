@@ -56,6 +56,11 @@ export default function SuperAdminDashboard() {
     partnerId: '' // 기사 생성 시 선택
   });
 
+  // 계정 관리 탭 상태 (active vs trash)
+  const [accountTab, setAccountTab] = useState<'active' | 'trash'>('active');
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [settingsPassword, setSettingsPassword] = useState('');
+  
   // 고객 DB 탭 상태
   const [customers, setCustomers] = useState<any[]>([]);
   const [selectedCustomerRequests, setSelectedCustomerRequests] = useState<any[]>([]);
@@ -183,17 +188,63 @@ export default function SuperAdminDashboard() {
 
   const handleDeleteAccount = async (id: string, name: string) => {
     if (!authToken) return alert('로그인이 필요합니다.');
-    if (!window.confirm(`정말 [${name}] 계정을 삭제하시겠습니까?\n이 작업은 복구할 수 없으며 관련된 모든 데이터가 삭제됩니다.`)) return;
+    
+    const pw = window.prompt(`[${name}] 계정을 삭제(휴지통 이동)하시겠습니까?\n삭제 비밀번호를 입력해주세요.`);
+    if (pw === null) return; // 취소 버튼
+    if (!pw) return alert('비밀번호를 입력해야 합니다.');
 
     try {
-      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/super/accounts/${id}`, {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/super/accounts/${id}?deletePassword=${pw}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      alert('계정이 성공적으로 삭제되었습니다.');
+      alert('계정이 성공적으로 휴지통으로 이동되었습니다.');
       fetchAccounts();
     } catch (error: any) {
       console.error(error);
       alert(error.response?.data?.error || '계정 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+  const handleRestoreAccount = async (id: string, name: string) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    if (!window.confirm(`[${name}] 계정을 정상 상태로 복구하시겠습니까?`)) return;
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/super/accounts/${id}/restore`, {}, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('계정이 성공적으로 복구되었습니다.');
+      fetchAccounts();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.error || '계정 복구 중 오류가 발생했습니다.');
+    }
+  };
+
+  const fetchSettings = async () => {
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/settings`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setSettingsPassword(res.data.deletePassword || '');
+      setIsSettingsModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      alert('설정 정보를 불러오는데 실패했습니다.');
+    }
+  };
+
+  const handleSaveSettings = async () => {
+    if (!settingsPassword) return alert('비밀번호를 입력해주세요.');
+    try {
+      await axios.put(`${import.meta.env.VITE_API_URL}/admin/super/settings`, { deletePassword: settingsPassword }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('비밀번호 설정이 저장되었습니다.');
+      setIsSettingsModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      alert('설정 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -643,18 +694,26 @@ export default function SuperAdminDashboard() {
       </>}
 
       {/* 계정 관리 뷰 (accounts) */}
-      {activeView === 'accounts' && (
+      {activeView === 'accounts' && (() => {
+        const activeAccounts = accounts.filter(a => !a.deletedAt);
+        const trashedAccounts = accounts.filter(a => !!a.deletedAt);
+        const displayAccounts = accountTab === 'active' ? activeAccounts : trashedAccounts;
+
+        return (
         <div className="space-y-6 animate-fade-in">
           <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center flex-wrap gap-4">
               <div>
                 <h3 className="text-xl font-bold text-gray-900">계정 관리 (생성/삭제/로그인)</h3>
-                <p className="text-sm text-gray-500 mt-1">계정을 강제로 생성하거나 삭제하고, 비밀번호 없이 로그인할 수 있습니다.</p>
+                <p className="text-sm text-gray-500 mt-1">계정을 강제로 생성하거나 휴지통으로 이동시킵니다.</p>
               </div>
               <div className="flex items-center gap-3">
-                <div className="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-bold">
-                  총 {accounts.length}명
-                </div>
+                <button
+                  onClick={fetchSettings}
+                  className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition-colors shadow-sm"
+                >
+                  환경설정 ⚙️
+                </button>
                 <button
                   onClick={() => setIsAccountModalOpen(true)}
                   className="px-4 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
@@ -663,9 +722,25 @@ export default function SuperAdminDashboard() {
                 </button>
               </div>
             </div>
+
+            {/* 서브 탭 */}
+            <div className="flex border-b border-gray-100 bg-white">
+              <button 
+                onClick={() => setAccountTab('active')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${accountTab === 'active' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                ✅ 정상 계정 ({activeAccounts.length})
+              </button>
+              <button 
+                onClick={() => setAccountTab('trash')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${accountTab === 'trash' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                🗑️ 휴지통 ({trashedAccounts.length})
+              </button>
+            </div>
             
             <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {accounts.map(acc => (
+              {displayAccounts.map(acc => (
                 <div key={acc.id} className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all bg-white flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-start mb-2">
@@ -675,7 +750,10 @@ export default function SuperAdminDashboard() {
                         {acc.role === 'PARTNER' ? '🏢 사장님' : '🚚 기사님'}
                       </span>
                       <span className="text-xs text-gray-400">
-                        가입일: {new Date(acc.createdAt).toLocaleDateString()}
+                        {accountTab === 'trash' 
+                          ? `삭제일: ${new Date(acc.deletedAt).toLocaleDateString()}` 
+                          : `가입일: ${new Date(acc.createdAt).toLocaleDateString()}`
+                        }
                       </span>
                     </div>
                     
@@ -700,31 +778,42 @@ export default function SuperAdminDashboard() {
                   </div>
                   
                   <div className="mt-5 grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => handleImpersonate(acc.id)}
-                      className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
-                    >
-                      🚀 간편 로그인
-                    </button>
-                    <button
-                      onClick={() => handleDeleteAccount(acc.id, acc.name)}
-                      className="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
-                    >
-                      🗑️ 계정 삭제
-                    </button>
+                    {accountTab === 'active' ? (
+                      <>
+                        <button
+                          onClick={() => handleImpersonate(acc.id)}
+                          className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                        >
+                          🚀 간편 로그인
+                        </button>
+                        <button
+                          onClick={() => handleDeleteAccount(acc.id, acc.name)}
+                          className="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                        >
+                          🗑️ 계정 삭제
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => handleRestoreAccount(acc.id, acc.name)}
+                        className="col-span-2 w-full py-2.5 bg-green-50 text-green-600 font-bold rounded-xl hover:bg-green-100 transition-colors flex items-center justify-center gap-2"
+                      >
+                        ♻️ 복구하기
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
               
-              {accounts.length === 0 && (
+              {displayAccounts.length === 0 && (
                 <div className="col-span-full py-12 text-center text-gray-400">
-                  등록된 계정이 없습니다.
+                  {accountTab === 'active' ? '등록된 계정이 없습니다.' : '휴지통이 비어있습니다.'}
                 </div>
               )}
             </div>
           </div>
         </div>
-      )}
+      );})()}
 
       {/* 고객 DB 뷰 */}
       {activeView === 'customers' && (
@@ -1095,6 +1184,46 @@ export default function SuperAdminDashboard() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 환경설정 모달 */}
+      {isSettingsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl relative">
+            <button 
+              onClick={() => setIsSettingsModalOpen(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">환경설정 ⚙️</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">계정 삭제 비밀번호</label>
+                <input 
+                  type="text" 
+                  value={settingsPassword} 
+                  onChange={e => setSettingsPassword(e.target.value)} 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" 
+                  placeholder="비밀번호 입력 (기본: 9436)" 
+                />
+                <p className="text-xs text-gray-500 mt-2">
+                  계정 삭제 시 입력해야 하는 마스터 비밀번호입니다. 유출되지 않도록 주의하세요.
+                </p>
+              </div>
+              
+              <div className="pt-4">
+                <button 
+                  onClick={handleSaveSettings}
+                  className="w-full py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                >
+                  저장하기
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
