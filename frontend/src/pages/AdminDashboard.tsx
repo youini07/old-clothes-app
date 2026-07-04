@@ -97,6 +97,16 @@ interface Driver {
   customRegionId?: string | null;
 }
 
+export const formatPhoneNumber = (phoneStr: string) => {
+  if (!phoneStr) return '';
+  const cleaned = ('' + phoneStr).replace(/\D/g, '');
+  const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
+  if (match) {
+    return `${match[1]}-${match[2]}-${match[3]}`;
+  }
+  return phoneStr;
+};
+
 export default function AdminDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
   const [requestSearchTerm, setRequestSearchTerm] = useState('');
@@ -1240,16 +1250,6 @@ export default function AdminDashboard() {
     const endHourNum = req.estimatedPickupHour + 1;
     const timeWindow = `${formatAmPm(startHourNum)}~${formatAmPm(endHourNum)}`;
 
-    const formatPhoneNumber = (phoneStr: string) => {
-      const cleaned = ('' + phoneStr).replace(/\D/g, '');
-      const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
-      if (match) {
-        return `${match[1]}-${match[2]}-${match[3]}`;
-      }
-      return phoneStr;
-    };
-
-    const assignedDriver = drivers.find(d => d.id === req.driverId);
     const driverPhone = formatPhoneNumber(assignedDriver?.user?.phone || '010-2264-4926');
     
     const tomorrow = new Date();
@@ -1818,7 +1818,7 @@ export default function AdminDashboard() {
                           >
                             <div className="flex justify-between items-start">
                               <div>
-                                <h4 className="font-extrabold text-gray-900 text-base">{req.userName} <span className="text-xs font-normal text-gray-500">{req.phone}</span></h4>
+                                <h4 className="font-extrabold text-gray-900 text-base">{req.userName} <span className="text-xs font-normal text-gray-500">{formatPhoneNumber(req.phone)}</span></h4>
                                 <p className="text-xs text-gray-500 mt-1 line-clamp-1">{req.address} {req.detailAddress}</p>
                               </div>
                               <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg shrink-0">
@@ -2242,6 +2242,12 @@ export default function AdminDashboard() {
             {/* 기사 선택 탭 */}
             {drivers.length > 0 ? (
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                <button
+                  onClick={() => setActiveDriverId('ALL')}
+                  className={`shrink-0 px-5 py-3 rounded-xl text-sm font-bold transition-all shadow-sm flex items-center gap-2 ${activeDriverId === 'ALL' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'}`}
+                >
+                  전체
+                </button>
                 {drivers.map(driver => (
                   <button
                     key={`tab-${driver.id}`}
@@ -2258,7 +2264,7 @@ export default function AdminDashboard() {
               </div>
             )}
 
-            {drivers.filter(d => d.id === activeDriverId).map(driver => {
+            {drivers.filter(d => activeDriverId === 'ALL' || d.id === activeDriverId).map(driver => {
               const rawDriverRequests = displayRequests.filter(r => r.driverId === driver.id);
               // createdAt(접수시간) 오름차순으로 고유 순번(displayId) 부여
               const driverRequestsWithId = [...rawDriverRequests].sort((a, b) => {

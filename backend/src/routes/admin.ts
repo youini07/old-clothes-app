@@ -176,8 +176,10 @@ router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async
         cust.detailAddress = req.detailAddress;
       }
 
-      // 통계 누적
-      cust.requestCount += 1;
+      // 수거 완료된 건에 대해서만 통계 누적
+      if (req.status === 'COMPLETED') {
+        cust.requestCount += 1;
+      }
       
       // 최초 신청일 비교 (앱 가입일보다 이전에 사장님이 수동으로 입력한 내역이 있을 수 있으므로 갱신)
       if (new Date(req.createdAt) < new Date(cust.firstRequestDate)) {

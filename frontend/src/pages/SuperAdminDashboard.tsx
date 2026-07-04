@@ -52,8 +52,10 @@ export default function SuperAdminDashboard() {
 
   const filteredCustomers = customers.filter(c => {
     const term = customerSearchTerm.toLowerCase();
+    const cleanTerm = term.replace(/-/g, '');
     const matchName = c.name && c.name.toLowerCase().includes(term);
-    const matchPhone = c.phone && c.phone.includes(term);
+    const cleanPhone = c.phone ? c.phone.replace(/-/g, '') : '';
+    const matchPhone = cleanPhone && cleanPhone.includes(cleanTerm);
     const matchAddress = c.address && c.address.includes(term);
     return matchName || matchPhone || matchAddress;
   });
@@ -630,7 +632,7 @@ export default function SuperAdminDashboard() {
             <div className="flex items-center gap-2 w-full md:w-auto">
               <input
                 type="text"
-                placeholder="고객명, 전화번호, 주소 검색..."
+                placeholder="고객명, 주소, 연락처(뒷4자리가능) 검색..."
                 value={customerSearchTerm}
                 onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 className="w-full md:w-64 px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm shadow-sm"
