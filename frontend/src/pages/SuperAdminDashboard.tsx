@@ -56,8 +56,8 @@ export default function SuperAdminDashboard() {
     partnerId: '' // 기사 생성 시 선택
   });
 
-  // 계정 관리 탭 상태 (active vs trash)
-  const [accountTab, setAccountTab] = useState<'active' | 'trash'>('active');
+  // 계정 관리 탭 상태 (partner vs driver vs trash)
+  const [accountTab, setAccountTab] = useState<'partner' | 'driver' | 'trash'>('partner');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [currentDeletePassword, setCurrentDeletePassword] = useState('');
   const [newDeletePassword, setNewDeletePassword] = useState('');
@@ -700,9 +700,13 @@ export default function SuperAdminDashboard() {
 
       {/* 계정 관리 뷰 (accounts) */}
       {activeView === 'accounts' && (() => {
-        const activeAccounts = accounts.filter(a => !a.deletedAt);
+        const partnerAccounts = accounts.filter(a => !a.deletedAt && a.role === 'PARTNER');
+        const driverAccounts = accounts.filter(a => !a.deletedAt && a.role === 'DRIVER');
         const trashedAccounts = accounts.filter(a => !!a.deletedAt);
-        const displayAccounts = accountTab === 'active' ? activeAccounts : trashedAccounts;
+        
+        let displayAccounts = trashedAccounts;
+        if (accountTab === 'partner') displayAccounts = partnerAccounts;
+        else if (accountTab === 'driver') displayAccounts = driverAccounts;
 
         return (
         <div className="space-y-6 animate-fade-in">
@@ -731,10 +735,16 @@ export default function SuperAdminDashboard() {
             {/* 서브 탭 */}
             <div className="flex border-b border-gray-100 bg-white">
               <button 
-                onClick={() => setAccountTab('active')}
-                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${accountTab === 'active' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+                onClick={() => setAccountTab('partner')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${accountTab === 'partner' ? 'border-purple-600 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
               >
-                ✅ 정상 계정 ({activeAccounts.length})
+                🏢 사장님 ({partnerAccounts.length})
+              </button>
+              <button 
+                onClick={() => setAccountTab('driver')}
+                className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${accountTab === 'driver' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}
+              >
+                🚚 기사님 ({driverAccounts.length})
               </button>
               <button 
                 onClick={() => setAccountTab('trash')}
@@ -783,7 +793,7 @@ export default function SuperAdminDashboard() {
                   </div>
                   
                   <div className="mt-5 grid grid-cols-2 gap-2">
-                    {accountTab === 'active' ? (
+                    {accountTab !== 'trash' ? (
                       <>
                         <button
                           onClick={() => handleImpersonate(acc.id)}
@@ -812,7 +822,7 @@ export default function SuperAdminDashboard() {
               
               {displayAccounts.length === 0 && (
                 <div className="col-span-full py-12 text-center text-gray-400">
-                  {accountTab === 'active' ? '등록된 계정이 없습니다.' : '휴지통이 비어있습니다.'}
+                  {accountTab === 'trash' ? '휴지통이 비어있습니다.' : '등록된 계정이 없습니다.'}
                 </div>
               )}
             </div>
