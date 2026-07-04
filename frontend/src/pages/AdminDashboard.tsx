@@ -1250,6 +1250,7 @@ export default function AdminDashboard() {
     const endHourNum = req.estimatedPickupHour + 1;
     const timeWindow = `${formatAmPm(startHourNum)}~${formatAmPm(endHourNum)}`;
 
+    const assignedDriver = drivers.find(d => d.id === req.driverId);
     const driverPhone = formatPhoneNumber(assignedDriver?.user?.phone || '010-2264-4926');
     
     const tomorrow = new Date();

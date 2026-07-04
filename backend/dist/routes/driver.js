@@ -17,7 +17,6 @@ const express_1 = __importDefault(require("express"));
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const kakaoRoute_1 = require("../services/kakaoRoute");
-const axios_1 = __importDefault(require("axios"));
 const notificationService_1 = require("../services/notificationService");
 const googleSheets_1 = require("../services/googleSheets");
 const statusService_1 = require("../services/statusService");
@@ -75,6 +74,18 @@ function createClusters(destinations, startX, startY, maxPerCluster) {
     return clusters;
 }
 const router = express_1.default.Router();
+const demoExcludeFilter = {
+    NOT: [
+        {
+            userName: {
+                in: ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
+                    '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은']
+            },
+            customerId: null
+        },
+        { userName: { contains: '테스트' } }
+    ]
+};
 // ==========================================
 // [DRIVER 전용] 수거 기사 앱 기능
 // ==========================================
@@ -92,7 +103,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         if (!driverProfile) {
             return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
         }
-        const whereCondition = { driverId: driverProfile.id };
+        const whereCondition = Object.assign({ driverId: driverProfile.id }, demoExcludeFilter);
         const totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
         const requests = yield prisma_1.prisma.request.findMany({
             where: whereCondition,
@@ -310,7 +321,6 @@ router.patch('/me', authMiddleware_1.authenticate, (0, authMiddleware_1.requireR
 }));
 // 7. 기사별 동선 최적화 (카카오/T맵 좌표 API 기반 현위치 출발 정렬)
 router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['DRIVER', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
     const userId = req.user.userId;
     const { currentLat, currentLng, returnToStart, returnAddress } = req.body;
     try {
@@ -351,89 +361,10 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
                 });
             }
         }
-        // T맵 API 키 확인
-        const tmapAppKey = process.env.TMAP_APP_KEY;
         let optimizedList = [];
         let totalTimeSec = 0;
         let totalDistanceMeter = 0;
         let usedTmap = false;
-        if (tmapAppKey && tmapAppKey.length > 0) {
-            try {
-                // 1. 목적지들을 최대 20개 단위의 지리적 클러스터로 분할
-                const clusters = createClusters(destinations, parseFloat(currentLng), parseFloat(currentLat), 20);
-                let currentStartX = parseFloat(currentLng);
-                let currentStartY = parseFloat(currentLat);
-                for (const cluster of clusters) {
-                    if (cluster.length === 0)
-                        continue;
-                    // 2. T맵 다중 경유지 최적화 API 연동 (routeOptimization20)
-                    // 마지막 요소를 목적지로 임시 설정
-                    const clusterDest = cluster[cluster.length - 1];
-                    const payload = {
-                        reqCoordType: "WGS84GEO",
-                        resCoordType: "WGS84GEO",
-                        startName: "출발지",
-                        startX: currentStartX.toString(),
-                        startY: currentStartY.toString(),
-                        startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
-                        endName: "도착지",
-                        endX: clusterDest.x.toString(),
-                        endY: clusterDest.y.toString(),
-                        searchOption: "0", // 0: 추천 (가장 빠른 길)
-                        viaPoints: cluster.map((d, i) => ({
-                            viaPointId: d.request.id,
-                            viaPointName: encodeURIComponent(d.request.userName || `수거지${i + 1}`).substring(0, 20),
-                            viaX: d.x.toString(),
-                            viaY: d.y.toString()
-                        }))
-                    };
-                    const tmapRes = yield axios_1.default.post('https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1', payload, {
-                        headers: {
-                            appKey: tmapAppKey,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
-                        totalTimeSec += tmapRes.data.properties.totalTime || 0;
-                        totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
-                        usedTmap = true;
-                        // features 안에서 경유지 순서를 파악
-                        const features = tmapRes.data.features;
-                        const orderedVias = features.filter((f) => f.properties && f.properties.viaPointId);
-                        // 정렬된 순서대로 optimizedList에 추가
-                        for (const via of orderedVias) {
-                            const dest = cluster.find((d) => d.request.id === via.properties.viaPointId);
-                            if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
-                                optimizedList.push(dest.request);
-                            }
-                        }
-                        // TMAP 결과 누락(도착지 등) 처리
-                        for (const dest of cluster) {
-                            if (!optimizedList.find(r => r.id === dest.request.id)) {
-                                optimizedList.push(dest.request);
-                            }
-                        }
-                        // 다음 클러스터 출발지는 현재 클러스터의 마지막 수거지
-                        const lastProcessed = optimizedList[optimizedList.length - 1];
-                        const lastDestCoords = cluster.find((d) => d.request.id === lastProcessed.id);
-                        if (lastDestCoords) {
-                            currentStartX = lastDestCoords.x;
-                            currentStartY = lastDestCoords.y;
-                        }
-                    }
-                    else {
-                        throw new Error('T맵 응답 형식 오류');
-                    }
-                }
-            }
-            catch (tmapError) {
-                console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', ((_a = tmapError.response) === null || _a === void 0 ? void 0 : _a.data) || tmapError.message);
-                optimizedList = [];
-                usedTmap = false;
-                totalTimeSec = 0;
-                totalDistanceMeter = 0;
-            }
-        }
         // T맵 API가 없거나 실패한 경우, 또는 경유지가 20개를 초과하는 경우: Nearest Neighbor + 2-Opt 폴백
         if (optimizedList.length === 0) {
             const startX = parseFloat(currentLng);
@@ -619,16 +550,29 @@ router.get('/daily-stats', authMiddleware_1.authenticate, (0, authMiddleware_1.r
         }
         // 통계 계산
         const completedRequests = yield prisma_1.prisma.request.findMany({
-            where: Object.assign({ driverId: driver.id, status: 'COMPLETED' }, dateFilter),
+            where: Object.assign(Object.assign({ driverId: driver.id, status: 'COMPLETED' }, dateFilter), demoExcludeFilter),
             select: {
                 actualWeight: true,
-                totalPrice: true
+                totalPrice: true,
+                collectionItems: true
             }
         });
+        const categoryStatsMap = completedRequests.reduce((acc, r) => {
+            var _a;
+            (_a = r.collectionItems) === null || _a === void 0 ? void 0 : _a.forEach((item) => {
+                if (!acc[item.categoryLabel]) {
+                    acc[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+                }
+                acc[item.categoryLabel].quantity += item.quantity;
+                acc[item.categoryLabel].subtotal += item.subtotal;
+            });
+            return acc;
+        }, {});
         const stats = {
             count: completedRequests.length,
             totalWeight: completedRequests.reduce((acc, req) => acc + (req.actualWeight || 0), 0),
-            totalPrice: completedRequests.reduce((acc, req) => acc + (req.totalPrice || 0), 0)
+            totalPrice: completedRequests.reduce((acc, req) => acc + (req.totalPrice || 0), 0),
+            categoryStats: Object.values(categoryStatsMap)
         };
         res.json(stats);
     }

@@ -8,13 +8,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const axios_1 = __importDefault(require("axios"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
@@ -24,6 +35,18 @@ const notificationService_1 = require("../services/notificationService");
 const googleSheets_1 = require("../services/googleSheets");
 const socket_1 = require("../socket");
 const router = express_1.default.Router();
+const demoExcludeFilter = {
+    NOT: [
+        {
+            userName: {
+                in: ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
+                    '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은']
+            },
+            customerId: null
+        },
+        { userName: { contains: '테스트' } }
+    ]
+};
 // 유클리드 거리 계산 헬퍼
 function getDistance(x1, y1, x2, y2) {
     const dx = x1 - x2;
@@ -64,6 +87,207 @@ function createClusters(destinations, startX, startY, maxPerCluster) {
 // ==========================================
 // [SUPER_ADMIN 전용] 플랫폼 관리 기능
 // ==========================================
+// 고객 DB 목록 조회 (앱 회원 + 수동 입력 비회원 병합)
+router.get('/super/customers', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        // 1. 앱 가입 고객 (Role = 'CUSTOMER')
+        const appCustomers = yield prisma_1.prisma.user.findMany({
+            where: { role: 'CUSTOMER' },
+            select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+                address: true,
+                detailAddress: true,
+                createdAt: true,
+            }
+        });
+        // 2. 수거 신청서(Request)를 통해 비회원/수동입력 정보 및 통계 추출
+        const requests = yield prisma_1.prisma.request.findMany({
+            select: {
+                id: true,
+                customerId: true,
+                userName: true,
+                phone: true,
+                address: true,
+                detailAddress: true,
+                completedDate: true,
+                createdAt: true,
+                status: true
+            }
+        });
+        // 병합을 위한 Map 선언
+        const userMap = new Map(); // 키: userId
+        const phoneMap = new Map(); // 키: phone
+        // 1. 앱 고객 먼저 Map에 등록
+        appCustomers.forEach(customer => {
+            const custData = {
+                isAppUser: true,
+                userId: customer.id,
+                name: customer.name,
+                phone: customer.phone, // 카카오 로그인 등에서 안 넘어올 경우 null일 수 있음
+                email: customer.email,
+                address: customer.address,
+                detailAddress: customer.detailAddress,
+                firstRequestDate: customer.createdAt,
+                recentCompletedDate: null,
+                requestCount: 0
+            };
+            userMap.set(customer.id, custData);
+            // 전화번호가 존재하면 phoneMap에도 등록하여 비회원 내역과 연동 준비
+            if (customer.phone) {
+                phoneMap.set(customer.phone, custData);
+            }
+        });
+        // 2. Request 데이터를 돌면서 정보 병합
+        requests.forEach(req => {
+            let cust = null;
+            // 1) 회원이 신청한 내역인 경우 (customerId를 통해 회원 정보 찾기 우선)
+            if (req.customerId && userMap.has(req.customerId)) {
+                cust = userMap.get(req.customerId);
+                // 기존 앱 회원 정보에 전화번호가 없었는데 신청서에 입력한 번호가 있다면 채워줌
+                if (!cust.phone && req.phone) {
+                    cust.phone = req.phone;
+                    phoneMap.set(req.phone, cust); // 이제부터 이 번호는 앱 회원과 매칭됨
+                }
+            }
+            // 2) 비회원(수동입력)이거나 회원이지만 customerId가 없는 경우 (전화번호로 매칭)
+            else if (req.phone) {
+                if (phoneMap.has(req.phone)) {
+                    // 전화번호가 일치하면 기존 회원 정보이거나 이미 등록된 비회원 정보임
+                    cust = phoneMap.get(req.phone);
+                }
+                else {
+                    // 맵에 없는 완전 새로운 수동 입력(비회원) 고객
+                    cust = {
+                        isAppUser: false,
+                        userId: null,
+                        name: req.userName,
+                        phone: req.phone,
+                        email: null,
+                        address: req.address,
+                        detailAddress: req.detailAddress,
+                        firstRequestDate: req.createdAt,
+                        recentCompletedDate: null,
+                        requestCount: 0
+                    };
+                    phoneMap.set(req.phone, cust);
+                }
+            }
+            // 전화번호도 없고 customerId도 없는 예외 신청건은 제외
+            if (!cust)
+                return;
+            // 주소 정보가 비어있다면 Request의 정보로 보완 (주로 카카오가입 앱 유저)
+            if (!cust.address && req.address) {
+                cust.address = req.address;
+                cust.detailAddress = req.detailAddress;
+            }
+            // 수거 완료된 건에 대해서만 통계 누적
+            if (req.status === 'COMPLETED') {
+                cust.requestCount += 1;
+            }
+            // 최초 신청일 비교 (앱 가입일보다 이전에 사장님이 수동으로 입력한 내역이 있을 수 있으므로 갱신)
+            if (new Date(req.createdAt) < new Date(cust.firstRequestDate)) {
+                cust.firstRequestDate = req.createdAt;
+            }
+            // 최근 수거 완료 날짜 갱신
+            if (req.completedDate) {
+                if (!cust.recentCompletedDate || new Date(req.completedDate) > new Date(cust.recentCompletedDate)) {
+                    cust.recentCompletedDate = req.completedDate;
+                }
+            }
+        });
+        // 3. 최종 데이터 추출 (중복 제거를 위해 Set 활용)
+        const mergedSet = new Set();
+        userMap.forEach(cust => mergedSet.add(cust));
+        phoneMap.forEach(cust => mergedSet.add(cust));
+        // 정렬 (최근 활동 순 혹은 가입/최초신청 순)
+        const mergedCustomers = Array.from(mergedSet).sort((a, b) => {
+            const dateA = a.recentCompletedDate || a.firstRequestDate;
+            const dateB = b.recentCompletedDate || b.firstRequestDate;
+            return new Date(dateB).getTime() - new Date(dateA).getTime();
+        });
+        res.json(mergedCustomers);
+    }
+    catch (error) {
+        console.error('고객 목록 조회 실패:', error);
+        res.status(500).json({ error: '고객 목록을 조회하는 데 실패했습니다.' });
+    }
+}));
+// 특정 고객(전화번호 기준)의 수거 내역 상세 조회
+router.get('/super/customers/:phone/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { phone } = req.params;
+        // 전화번호를 기준으로 매칭되는 모든 Request 조회
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: {
+                OR: [
+                    { phone: phone },
+                    { customer: { phone: phone } }
+                ]
+            },
+            include: {
+                partner: { select: { businessName: true } },
+                driver: { select: { user: { select: { name: true } } } },
+                collectionItems: true
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(requests);
+    }
+    catch (error) {
+        console.error('고객 수거 내역 조회 실패:', error);
+        res.status(500).json({ error: '고객 수거 내역을 조회하는 데 실패했습니다.' });
+    }
+}));
+// 0. 전체 계정(파트너/기사) 조회 및 간편 로그인 (Impersonation)
+router.get('/super/accounts', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const users = yield prisma_1.prisma.user.findMany({
+            where: {
+                role: { in: ['PARTNER', 'DRIVER'] }
+            },
+            include: {
+                driverProfile: {
+                    include: {
+                        partner: {
+                            select: { businessName: true, name: true }
+                        }
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json(users);
+    }
+    catch (error) {
+        console.error('계정 목록 조회 실패:', error);
+        res.status(500).json({ error: '계정 목록을 조회하는 데 실패했습니다.' });
+    }
+}));
+router.post('/super/impersonate', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { userId } = req.body;
+        if (!userId)
+            return res.status(400).json({ error: 'userId가 필요합니다.' });
+        const targetUser = yield prisma_1.prisma.user.findUnique({
+            where: { id: userId }
+        });
+        if (!targetUser)
+            return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
+        if (!['PARTNER', 'DRIVER'].includes(targetUser.role)) {
+            return res.status(400).json({ error: '사장님 또는 기사님 계정으로만 로그인할 수 있습니다.' });
+        }
+        const token = jsonwebtoken_1.default.sign({ userId: targetUser.id, role: targetUser.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        const { password } = targetUser, userWithoutPassword = __rest(targetUser, ["password"]);
+        res.json({ token, role: targetUser.role, user: userWithoutPassword });
+    }
+    catch (error) {
+        console.error('간편 로그인 처리 실패:', error);
+        res.status(500).json({ error: '간편 로그인을 처리하는 데 실패했습니다.' });
+    }
+}));
 // 1. 전체 지역 파트너(업체 사장님) 목록 및 신청 내역 조회
 router.get('/partners', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -298,12 +522,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         let totalCount = 0;
         if (coverages.length === 0) {
             // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
-            const whereCondition = {
-                OR: [
-                    { partnerId: null, status: 'PENDING' },
-                    { partnerId: partnerId }
-                ]
-            };
+            const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             requests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
@@ -317,12 +536,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 본인 배정 건
             const cities = coverages.map((c) => c.region.city);
             const cityFilters = cities.map((city) => ({ address: { contains: city } }));
-            const whereCondition = {
-                OR: [
-                    { partnerId: null, status: 'PENDING', OR: cityFilters },
-                    { partnerId: partnerId }
-                ]
-            };
+            const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             requests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
@@ -853,77 +1067,10 @@ router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, 
         // 출발지를 첫 번째 수거지의 위치로 설정
         const currentLat = destinations[0].y;
         const currentLng = destinations[0].x;
-        // T맵 API 키 확인
-        const tmapAppKey = process.env.TMAP_APP_KEY;
         let optimizedList = [];
         let totalTimeSec = 0;
         let totalDistanceMeter = 0;
         let usedTmap = false;
-        if (tmapAppKey && tmapAppKey.length > 0) {
-            try {
-                const clusters = createClusters(destinations, currentLng, currentLat, 20);
-                let currentStartX = currentLng;
-                let currentStartY = currentLat;
-                for (const cluster of clusters) {
-                    if (cluster.length === 0)
-                        continue;
-                    const clusterDest = cluster[cluster.length - 1];
-                    const payload = {
-                        reqCoordType: "WGS84GEO",
-                        resCoordType: "WGS84GEO",
-                        startName: "출발지",
-                        startX: currentStartX.toString(),
-                        startY: currentStartY.toString(),
-                        startTime: new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12),
-                        endName: "도착지",
-                        endX: clusterDest.x.toString(),
-                        endY: clusterDest.y.toString(),
-                        searchOption: "0",
-                        viaPoints: cluster.map((d, i) => ({
-                            viaPointId: d.request.id,
-                            viaPointName: encodeURIComponent(d.request.userName || `수거지${i + 1}`).substring(0, 20),
-                            viaX: d.x.toString(),
-                            viaY: d.y.toString()
-                        }))
-                    };
-                    const tmapRes = yield axios_1.default.post('https://apis.openapi.sk.com/tmap/routes/routeOptimization20?version=1', payload, { headers: { appKey: tmapAppKey, 'Content-Type': 'application/json' } });
-                    if (tmapRes.data && tmapRes.data.properties && tmapRes.data.features) {
-                        totalTimeSec += tmapRes.data.properties.totalTime || 0;
-                        totalDistanceMeter += tmapRes.data.properties.totalDistance || 0;
-                        usedTmap = true;
-                        const features = tmapRes.data.features;
-                        const orderedVias = features.filter((f) => f.properties && f.properties.viaPointId);
-                        for (const via of orderedVias) {
-                            const dest = cluster.find((d) => d.request.id === via.properties.viaPointId);
-                            if (dest && !optimizedList.find(r => r.id === dest.request.id)) {
-                                optimizedList.push(dest.request);
-                            }
-                        }
-                        for (const dest of cluster) {
-                            if (!optimizedList.find(r => r.id === dest.request.id)) {
-                                optimizedList.push(dest.request);
-                            }
-                        }
-                        const lastProcessed = optimizedList[optimizedList.length - 1];
-                        const lastDestCoords = cluster.find((d) => d.request.id === lastProcessed.id);
-                        if (lastDestCoords) {
-                            currentStartX = lastDestCoords.x;
-                            currentStartY = lastDestCoords.y;
-                        }
-                    }
-                    else {
-                        throw new Error('T맵 응답 형식 오류');
-                    }
-                }
-            }
-            catch (tmapError) {
-                console.error('T맵 API 호출 실패, 유클리드 거리로 폴백:', tmapError.message);
-                optimizedList = [];
-                usedTmap = false;
-                totalTimeSec = 0;
-                totalDistanceMeter = 0;
-            }
-        }
         if (optimizedList.length === 0) {
             const startX = currentLng;
             const startY = currentLat;
@@ -1240,9 +1387,7 @@ router.get('/stats', authMiddleware_1.authenticate, (0, authMiddleware_1.require
         const regionIds = coverages.map((c) => c.regionId);
         // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
         const allRequests = yield prisma_1.prisma.request.findMany({
-            where: {
-                partnerId: partnerId
-            },
+            where: Object.assign({ partnerId: partnerId }, demoExcludeFilter),
             orderBy: { createdAt: 'desc' }
         });
         // 전체 통계 계산
@@ -1528,7 +1673,9 @@ router.post('/debug/seed-suwon', (req, res) => __awaiter(void 0, void 0, void 0,
         const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
             '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
         const volumes = ['헌옷 15kg', '헌옷 25kg, 신발 3켤레', '30kg 이상 (마대자루 2개)', '소량 (10kg 내외)', '옷 20kg, 가방 5개'];
-        yield prisma_1.prisma.request.deleteMany({});
+        yield prisma_1.prisma.request.deleteMany({
+            where: { userName: { in: names } }
+        });
         let count = 0;
         const requestDataToInsert = [];
         // 캐시용 Region 조회 맵
@@ -1568,6 +1715,21 @@ router.post('/debug/seed-suwon', (req, res) => __awaiter(void 0, void 0, void 0,
     }
     catch (error) {
         res.status(500).json({ error: String(error) });
+    }
+}));
+// [DEBUG] 데모 데이터 일괄 삭제
+router.post('/debug/clear-demo', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const names = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
+            '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은'];
+        const result = yield prisma_1.prisma.request.deleteMany({
+            where: { userName: { in: names } }
+        });
+        res.json({ message: `데모 데이터 ${result.count}건이 안전하게 삭제되었습니다.` });
+    }
+    catch (error) {
+        console.error('데모 삭제 에러:', error);
+        res.status(500).json({ error: '데모 데이터 삭제 실패' });
     }
 }));
 // [DEBUG] 동(town) 단위 Region을 시(city) 단위로 통합 마이그레이션
@@ -1856,12 +2018,13 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
             dateFilter = { completedDate: { gte: startOfDay, lte: endOfDay } };
         }
         const completedRequests = yield prisma_1.prisma.request.findMany({
-            where: Object.assign({ driverId: { in: driverIds }, status: 'COMPLETED' }, dateFilter),
+            where: Object.assign(Object.assign({ driverId: { in: driverIds }, status: 'COMPLETED' }, dateFilter), demoExcludeFilter),
             select: {
                 driverId: true,
                 actualWeight: true,
                 totalPrice: true,
-                completedDate: true
+                completedDate: true,
+                collectionItems: true
             }
         });
         // 날짜 + 기사별로 그룹화
@@ -1870,6 +2033,7 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
         // completedRequests를 돌면서 date 추출
         const grouped = {};
         completedRequests.forEach((req) => {
+            var _a;
             if (!req.completedDate)
                 return;
             const d = new Date(req.completedDate);
@@ -1883,32 +2047,51 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
                     driverId: req.driverId,
                     count: 0,
                     totalWeight: 0,
-                    totalPrice: 0
+                    totalPrice: 0,
+                    categoryStats: {}
                 };
             }
             grouped[dateStr][req.driverId].count += 1;
             grouped[dateStr][req.driverId].totalWeight += (req.actualWeight || 0);
             grouped[dateStr][req.driverId].totalPrice += (req.totalPrice || 0);
+            (_a = req.collectionItems) === null || _a === void 0 ? void 0 : _a.forEach((item) => {
+                if (!grouped[dateStr][req.driverId].categoryStats[item.categoryLabel]) {
+                    grouped[dateStr][req.driverId].categoryStats[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+                }
+                grouped[dateStr][req.driverId].categoryStats[item.categoryLabel].quantity += item.quantity;
+                grouped[dateStr][req.driverId].categoryStats[item.categoryLabel].subtotal += item.subtotal;
+            });
         });
         // 만약 단일 날짜(date) 쿼리라면 기존처럼 평탄화된 배열로 리턴 (호환성)
         if (date || (!startDate && !endDate)) {
             const statsMap = {};
             drivers.forEach(d => {
-                statsMap[d.id] = { driverId: d.id, driverName: d.user.name, count: 0, totalWeight: 0, totalPrice: 0 };
+                statsMap[d.id] = { driverId: d.id, driverName: d.user.name, count: 0, totalWeight: 0, totalPrice: 0, categoryStats: {} };
             });
             completedRequests.forEach((req) => {
+                var _a;
                 if (statsMap[req.driverId]) {
                     statsMap[req.driverId].count += 1;
                     statsMap[req.driverId].totalWeight += (req.actualWeight || 0);
                     statsMap[req.driverId].totalPrice += (req.totalPrice || 0);
+                    (_a = req.collectionItems) === null || _a === void 0 ? void 0 : _a.forEach((item) => {
+                        if (!statsMap[req.driverId].categoryStats[item.categoryLabel]) {
+                            statsMap[req.driverId].categoryStats[item.categoryLabel] = { categoryLabel: item.categoryLabel, quantity: 0, subtotal: 0, unitType: item.unitType };
+                        }
+                        statsMap[req.driverId].categoryStats[item.categoryLabel].quantity += item.quantity;
+                        statsMap[req.driverId].categoryStats[item.categoryLabel].subtotal += item.subtotal;
+                    });
                 }
             });
-            return res.json(Object.values(statsMap));
+            const flatResults = Object.values(statsMap).map((s) => (Object.assign(Object.assign({}, s), { categoryStats: Object.values(s.categoryStats) })));
+            return res.json(flatResults);
         }
         // startDate, endDate 쿼리라면 배열로 리턴
         Object.keys(grouped).forEach(dateStr => {
             Object.keys(grouped[dateStr]).forEach(driverId => {
-                results.push(grouped[dateStr][driverId]);
+                const driverStats = grouped[dateStr][driverId];
+                driverStats.categoryStats = Object.values(driverStats.categoryStats);
+                results.push(driverStats);
             });
         });
         res.json(results);
@@ -1916,6 +2099,66 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
     catch (error) {
         console.error('관리자 기사 통계 조회 실패:', error);
         res.status(500).json({ error: '기사별 통계를 불러오는데 실패했습니다.' });
+    }
+}));
+// ==========================================
+// [마케팅 센터 / CRM] 고객 목록 집계 API
+// ==========================================
+router.get('/crm/customers', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b, _c, _d;
+    try {
+        const userRole = req.user.role;
+        const userId = req.user.id;
+        // 파트너인 경우 본인 업체의 수거건만, 슈퍼관리자는 전체
+        const whereClause = userRole === 'PARTNER'
+            ? { partnerId: userId, status: 'COMPLETED' }
+            : { status: 'COMPLETED' };
+        const completedRequests = yield prisma_1.prisma.request.findMany({
+            where: whereClause,
+            include: {
+                driver: { select: { user: { select: { name: true } } } }
+            },
+            orderBy: { completedDate: 'desc' }
+        });
+        const customerMap = {};
+        for (const r of completedRequests) {
+            // 휴대폰 번호를 기준으로 고객을 식별
+            const phone = r.phone;
+            if (!phone)
+                continue;
+            if (!customerMap[phone]) {
+                customerMap[phone] = {
+                    phone,
+                    userName: r.userName,
+                    address: r.address,
+                    detailAddress: r.detailAddress || '',
+                    totalRequests: 0,
+                    totalWeight: 0,
+                    totalPaid: 0,
+                    lastRequestDate: r.completedDate,
+                    lastDriverName: ((_b = (_a = r.driver) === null || _a === void 0 ? void 0 : _a.user) === null || _b === void 0 ? void 0 : _b.name) || '알 수 없음',
+                    joinDate: r.createdAt
+                };
+            }
+            const customer = customerMap[phone];
+            customer.totalRequests += 1;
+            customer.totalWeight += r.actualWeight || 0;
+            customer.totalPaid += r.totalPrice || 0;
+            // 최신 정보 유지
+            if (r.completedDate && customer.lastRequestDate && new Date(r.completedDate) > new Date(customer.lastRequestDate)) {
+                customer.lastRequestDate = r.completedDate;
+                customer.lastDriverName = ((_d = (_c = r.driver) === null || _c === void 0 ? void 0 : _c.user) === null || _d === void 0 ? void 0 : _d.name) || '알 수 없음';
+            }
+            if (r.createdAt && customer.joinDate && new Date(r.createdAt) < new Date(customer.joinDate)) {
+                customer.joinDate = r.createdAt;
+            }
+        }
+        const customers = Object.values(customerMap).sort((a, b) => b.totalRequests - a.totalRequests);
+        res.json({ customers });
+    }
+    catch (error) {
+        console.error('CRM 고객 목록 집계 오류:', error);
+        res.status(500).json({ error: '고객 목록을 집계하는 중 오류가 발생했습니다.' });
     }
 }));
 exports.default = router;

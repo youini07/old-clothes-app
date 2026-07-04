@@ -99,7 +99,8 @@ router.get('/super/customers', authenticate, requireRole(['SUPER_ADMIN']), async
         address: true,
         detailAddress: true,
         completedDate: true,
-        createdAt: true
+        createdAt: true,
+        status: true
       }
     });
 

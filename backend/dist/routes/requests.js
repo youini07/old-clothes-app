@@ -20,9 +20,45 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
+// 퍼블릭 영수증(수거 내역) 조회 API
+router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            include: {
+                collectionItems: true
+            }
+        });
+        if (!request) {
+            return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+        }
+        // 개인정보 보호를 위해 상세 주소와 전화번호는 제외하고 전송 (마스킹 등)
+        // 보안을 위해 프론트엔드 영수증 페이지에서 사용할 데이터만 내려줍니다.
+        const receiptData = {
+            id: request.id,
+            userName: request.userName,
+            // 예: "경기도 수원시 영통구 이의동" 까지만 노출하고 상세 주소는 제외
+            address: request.address,
+            actualWeight: request.actualWeight,
+            totalPrice: request.totalPrice,
+            itemPhotoUrl: request.itemPhotoUrl,
+            scalePhotoUrl: request.scalePhotoUrl,
+            extraPhotoUrl: request.extraPhotoUrl,
+            completedDate: request.completedDate,
+            collectionItems: request.collectionItems,
+            status: request.status
+        };
+        res.json(receiptData);
+    }
+    catch (error) {
+        console.error('영수증 조회 실패:', error);
+        res.status(500).json({ error: '영수증 조회에 실패했습니다.' });
+    }
+}));
 // 새로운 수거 신청 생성 (입력값 검증 포함)
 router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a, _b, _c;
+    var _a, _b, _c, _d;
     const requestData = req.body;
     try {
         // 1. 주소에서 시/도, 시/군/구 파싱 (통계용 regionId 기록)
@@ -74,7 +110,31 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
                 customerId: ((_c = req.user) === null || _c === void 0 ? void 0 : _c.userId) || null,
             }
         });
-        // 3. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
+        // 3. 회원 정보 자동 업데이트 (최초 1회 주소 및 전화번호 보완)
+        if ((_d = req.user) === null || _d === void 0 ? void 0 : _d.userId) {
+            try {
+                const user = yield prisma_1.prisma.user.findUnique({ where: { id: req.user.userId } });
+                if (user) {
+                    const updateData = {};
+                    if (!user.phone && requestData.phone)
+                        updateData.phone = requestData.phone;
+                    if (!user.address && requestData.address)
+                        updateData.address = requestData.address;
+                    if (!user.detailAddress && requestData.detailAddress)
+                        updateData.detailAddress = requestData.detailAddress;
+                    if (Object.keys(updateData).length > 0) {
+                        yield prisma_1.prisma.user.update({
+                            where: { id: user.id },
+                            data: updateData
+                        });
+                    }
+                }
+            }
+            catch (err) {
+                console.error('회원 정보 자동 업데이트 실패:', err);
+            }
+        }
+        // 4. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
         (0, googleSheets_1.addRequestToSheet)({
             id: newRequest.id,
             userName: newRequest.userName,
