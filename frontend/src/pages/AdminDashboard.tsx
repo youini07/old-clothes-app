@@ -216,7 +216,8 @@ export default function AdminDashboard() {
   const [dispatchTab, setDispatchTab] = useState<'requests' | 'drivers'>('requests');
 
   // 선택된 기사 (탭)
-  const [activeDriverId, setActiveDriverId] = useState<string | null>(null);
+  const [activeDriverId, setActiveDriverId] = useState<string | null>('ALL');
+  const [collapsedDriverIds, setCollapsedDriverIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (drivers.length > 0 && !activeDriverId) {
@@ -2046,7 +2047,7 @@ export default function AdminDashboard() {
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                             <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                               <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
-                              <span className="text-sm font-normal text-gray-500 shrink-0">{req.phone}</span>
+                              <span className="text-sm font-normal text-gray-500 shrink-0">{formatPhoneNumber(req.phone)}</span>
                               {req.isMustPickupDate && (
                                 <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
                                   🚨 지정일 필수
@@ -2181,7 +2182,7 @@ export default function AdminDashboard() {
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                           <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                             <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
-                            <span className="text-sm font-normal text-gray-500 shrink-0">{req.phone}</span>
+                            <span className="text-sm font-normal text-gray-500 shrink-0">{formatPhoneNumber(req.phone)}</span>
                             {req.isMustPickupDate && (
                               <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
                                 🚨 지정일 필수
@@ -2289,7 +2290,19 @@ export default function AdminDashboard() {
                   <div className="flex flex-col sm:flex-row justify-between items-start mb-6 pb-4 border-b border-primary-200 gap-4">
                     <div className="flex flex-col flex-1 w-full sm:w-auto">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h2 className="text-lg font-extrabold text-gray-800 break-keep mr-2">🚚 {driver.user?.name || driver.name}</h2>
+                        <button 
+                          onClick={() => setCollapsedDriverIds(prev => prev.includes(driver.id) ? prev.filter(id => id !== driver.id) : [...prev, driver.id])}
+                          className="w-6 h-6 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-700 transition-colors shrink-0"
+                          title="접기/펴기"
+                        >
+                          <span className="text-xs transition-transform duration-200" style={{ transform: collapsedDriverIds.includes(driver.id) ? 'rotate(-90deg)' : 'rotate(0deg)' }}>▼</span>
+                        </button>
+                        <h2 
+                          className="text-lg font-extrabold text-gray-800 break-keep mr-2 cursor-pointer hover:text-primary-600 transition-colors select-none"
+                          onClick={() => setCollapsedDriverIds(prev => prev.includes(driver.id) ? prev.filter(id => id !== driver.id) : [...prev, driver.id])}
+                        >
+                          🚚 {driver.user?.name || driver.name}
+                        </h2>
                         <button onClick={() => handlePrintDriverList(driver, driverRequests)} className="text-[11px] bg-blue-100 text-blue-600 px-2.5 py-1.5 rounded-md hover:bg-blue-200 transition-colors font-bold shrink-0 flex items-center gap-1">🖨️ 인쇄</button>
                         <button onClick={() => openDriverModalForEdit(driver)} className="text-[11px] bg-gray-200 text-gray-600 px-2.5 py-1.5 rounded-md hover:bg-gray-300 transition-colors font-bold shrink-0">수정</button>
                         <button onClick={() => handleDeleteDriver(driver.id)} className="text-[11px] bg-red-100 text-red-600 px-2.5 py-1.5 rounded-md hover:bg-red-200 transition-colors font-bold shrink-0">삭제</button>
@@ -2380,6 +2393,7 @@ export default function AdminDashboard() {
                       )}
                     </div>
                   </div>
+                  <div className={collapsedDriverIds.includes(driver.id) ? 'hidden' : 'block'}>
                   <DragDropContext onDragEnd={handleDragEnd}>
                     <Droppable droppableId={driver.id}>
                       {(provided) => (
@@ -2551,6 +2565,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                   )}
+                  </div>
 
                 </div>
               );
