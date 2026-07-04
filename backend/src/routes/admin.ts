@@ -2571,7 +2571,9 @@ router.get('/super/settings', authenticate, requireRole(['SUPER_ADMIN']), async 
     if (!settings) {
       settings = await prisma.globalSettings.create({ data: { id: 'global' } });
     }
-    res.json(settings);
+    // 비밀번호 평문은 보안상 내려주지 않습니다.
+    const { deletePassword, ...safeSettings } = settings;
+    res.json(safeSettings);
   } catch (error) {
     console.error('설정 조회 실패:', error);
     res.status(500).json({ error: '설정 조회에 실패했습니다.' });
@@ -2581,17 +2583,28 @@ router.get('/super/settings', authenticate, requireRole(['SUPER_ADMIN']), async 
 // 0-5. 설정 업데이트 (삭제 비밀번호 변경)
 router.put('/super/settings', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const { deletePassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
     let settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    
     if (!settings) {
-      settings = await prisma.globalSettings.create({ data: { id: 'global', deletePassword } });
-    } else {
-      settings = await prisma.globalSettings.update({
-        where: { id: 'global' },
-        data: { deletePassword }
-      });
+      settings = await prisma.globalSettings.create({ data: { id: 'global' } });
     }
-    res.json({ message: '설정이 성공적으로 저장되었습니다.', settings });
+
+    if (currentPassword !== settings.deletePassword) {
+      return res.status(401).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
+    }
+
+    if (!newPassword || newPassword.trim() === '') {
+      return res.status(400).json({ error: '새 비밀번호를 입력해주세요.' });
+    }
+
+    settings = await prisma.globalSettings.update({
+      where: { id: 'global' },
+      data: { deletePassword: newPassword }
+    });
+    
+    const { deletePassword: dp, ...safeSettings } = settings;
+    res.json({ message: '비밀번호가 성공적으로 변경되었습니다.', settings: safeSettings });
   } catch (error) {
     console.error('설정 업데이트 실패:', error);
     res.status(500).json({ error: '설정 업데이트에 실패했습니다.' });

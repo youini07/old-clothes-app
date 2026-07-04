@@ -59,7 +59,8 @@ export default function SuperAdminDashboard() {
   // 계정 관리 탭 상태 (active vs trash)
   const [accountTab, setAccountTab] = useState<'active' | 'trash'>('active');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
-  const [settingsPassword, setSettingsPassword] = useState('');
+  const [currentDeletePassword, setCurrentDeletePassword] = useState('');
+  const [newDeletePassword, setNewDeletePassword] = useState('');
   
   // 고객 DB 탭 상태
   const [customers, setCustomers] = useState<any[]>([]);
@@ -223,10 +224,11 @@ export default function SuperAdminDashboard() {
 
   const fetchSettings = async () => {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/settings`, {
+      await axios.get(`${import.meta.env.VITE_API_URL}/admin/super/settings`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      setSettingsPassword(res.data.deletePassword || '');
+      setCurrentDeletePassword('');
+      setNewDeletePassword('');
       setIsSettingsModalOpen(true);
     } catch (error) {
       console.error(error);
@@ -235,16 +237,19 @@ export default function SuperAdminDashboard() {
   };
 
   const handleSaveSettings = async () => {
-    if (!settingsPassword) return alert('비밀번호를 입력해주세요.');
+    if (!currentDeletePassword || !newDeletePassword) return alert('비밀번호를 모두 입력해주세요.');
     try {
-      await axios.put(`${import.meta.env.VITE_API_URL}/admin/super/settings`, { deletePassword: settingsPassword }, {
+      await axios.put(`${import.meta.env.VITE_API_URL}/admin/super/settings`, { 
+        currentPassword: currentDeletePassword, 
+        newPassword: newDeletePassword 
+      }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       alert('비밀번호 설정이 저장되었습니다.');
       setIsSettingsModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('설정 저장 중 오류가 발생했습니다.');
+      alert(error.response?.data?.error || '설정 저장 중 오류가 발생했습니다.');
     }
   };
 
@@ -1202,13 +1207,23 @@ export default function SuperAdminDashboard() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">계정 삭제 비밀번호</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">현재 삭제 비밀번호</label>
                 <input 
-                  type="text" 
-                  value={settingsPassword} 
-                  onChange={e => setSettingsPassword(e.target.value)} 
+                  type="password" 
+                  value={currentDeletePassword} 
+                  onChange={e => setCurrentDeletePassword(e.target.value)} 
                   className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" 
-                  placeholder="비밀번호 입력 (기본: 9436)" 
+                  placeholder="현재 비밀번호 입력" 
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">새 삭제 비밀번호</label>
+                <input 
+                  type="password" 
+                  value={newDeletePassword} 
+                  onChange={e => setNewDeletePassword(e.target.value)} 
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" 
+                  placeholder="새 비밀번호 입력" 
                 />
                 <p className="text-xs text-gray-500 mt-2">
                   계정 삭제 시 입력해야 하는 마스터 비밀번호입니다. 유출되지 않도록 주의하세요.
