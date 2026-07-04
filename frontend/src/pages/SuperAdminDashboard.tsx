@@ -42,6 +42,19 @@ export default function SuperAdminDashboard() {
   const [monitoring, setMonitoring] = useState<any>(null);
   const [accounts, setAccounts] = useState<any[]>([]);
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  
+  // 계정 관리(생성/삭제) 상태
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [accountFormData, setAccountFormData] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    role: 'PARTNER', // PARTNER or DRIVER
+    businessName: '',
+    password: '',
+    partnerId: '' // 기사 생성 시 선택
+  });
 
   // 고객 DB 탭 상태
   const [customers, setCustomers] = useState<any[]>([]);
@@ -146,6 +159,45 @@ export default function SuperAdminDashboard() {
       alert('간편 로그인 중 오류가 발생했습니다.');
     }
   }
+
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authToken) return alert('로그인이 필요합니다.');
+    
+    try {
+      setIsCreatingAccount(true);
+      await axios.post(`${import.meta.env.VITE_API_URL}/admin/super/accounts`, accountFormData, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('계정이 성공적으로 생성되었습니다.');
+      setIsAccountModalOpen(false);
+      setAccountFormData({ name: '', phone: '', email: '', role: 'PARTNER', businessName: '', password: '', partnerId: '' });
+      fetchAccounts();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.error || '계정 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsCreatingAccount(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: string, name: string) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    if (!window.confirm(`정말 [${name}] 계정을 삭제하시겠습니까?\n이 작업은 복구할 수 없으며 관련된 모든 데이터가 삭제됩니다.`)) return;
+
+    try {
+      await axios.delete(`${import.meta.env.VITE_API_URL}/admin/super/accounts/${id}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('계정이 성공적으로 삭제되었습니다.');
+      fetchAccounts();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.error || '계정 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
+
 
 
 
@@ -590,34 +642,84 @@ export default function SuperAdminDashboard() {
         </div>
       </>}
 
-      {/* 전체 계정 로그인 뷰 (accounts) */}
+      {/* 계정 관리 뷰 (accounts) */}
       {activeView === 'accounts' && (
-        <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-            <h2 className="text-xl font-bold text-gray-800">계정 간편 로그인 (Impersonation)</h2>
-          </div>
-          <div className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="space-y-6 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center flex-wrap gap-4">
+              <div>
+                <h3 className="text-xl font-bold text-gray-900">계정 관리 (생성/삭제/로그인)</h3>
+                <p className="text-sm text-gray-500 mt-1">계정을 강제로 생성하거나 삭제하고, 비밀번호 없이 로그인할 수 있습니다.</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg text-sm font-bold">
+                  총 {accounts.length}명
+                </div>
+                <button
+                  onClick={() => setIsAccountModalOpen(true)}
+                  className="px-4 py-2 bg-primary-600 text-white font-bold rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
+                >
+                  + 새 계정 생성
+                </button>
+              </div>
+            </div>
+            
+            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {accounts.map(acc => (
-                <div key={acc.id} className="border border-gray-200 rounded-xl p-4 flex justify-between items-center bg-gray-50 hover:bg-white hover:shadow-md transition-all">
+                <div key={acc.id} className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all bg-white flex flex-col justify-between">
                   <div>
-                    <span className={`px-2 py-1 rounded-md text-xs font-bold mr-2 ${acc.role === 'PARTNER' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'}`}>
-                      {acc.role === 'PARTNER' ? '파트너' : '기사'}
-                    </span>
-                    <p className="font-bold text-gray-900 mt-2">{acc.name} <span className="text-sm font-normal text-gray-500">({acc.phone})</span></p>
-                    {acc.role === 'PARTNER' && acc.businessName && <p className="text-xs text-gray-500 mt-1">{acc.businessName}</p>}
-                    {acc.role === 'DRIVER' && acc.driverProfile?.partner?.businessName && <p className="text-xs text-gray-500 mt-1">소속: {acc.driverProfile.partner.businessName}</p>}
+                    <div className="flex justify-between items-start mb-2">
+                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
+                        acc.role === 'PARTNER' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {acc.role === 'PARTNER' ? '🏢 사장님' : '🚚 기사님'}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        가입일: {new Date(acc.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                    
+                    <h4 className="text-lg font-extrabold text-gray-900 mt-2">
+                      {acc.name} <span className="text-sm font-medium text-gray-500">({acc.businessName || '이름/상호명 없음'})</span>
+                    </h4>
+                    
+                    <div className="mt-3 space-y-1">
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <span className="opacity-70">📧</span> {acc.email || '이메일 없음'}
+                      </p>
+                      <p className="text-sm text-gray-600 flex items-center gap-2">
+                        <span className="opacity-70">📞</span> {acc.phone || '연락처 없음'}
+                      </p>
+                      
+                      {acc.role === 'DRIVER' && acc.driverProfile?.partner && (
+                        <p className="text-sm text-blue-600 flex items-center gap-2 mt-2 bg-blue-50 p-2 rounded-lg font-medium">
+                          <span className="opacity-70">🏢</span> 소속: {acc.driverProfile.partner.businessName} ({acc.driverProfile.partner.name})
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <button 
-                    onClick={() => handleImpersonate(acc.id)}
-                    className="px-4 py-2 bg-gray-900 text-white rounded-lg text-sm font-bold hover:bg-gray-800 transition-colors"
-                  >
-                    로그인
-                  </button>
+                  
+                  <div className="mt-5 grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => handleImpersonate(acc.id)}
+                      className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                    >
+                      🚀 간편 로그인
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAccount(acc.id, acc.name)}
+                      className="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                    >
+                      🗑️ 계정 삭제
+                    </button>
+                  </div>
                 </div>
               ))}
+              
               {accounts.length === 0 && (
-                <div className="col-span-full py-8 text-center text-gray-500">등록된 계정이 없습니다.</div>
+                <div className="col-span-full py-12 text-center text-gray-400">
+                  등록된 계정이 없습니다.
+                </div>
               )}
             </div>
           </div>
@@ -930,70 +1032,69 @@ export default function SuperAdminDashboard() {
         </div>
       )}
 
-      {/* 계정 관리 및 간편 로그인 뷰 */}
-      {activeView === 'accounts' && (
-        <div className="space-y-6 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">전체 계정 간편 로그인</h3>
-                <p className="text-sm text-gray-500 mt-1">비밀번호 없이 클릭 한 번으로 사장님 또는 기사님 계정에 접속합니다.</p>
-              </div>
-              <div className="bg-blue-50 text-blue-700 px-3 py-1.5 rounded-lg text-sm font-bold">
-                총 {accounts.length}명
-              </div>
-            </div>
+      {/* 계정 생성 모달 */}
+      {isAccountModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl relative">
+            <button 
+              onClick={() => setIsAccountModalOpen(false)}
+              className="absolute top-6 right-6 text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              ✕
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">새 계정 강제 생성</h2>
             
-            <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {accounts.map(acc => (
-                <div key={acc.id} className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition-all bg-white flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start mb-2">
-                      <span className={`px-2.5 py-1 text-xs font-bold rounded-lg ${
-                        acc.role === 'PARTNER' ? 'bg-purple-100 text-purple-700' : 'bg-green-100 text-green-700'
-                      }`}>
-                        {acc.role === 'PARTNER' ? '🏢 사장님' : '🚚 기사님'}
-                      </span>
-                      <span className="text-xs text-gray-400">
-                        가입일: {new Date(acc.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    
-                    <h4 className="text-lg font-extrabold text-gray-900 mt-2">
-                      {acc.name} <span className="text-sm font-medium text-gray-500">({acc.businessName || '이름/상호명 없음'})</span>
-                    </h4>
-                    
-                    <div className="mt-3 space-y-1">
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <span className="opacity-70">📧</span> {acc.email || '이메일 없음'}
-                      </p>
-                      <p className="text-sm text-gray-600 flex items-center gap-2">
-                        <span className="opacity-70">📞</span> {acc.phone || '연락처 없음'}
-                      </p>
-                      
-                      {acc.role === 'DRIVER' && acc.driverProfile?.partner && (
-                        <p className="text-sm text-blue-600 flex items-center gap-2 mt-2 bg-blue-50 p-2 rounded-lg font-medium">
-                          <span className="opacity-70">🏢</span> 소속: {acc.driverProfile.partner.businessName} ({acc.driverProfile.partner.name})
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <button
-                    onClick={() => handleImpersonate(acc.id)}
-                    className="mt-5 w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
-                  >
-                    🚀 간편 로그인
-                  </button>
-                </div>
-              ))}
+            <form onSubmit={handleCreateAccount} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">이름 <span className="text-red-500">*</span></label>
+                <input required type="text" value={accountFormData.name} onChange={e => setAccountFormData({...accountFormData, name: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="홍길동" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">연락처 <span className="text-red-500">*</span></label>
+                <input required type="text" value={accountFormData.phone} onChange={e => setAccountFormData({...accountFormData, phone: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="010-0000-0000" />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">역할 <span className="text-red-500">*</span></label>
+                <select value={accountFormData.role} onChange={e => setAccountFormData({...accountFormData, role: e.target.value, partnerId: ''})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500">
+                  <option value="PARTNER">사장님 (파트너)</option>
+                  <option value="DRIVER">기사님 (드라이버)</option>
+                </select>
+              </div>
               
-              {accounts.length === 0 && (
-                <div className="col-span-full py-12 text-center text-gray-400">
-                  계정이 없습니다.
+              {accountFormData.role === 'PARTNER' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">상호명</label>
+                  <input type="text" value={accountFormData.businessName} onChange={e => setAccountFormData({...accountFormData, businessName: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="상호명 입력" />
                 </div>
               )}
-            </div>
+
+              {accountFormData.role === 'DRIVER' && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">소속 파트너 선택 <span className="text-red-500">*</span></label>
+                  <select required value={accountFormData.partnerId} onChange={e => setAccountFormData({...accountFormData, partnerId: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500">
+                    <option value="">소속될 파트너를 선택하세요</option>
+                    {partners.map(p => (
+                      <option key={p.id} value={p.id}>{p.businessName} ({p.ownerName})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">비밀번호 (선택)</label>
+                <input type="text" value={accountFormData.password} onChange={e => setAccountFormData({...accountFormData, password: e.target.value})} className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500" placeholder="미입력 시 연락처로 기본설정" />
+              </div>
+
+              <div className="pt-4">
+                <button 
+                  type="submit" 
+                  disabled={isCreatingAccount}
+                  className="w-full py-4 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isCreatingAccount ? '생성 중...' : '계정 생성 완료하기'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

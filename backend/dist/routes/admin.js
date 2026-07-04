@@ -266,6 +266,95 @@ router.get('/super/accounts', authMiddleware_1.authenticate, (0, authMiddleware_
         res.status(500).json({ error: '계정 목록을 조회하는 데 실패했습니다.' });
     }
 }));
+// 0-1. 슈퍼관리자 강제 계정 생성
+router.post('/super/accounts', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { name, phone, email, role, businessName, password, partnerId } = req.body;
+        if (!name || !phone || !role) {
+            return res.status(400).json({ error: '필수 정보(이름, 전화번호, 역할)가 누락되었습니다.' });
+        }
+        if (role === 'DRIVER' && !partnerId) {
+            return res.status(400).json({ error: '기사 생성 시 소속 파트너를 반드시 선택해야 합니다.' });
+        }
+        const hashedPassword = password ? yield bcryptjs_1.default.hash(password, 10) : yield bcryptjs_1.default.hash(phone, 10);
+        const newUser = yield prisma_1.prisma.user.create({
+            data: {
+                name,
+                phone,
+                email: email || undefined,
+                role,
+                businessName: role === 'PARTNER' ? businessName : undefined,
+                password: hashedPassword,
+                isApproved: role === 'PARTNER' ? true : false,
+            }
+        });
+        if (role === 'DRIVER' && partnerId) {
+            yield prisma_1.prisma.driverProfile.create({
+                data: {
+                    userId: newUser.id,
+                    partnerId,
+                }
+            });
+        }
+        res.json({ message: '계정이 성공적으로 생성되었습니다.', user: newUser });
+    }
+    catch (error) {
+        console.error('계정 생성 실패:', error);
+        res.status(500).json({ error: '계정 생성에 실패했습니다.' });
+    }
+}));
+// 0-2. 슈퍼관리자 강제 계정 삭제
+router.delete('/super/accounts/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const targetUser = yield prisma_1.prisma.user.findUnique({ where: { id }, include: { driverProfile: true } });
+        if (!targetUser)
+            return res.status(404).json({ error: '계정을 찾을 수 없습니다.' });
+        if (targetUser.role === 'PARTNER') {
+            yield prisma_1.prisma.coverage.deleteMany({ where: { partnerId: id } });
+            yield prisma_1.prisma.customRegion.deleteMany({ where: { partnerId: id } });
+            const drivers = yield prisma_1.prisma.driverProfile.findMany({ where: { partnerId: id } });
+            for (const d of drivers) {
+                yield prisma_1.prisma.driverProfile.delete({ where: { id: d.id } });
+                yield prisma_1.prisma.user.delete({ where: { id: d.userId } });
+            }
+            yield prisma_1.prisma.request.updateMany({
+                where: { partnerId: id, status: { not: 'COMPLETED' } },
+                data: { partnerId: null, driverId: null, status: 'PENDING' }
+            });
+            yield prisma_1.prisma.request.updateMany({
+                where: { partnerId: id, status: 'COMPLETED' },
+                data: { partnerId: null, driverId: null }
+            });
+            const rooms = yield prisma_1.prisma.chatRoom.findMany({ where: { partnerId: id } });
+            for (const r of rooms) {
+                yield prisma_1.prisma.chatMessage.deleteMany({ where: { roomId: r.id } });
+                yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
+            }
+            yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: id } });
+            yield prisma_1.prisma.partnerPriceItem.deleteMany({ where: { partnerId: id } });
+            yield prisma_1.prisma.user.delete({ where: { id } });
+        }
+        else if (targetUser.role === 'DRIVER') {
+            if (targetUser.driverProfile) {
+                yield prisma_1.prisma.request.updateMany({
+                    where: { driverId: targetUser.driverProfile.id, status: { not: 'COMPLETED' } },
+                    data: { driverId: null, status: 'ASSIGNED', confirmedDate: null, etaMinutes: null }
+                });
+                yield prisma_1.prisma.driverProfile.delete({ where: { id: targetUser.driverProfile.id } });
+            }
+            yield prisma_1.prisma.user.delete({ where: { id } });
+        }
+        else {
+            yield prisma_1.prisma.user.delete({ where: { id } });
+        }
+        res.json({ message: '계정이 성공적으로 삭제되었습니다.' });
+    }
+    catch (error) {
+        console.error('계정 삭제 실패:', error);
+        res.status(500).json({ error: '계정 삭제에 실패했습니다.' });
+    }
+}));
 router.post('/super/impersonate', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { userId } = req.body;
