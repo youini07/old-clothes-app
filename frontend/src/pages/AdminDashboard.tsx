@@ -2446,7 +2446,14 @@ export default function AdminDashboard() {
                                       <div>
                                         <div className="flex justify-between items-start">
                                           <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="font-bold text-gray-900 text-base">{req.userName}</h3>
+                                            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                                              {req.userName}
+                                              {req.phone && (
+                                                <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                  {req.phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3')}
+                                                </span>
+                                              )}
+                                            </h3>
                                             {req.isMustPickupDate && (
                                               <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
                                                 🚨 필수 수거
