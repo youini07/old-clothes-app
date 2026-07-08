@@ -7,6 +7,7 @@ import { AdminChatDashboard } from '../components/chat/AdminChatDashboard';
 import AddressSearchModal from '../components/AddressSearchModal';
 import CalendarView from '../components/CalendarView';
 import DriverMap from '../components/DriverMap';
+import CompletedDatePicker from '../components/CompletedDatePicker';
 
 interface RequestItem {
   id: string;
@@ -2566,11 +2567,10 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
                       <h3 className="text-sm font-bold text-gray-600">✅ 완료된 수거 ({completedRequests.length}건)</h3>
                       <div className="flex items-center gap-2">
-                        <input 
-                          type="date"
+                        <CompletedDatePicker
                           value={completedFilterDate}
-                          onChange={(e) => setCompletedFilterDate(e.target.value)}
-                          className="text-xs border border-gray-300 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-primary-500 text-gray-600 bg-white"
+                          onChange={(val) => setCompletedFilterDate(val)}
+                          completedRequests={allDriverRequests.filter(r => r.status === 'COMPLETED')}
                         />
                       </div>
                     </div>
