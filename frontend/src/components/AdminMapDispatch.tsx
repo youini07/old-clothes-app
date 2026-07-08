@@ -120,7 +120,7 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       // 클러스터 클릭 시 포함된 마커들 모두 선택
       window.kakao.maps.event.addListener(clusterer, 'clusterclick', function(cluster: any) {
         const markers = cluster.getMarkers();
-        const newIds = markers.map((m: any) => m.requestId).filter(Boolean);
+        const newIds = markers.flatMap((m: any) => m.requestIds || [m.requestId]).filter(Boolean);
         
         setSelectedIds(prev => {
           const prevSet = new Set(prev);
@@ -142,69 +142,120 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     let boundsExtended = false;
     let loadedCount = 0;
 
-    unassignedRequests.forEach((req) => {
+    // Group requests by address
+    const groupedRequests: { [address: string]: RequestItem[] } = {};
+    unassignedRequests.forEach(req => {
+      const addr = req.address || 'unknown';
+      if (!groupedRequests[addr]) groupedRequests[addr] = [];
+      groupedRequests[addr].push(req);
+    });
+
+    const groups = Object.values(groupedRequests);
+
+    groups.forEach((group) => {
+      const firstReq = group[0];
       // 이미 좌표가 있다면
-      if (req.lat && req.lng) {
-        createMarker(req, req.lat, req.lng);
+      if (firstReq.lat && firstReq.lng) {
+        createGroupMarker(group, firstReq.lat, firstReq.lng);
       } else {
         // 주소로 좌표 검색
-        geocoder.addressSearch(req.address, (result: any, status: any) => {
+        geocoder.addressSearch(firstReq.address, (result: any, status: any) => {
           if (status === window.kakao.maps.services.Status.OK) {
             const lat = Number(result[0].y);
             const lng = Number(result[0].x);
-            req.lat = lat;
-            req.lng = lng;
-            createMarker(req, lat, lng);
+            group.forEach(r => { r.lat = lat; r.lng = lng; });
+            createGroupMarker(group, lat, lng);
           } else {
             setFailedRequests(prev => {
-              if (!prev.find(r => r.id === req.id)) {
-                return [...prev, req];
-              }
-              return prev;
+              const newFails = [...prev];
+              group.forEach(r => {
+                if (!newFails.find(fr => fr.id === r.id)) {
+                  newFails.push(r);
+                }
+              });
+              return newFails;
             });
           }
           loadedCount++;
-          if (loadedCount === unassignedRequests.length && boundsExtended) {
+          if (loadedCount === groups.length && boundsExtended) {
             map.setBounds(bounds);
           }
         });
       }
     });
 
-    function createMarker(req: RequestItem & { lat?: number; lng?: number; marker?: any }, lat: number, lng: number) {
+    function createGroupMarker(group: RequestItem[], lat: number, lng: number) {
       const position = new window.kakao.maps.LatLng(lat, lng);
       
-      const isSelected = selectedIds.includes(req.id);
-      const orderIndex = selectedIds.indexOf(req.id) + 1;
-
-      const estimatedKg = extractKg(req.estimatedVolume);
+      const selectedReqs = group.filter(r => selectedIds.includes(r.id));
+      const isFullySelected = selectedReqs.length === group.length && group.length > 0;
+      const isPartiallySelected = selectedReqs.length > 0 && selectedReqs.length < group.length;
       
-      const markerBg = isSelected ? 'bg-orange-500' : 'bg-white';
-      const markerBorder = isSelected ? 'border-white' : 'border-orange-500';
-      const markerText = isSelected ? 'text-white' : 'text-orange-600';
-      const pointerBg = isSelected ? 'bg-orange-500' : 'bg-white';
-      const pointerBorder = isSelected ? 'border-white' : 'border-orange-500';
+      // If fully selected, find the order index of the first selected item
+      const firstSelectedOrder = isFullySelected ? selectedIds.indexOf(selectedReqs[0].id) + 1 : 0;
+
+      let totalKg = 0;
+      group.forEach(r => {
+        totalKg += extractKg(r.estimatedVolume);
+      });
+      
+      const isSelected = isFullySelected || isPartiallySelected;
+      
+      let markerBg = 'bg-white';
+      let markerBorder = 'border-orange-500';
+      let markerText = 'text-orange-600';
+      
+      if (isFullySelected) {
+        markerBg = 'bg-orange-500';
+        markerBorder = 'border-white';
+        markerText = 'text-white';
+      } else if (isPartiallySelected) {
+        markerBg = 'bg-orange-200';
+        markerBorder = 'border-orange-500';
+        markerText = 'text-orange-800';
+      }
+      
+      const pointerBg = markerBg;
+      const pointerBorder = markerBorder;
+
+      let centerText = '';
+      if (group.length > 1) {
+         if (isFullySelected) {
+            centerText = `<span class="text-[10px] font-black pointer-events-none">${firstSelectedOrder}번외</span>`;
+         } else {
+            centerText = `<span class="text-[12px] font-black pointer-events-none">${group.length}건</span>`;
+         }
+      } else {
+         centerText = `<span class="${isSelected ? 'text-xl' : 'text-[11px] tracking-tighter'} font-black pointer-events-none">${isSelected ? firstSelectedOrder : '미배정'}</span>`;
+      }
 
       // 커스텀 오버레이 내용 구성
       const content = document.createElement('div');
       content.className = `relative transform hover:scale-110 transition-transform flex flex-col items-center pointer-events-none ${isSelected ? 'z-50' : 'z-10'}`;
       content.innerHTML = `
         <div class="pointer-events-auto cursor-pointer flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 ${markerBg} ${markerBorder} ${markerText}">
-          <span class="${isSelected ? 'text-xl' : 'text-[11px] tracking-tighter'} font-black pointer-events-none">${isSelected ? orderIndex : '미배정'}</span>
+          ${centerText}
         </div>
         <div class="pointer-events-none w-3 h-3 ${pointerBg} rotate-45 border-r-4 border-b-4 ${pointerBorder} -mt-1.5 z-0"></div>
         <div class="pointer-events-auto cursor-pointer mt-1 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-lg text-xs font-extrabold text-gray-800 shadow-lg border-2 border-gray-200 whitespace-nowrap">
-          ${estimatedKg > 0 ? estimatedKg + 'kg' : req.estimatedVolume || '무게 미상'}
+          ${totalKg > 0 ? totalKg + 'kg' : '무게 미상'}
         </div>
       `;
 
-      // 클릭 이벤트 리스너 추가 (React 상태 업데이트를 위해 DOM 이벤트 사용)
+      // 클릭 이벤트 리스너 추가
       content.onclick = () => {
         setSelectedIds(prev => {
-          if (prev.includes(req.id)) {
-            return prev.filter(id => id !== req.id);
+          const groupIds = group.map(r => r.id);
+          // If all are selected, unselect all. Otherwise, select all.
+          const areAllSelected = groupIds.every(id => prev.includes(id));
+          if (areAllSelected) {
+             return prev.filter(id => !groupIds.includes(id));
           } else {
-            return [...prev, req.id];
+             const newPrev = [...prev];
+             groupIds.forEach(id => {
+               if (!newPrev.includes(id)) newPrev.push(id);
+             });
+             return newPrev;
           }
         });
       };
@@ -217,17 +268,17 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       });
       
       // 클러스터 클릭 시 ID를 가져오기 위해 커스텀 프로퍼티 추가
-      (customOverlay as any).requestId = req.id;
+      (customOverlay as any).requestIds = group.map(r => r.id);
 
       customOverlay.setMap(map);
-      req.marker = customOverlay; // 나중에 지우기 위해 참조 저장
+      group.forEach(r => { (r as any).marker = customOverlay; }); // 나중에 지우기 위해 참조 저장
       
       clusterer.addMarker(customOverlay);
       bounds.extend(position);
       boundsExtended = true;
 
       // 이미 모든 좌표가 있다면 바운드 조정
-      if (unassignedRequests.every(r => r.lat && r.lng) && boundsExtended) {
+      if (loadedCount === groups.length && boundsExtended) {
         map.setBounds(bounds);
       }
     }
