@@ -227,6 +227,9 @@ export default function AdminDashboard() {
 
   // 정산 통계
   const [stats, setStats] = useState<{ summary: any; monthlyStats: any[]; regionalStats?: any[] } | null>(null);
+  const [completedFilterDate, setCompletedFilterDate] = useState<string>(
+    new Date().toLocaleDateString('en-CA')
+  );
   const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
@@ -2290,7 +2293,10 @@ export default function AdminDashboard() {
               const allDriverRequests = [...driverRequestsWithId].sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
               const driverRequests = allDriverRequests.filter(r => r.status !== 'COMPLETED');
-              const completedRequests = allDriverRequests.filter(r => r.status === 'COMPLETED');
+              const completedRequests = allDriverRequests.filter(r => 
+                r.status === 'COMPLETED' && 
+                (completedFilterDate === '' || (r.completedDate && new Date(r.completedDate).toLocaleDateString('en-CA') === completedFilterDate))
+              );
 
               return (
                 <div 
@@ -2556,9 +2562,19 @@ export default function AdminDashboard() {
 
 
                   {/* Completed Items Section */}
-                  {completedRequests.length > 0 && (
-                    <div className="mt-6 pt-4 border-t border-primary-200/50">
-                      <h3 className="text-sm font-bold text-gray-600 mb-3">✅ 완료된 수거 ({completedRequests.length}건)</h3>
+                  <div className="mt-6 pt-4 border-t border-primary-200/50">
+                    <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+                      <h3 className="text-sm font-bold text-gray-600">✅ 완료된 수거 ({completedRequests.length}건)</h3>
+                      <div className="flex items-center gap-2">
+                        <input 
+                          type="date"
+                          value={completedFilterDate}
+                          onChange={(e) => setCompletedFilterDate(e.target.value)}
+                          className="text-xs border border-gray-300 rounded-md px-2 py-1 outline-none focus:ring-1 focus:ring-primary-500 text-gray-600 bg-white"
+                        />
+                      </div>
+                    </div>
+                    {completedRequests.length > 0 ? (
                       <div className="space-y-2 opacity-70">
                         {completedRequests.map(req => (
                           <div 
@@ -2586,8 +2602,10 @@ export default function AdminDashboard() {
                           </div>
                         ))}
                       </div>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="text-xs text-gray-400 py-3 text-center bg-gray-50 rounded-xl">해당 날짜에 완료된 건이 없습니다.</div>
+                    )}
+                  </div>
                   </div>
 
                 </div>
