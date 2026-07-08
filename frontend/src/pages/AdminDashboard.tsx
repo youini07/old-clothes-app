@@ -2398,7 +2398,7 @@ export default function AdminDashboard() {
                     <Droppable droppableId={driver.id}>
                       {(provided) => (
                         <div 
-                          className="flex-1 space-y-4"
+                          className="flex-1"
                           {...provided.droppableProps}
                           ref={provided.innerRef}
                         >
@@ -2414,8 +2414,11 @@ export default function AdminDashboard() {
                                     ref={provided.innerRef}
                                     {...provided.draggableProps}
                                     style={{ ...provided.draggableProps.style, zIndex: snapshot.isDragging ? 50 : 'auto' }}
-                                    className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
+                                    className="pb-4"
                                   >
+                                    <div 
+                                      className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
+                                    >
                                     <div className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-1.5 shrink-0">
                                       <div className="flex items-center gap-3 sm:w-full">
                                         <input
@@ -2526,6 +2529,7 @@ export default function AdminDashboard() {
                                           </button>
                                         </div>
                                       </div>
+                                    </div>
                                     </div>
                                   </div>
                                 )}
