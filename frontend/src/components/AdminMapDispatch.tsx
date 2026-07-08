@@ -155,15 +155,15 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     groups.forEach((group) => {
       const firstReq = group[0];
       // 이미 좌표가 있다면
-      if (firstReq.lat && firstReq.lng) {
-        createGroupMarker(group, firstReq.lat, firstReq.lng);
+      if ((firstReq as any).lat && (firstReq as any).lng) {
+        createGroupMarker(group, (firstReq as any).lat, (firstReq as any).lng);
       } else {
         // 주소로 좌표 검색
         geocoder.addressSearch(firstReq.address, (result: any, status: any) => {
           if (status === window.kakao.maps.services.Status.OK) {
             const lat = Number(result[0].y);
             const lng = Number(result[0].x);
-            group.forEach(r => { r.lat = lat; r.lng = lng; });
+            group.forEach(r => { (r as any).lat = lat; (r as any).lng = lng; });
             createGroupMarker(group, lat, lng);
           } else {
             setFailedRequests(prev => {
