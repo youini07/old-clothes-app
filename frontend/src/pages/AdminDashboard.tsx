@@ -2427,84 +2427,85 @@ export default function AdminDashboard() {
                                     className="pb-4"
                                   >
                                     <div 
-                                      className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col sm:flex-row gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
+                                      className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                                     >
-                                    <div className="flex flex-row sm:flex-col items-center sm:items-start gap-3 sm:gap-1.5 shrink-0">
-                                      <div className="flex items-center gap-3 sm:w-full">
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedAssignedIds.includes(req.id)}
-                                          onChange={(e) => {
-                                            if (e.target.checked) {
-                                              setSelectedAssignedIds(prev => [...prev, req.id]);
-                                            } else {
-                                              setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
-                                            }
-                                          }}
-                                          className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
-                                          onClick={e => e.stopPropagation()}
-                                        />
-                                        <div 
-                                          {...provided.dragHandleProps}
-                                          className="flex items-center justify-center border border-gray-200 rounded-lg shadow-sm bg-gray-50 hover:bg-gray-100 cursor-grab active:cursor-grabbing w-10 h-8 sm:w-8 sm:h-auto sm:flex-col gap-1 px-1 py-1"
-                                        >
-                                          <span className="text-gray-400 text-[10px] hidden sm:block">☰</span>
-                                          <span className="text-sm font-bold text-gray-700">{index + 1}</span>
-                                          <span className="text-gray-400 text-[10px] sm:hidden ml-1">☰</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    
-                                    <div className="flex-1 min-w-0 flex flex-col justify-between">
-                                      <div>
-                                        <div className="flex justify-between items-start">
-                                          <div className="flex items-center gap-2 flex-wrap">
-                                            <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                                              {req.userName}
-                                              {req.phone && (
-                                                <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md whitespace-nowrap">
-                                                  {req.phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3')}
-                                                </span>
-                                              )}
-                                            </h3>
-                                            {req.isMustPickupDate && (
-                                              <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
-                                                🚨 필수 수거
-                                              </span>
-                                            )}
-                                            {req.status === 'IN_PROGRESS' && (
-                                              <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
-                                                이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
-                                              </span>
-                                            )}
-                                          </div>
-                                          <button
-                                            disabled={unassigningReqId === req.id}
-                                            onClick={async (e) => {
-                                              e.stopPropagation();
-                                              if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
-                                              setUnassigningReqId(req.id);
-                                              try {
-                                                await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
-                                                  headers: { Authorization: `Bearer ${authToken}` }
-                                                });
-                                                fetchData();
-                                              } catch (error) {
-                                                alert('배정 취소에 실패했습니다.');
-                                              } finally {
-                                                setUnassigningReqId(null);
+                                      {/* Top Row: Checkbox, Index, Time Select */}
+                                      <div className="flex justify-between items-center w-full">
+                                        <div className="flex items-center gap-3">
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedAssignedIds.includes(req.id)}
+                                            onChange={(e) => {
+                                              if (e.target.checked) {
+                                                setSelectedAssignedIds(prev => [...prev, req.id]);
+                                              } else {
+                                                setSelectedAssignedIds(prev => prev.filter(id => id !== req.id));
                                               }
                                             }}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                            className="w-5 h-5 rounded border-gray-300 text-red-600 focus:ring-red-500 cursor-pointer"
+                                            onClick={e => e.stopPropagation()}
+                                          />
+                                          <div 
+                                            {...provided.dragHandleProps}
+                                            className="flex items-center justify-center border border-gray-200 rounded-lg shadow-sm bg-gray-50 hover:bg-gray-100 cursor-grab active:cursor-grabbing w-10 h-8 gap-1 px-1 py-1"
                                           >
-                                            {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
-                                            배정 취소
-                                          </button>
+                                            <span className="text-gray-400 text-[10px] hidden sm:block">☰</span>
+                                            <span className="text-sm font-bold text-gray-700">{index + 1}</span>
+                                            <span className="text-gray-400 text-[10px] sm:hidden ml-1">☰</span>
+                                          </div>
                                         </div>
-                                        <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                                        <select
+                                          value={req.estimatedPickupHour ?? ''}
+                                          onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
+                                          className="text-sm sm:text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                        >
+                                          <option value="">수거 예상 시간</option>
+                                          {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
+                                            const h = Math.floor(hour);
+                                            const m = hour % 1 === 0 ? '00' : '30';
+                                            return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
+                                          })}
+                                        </select>
+                                      </div>
+
+                                      {/* Middle Row: Name, Phone, Badges, SMS */}
+                                      <div className="flex justify-between items-center gap-2 flex-wrap">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+                                            {req.userName}
+                                            {req.phone && (
+                                              <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                {req.phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3')}
+                                              </span>
+                                            )}
+                                          </h3>
+                                          {req.isMustPickupDate && (
+                                            <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
+                                              🚨 필수 수거
+                                            </span>
+                                          )}
+                                          {req.status === 'IN_PROGRESS' && (
+                                            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
+                                              이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
+                                            </span>
+                                          )}
+                                        </div>
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
+                                          className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors whitespace-nowrap"
+                                        >
+                                          📱 방문 안내 문자
+                                        </button>
                                       </div>
                                       
-                                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-3 sm:mt-2 justify-between bg-gray-50/50 p-2 sm:p-0 rounded-xl sm:bg-transparent">
+                                      {/* Address Row */}
+                                      <div className="text-sm text-gray-700 leading-relaxed">
+                                        <div>{req.address}</div>
+                                        {req.detailAddress && <div className="mt-1">{req.detailAddress}</div>}
+                                      </div>
+
+                                      {/* Bottom Row: Date Badges, Unassign */}
+                                      <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-100 gap-2 flex-wrap">
                                         <div className="flex items-center gap-2 flex-wrap">
                                           <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
                                           <div className="relative inline-block">
@@ -2518,28 +2519,29 @@ export default function AdminDashboard() {
                                             </button>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-2 sm:mt-0 justify-end w-full sm:w-auto">
-                                          <select
-                                            value={req.estimatedPickupHour ?? ''}
-                                            onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
-                                            className="text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500 flex-1 sm:flex-none"
-                                          >
-                                            <option value="">수거 예상 시간</option>
-                                            {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
-                                              const h = Math.floor(hour);
-                                              const m = hour % 1 === 0 ? '00' : '30';
-                                              return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
-                                            })}
-                                          </select>
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
-                                            className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors"
-                                          >
-                                            📱 방문 안내 문자
-                                          </button>
-                                        </div>
+                                        <button
+                                          disabled={unassigningReqId === req.id}
+                                          onClick={async (e) => {
+                                            e.stopPropagation();
+                                            if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                            setUnassigningReqId(req.id);
+                                            try {
+                                              await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
+                                                headers: { Authorization: `Bearer ${authToken}` }
+                                              });
+                                              fetchData();
+                                            } catch (error) {
+                                              alert('배정 취소에 실패했습니다.');
+                                            } finally {
+                                              setUnassigningReqId(null);
+                                            }
+                                          }}
+                                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                        >
+                                          {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
+                                          배정 취소
+                                        </button>
                                       </div>
-                                    </div>
                                     </div>
                                   </div>
                                 )}
