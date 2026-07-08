@@ -259,13 +259,23 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
     }
 
+    let isCoBoss = false;
+    let partnerId = undefined;
+    if (user.role === 'DRIVER') {
+      const driverProfile = await prisma.driverProfile.findUnique({ where: { userId: user.id } });
+      if (driverProfile) {
+        isCoBoss = driverProfile.isCoBoss;
+        partnerId = driverProfile.partnerId;
+      }
+    }
+
     const jwtToken = jwt.sign(
-      { userId: user.id, role: user.role },
+      { userId: user.id, role: user.role, isCoBoss, partnerId },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
 
-    res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role } });
+    res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role, isCoBoss, partnerId } });
   } catch (error) {
     console.error('로그인 에러:', error);
     res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.' });

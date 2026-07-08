@@ -56,6 +56,7 @@ model DriverProfile {
   
   partnerId String
   partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
+  isCoBoss  Boolean  @default(false) // 공동 사장 여부
   vehicleInfo String? // 차량 정보
   todayDistanceKm Float? // 누적 주행 거리 (km 단위)
   smsTemplates    Json?    // 기사용 문자 템플릿 커스텀 저장

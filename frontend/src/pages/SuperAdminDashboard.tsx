@@ -158,6 +158,9 @@ export default function SuperAdminDashboard() {
         window.open('/admin', '_blank'); // 새 탭으로 여는 것이 편함
       } else if (role === 'DRIVER') {
         localStorage.setItem('driver_token', token);
+        if (user.isCoBoss) {
+          localStorage.setItem('admin_token', token);
+        }
         window.open('/driver', '_blank');
       }
     } catch (error) {
@@ -253,9 +256,26 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const handleToggleCoBoss = async (userId: string, currentStatus: boolean) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    const confirmMessage = currentStatus 
+      ? '이 기사의 공동 사장 권한을 해제하시겠습니까?' 
+      : '이 기사에게 사장님 페이지 접근 권한(공동 사장)을 부여하시겠습니까?';
+    if (!window.confirm(confirmMessage)) return;
 
-
-
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/admin/super/accounts/${userId}/coboss`, {
+        isCoBoss: !currentStatus
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      alert('공동 사장 권한이 변경되었습니다.');
+      fetchAccounts();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.error || '권한 변경 중 오류가 발생했습니다.');
+    }
+  };
 
   const handleRegisterPartner = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -797,13 +817,25 @@ export default function SuperAdminDashboard() {
                       <>
                         <button
                           onClick={() => handleImpersonate(acc.id)}
-                          className="w-full py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2"
+                          className={`${acc.role === 'DRIVER' ? 'col-span-1' : 'col-span-2 w-full'} py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors flex items-center justify-center gap-2`}
                         >
-                          🚀 간편 로그인
+                          🚀 로그인
                         </button>
+                        {acc.role === 'DRIVER' && (
+                          <button
+                            onClick={() => handleToggleCoBoss(acc.id, acc.driverProfile?.isCoBoss || false)}
+                            className={`col-span-1 py-2.5 font-bold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+                              acc.driverProfile?.isCoBoss 
+                                ? 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200' 
+                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+                            }`}
+                          >
+                            {acc.driverProfile?.isCoBoss ? '👑 공동사장 해제' : '👑 공동사장 지정'}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDeleteAccount(acc.id, acc.name)}
-                          className="w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2"
+                          className="col-span-2 w-full py-2.5 bg-red-50 text-red-600 font-bold rounded-xl hover:bg-red-100 transition-colors flex items-center justify-center gap-2 mt-1"
                         >
                           🗑️ 계정 삭제
                         </button>

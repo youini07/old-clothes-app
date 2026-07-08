@@ -74,6 +74,9 @@ export default function Login() {
         navigate('/admin');
       } else if (role === 'DRIVER') {
         localStorage.setItem('driver_token', token);
+        if (user.isCoBoss) {
+          localStorage.setItem('admin_token', token);
+        }
         navigate('/driver');
       }
     } catch (error: any) {
@@ -116,6 +119,9 @@ export default function Login() {
         navigate('/admin');
       } else if (user.role === 'DRIVER') {
         localStorage.setItem('driver_token', token);
+        if (user.isCoBoss) {
+          localStorage.setItem('admin_token', token);
+        }
         navigate('/driver');
       } else {
         alert('관리자 권한이 없습니다.');

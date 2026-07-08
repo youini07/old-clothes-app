@@ -414,6 +414,24 @@ router.post('/super/impersonate', authenticate, requireRole(['SUPER_ADMIN']), as
   }
 });
 
+// 0-4. 기사 계정 공동 사장 지정/해제
+router.patch('/super/accounts/:id/coboss', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const { isCoBoss } = req.body;
+    
+    await prisma.driverProfile.update({
+      where: { userId: id },
+      data: { isCoBoss }
+    });
+
+    res.json({ message: '공동 사장 권한이 변경되었습니다.' });
+  } catch (error) {
+    console.error('공동 사장 권한 변경 실패:', error);
+    res.status(500).json({ error: '공동 사장 권한 변경에 실패했습니다.' });
+  }
+});
+
 // 1. 전체 지역 파트너(업체 사장님) 목록 및 신청 내역 조회
 router.get('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
   try {
@@ -656,7 +674,7 @@ router.delete('/partners/:id', authenticate, requireRole(['SUPER_ADMIN']), async
 // - 권역 설정된 사장님 → 해당 시(city) 주소의 미배정 요청 노출
 router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
@@ -710,7 +728,7 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 // 수거 요청 수락 (선착순 방식 — 먼저 수락한 사장님에게 배정)
 router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { id } = req.params;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
     // 해당 요청의 현재 상태 확인
@@ -770,7 +788,7 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
 // 수거 요청 수락 취소 (다시 대기 상태로 변경)
 router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { id } = req.params;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
     const request = await prisma.request.findUnique({ where: { id } });
@@ -807,7 +825,7 @@ router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPE
 // 다중 수거 요청 수락 (일괄 수락)
 router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { requestIds } = req.body;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   if (!Array.isArray(requestIds) || requestIds.length === 0) {
     return res.status(400).json({ error: '수락할 요청 ID 배열이 필요합니다.' });
@@ -896,7 +914,7 @@ router.patch('/requests/:id/estimated-time', authenticate, requireRole(['SUPER_A
 // 다중 수거 요청 수락 취소 (일괄 취소)
 router.post('/requests/bulk-unclaim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { requestIds } = req.body;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   if (!Array.isArray(requestIds) || requestIds.length === 0) {
     return res.status(400).json({ error: '수락 취소할 요청 ID 배열이 필요합니다.' });
@@ -929,7 +947,7 @@ router.post('/requests/bulk-unclaim', authenticate, requireRole(['PARTNER', 'SUP
 // 2. 수거 기사(Driver) 목록 조회
 router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const drivers = await prisma.driverProfile.findMany({
       where: { partnerId },
       include: { user: true, customRegion: true }
@@ -943,7 +961,7 @@ router.get('/drivers', authenticate, requireRole(['PARTNER']), async (req: any, 
 // 기사(Driver) 신규 등록 (입력값 검증 포함)
 router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const { name, phone, email, vehicleInfo, customRegionId } = req.body;
 
     // 초기 비밀번호는 연락처로 설정
@@ -1056,7 +1074,7 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
 router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { id } = req.params;
   const { confirmedDate } = req.body;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
     const request = await prisma.request.findUnique({ where: { id } });
@@ -1093,7 +1111,7 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
   }
 
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const isAdmin = req.user!.role === 'SUPER_ADMIN';
 
     // 권한 확인: SUPER_ADMIN은 모두 허용, PARTNER는 본인 건만 허용
@@ -1185,7 +1203,7 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
   }
 
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
 
     // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
     const requests = await prisma.request.findMany({
@@ -1256,7 +1274,7 @@ router.post('/requests/reorder', authenticate, requireRole(['PARTNER']), async (
   }
 
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
 
     // 본인 권한 소속인지 검증 (성능을 위해 count 사용)
     const validCount = await prisma.request.count({
@@ -1287,7 +1305,7 @@ router.post('/requests/reorder', authenticate, requireRole(['PARTNER']), async (
 // 3-3. 특정 기사의 동선 최적화 (카카오/T맵 좌표 API 기반 첫번째 수거지 출발 정렬)
 router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { driverId } = req.params;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
     // 기사 프로필 확인
@@ -1419,7 +1437,7 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
 router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { id } = req.params;
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     
     // 권한 확인
     const request = await prisma.request.findUnique({ where: { id } });
@@ -1455,7 +1473,7 @@ router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), 
   }
 
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     
     // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
     const requests = await prisma.request.findMany({
@@ -1493,7 +1511,7 @@ router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), 
 // 5. 사장님 본인을 기사로 자동 등록 (원클릭)
 router.post('/drivers/self', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
 
     const existing = await prisma.driverProfile.findUnique({ where: { userId: partnerId } });
     if (existing) {
@@ -1525,7 +1543,7 @@ router.post('/drivers/self', authenticate, requireRole(['PARTNER']), async (req:
 // 권역 목록 조회
 router.get('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const regions = await prisma.customRegion.findMany({
       where: { partnerId }
     });
@@ -1538,7 +1556,7 @@ router.get('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
 // 새 권역 생성
 router.post('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const { name, areas } = req.body; // areas: string[]
 
     if (!name || !areas || !Array.isArray(areas)) {
@@ -1563,7 +1581,7 @@ router.post('/custom-regions', authenticate, requireRole(['PARTNER', 'SUPER_ADMI
 // 권역 삭제
 router.delete('/custom-regions/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const { id } = req.params;
 
     // 해당 권역이 본인의 것인지 확인
@@ -1593,7 +1611,7 @@ router.delete('/custom-regions/:id', authenticate, requireRole(['PARTNER', 'SUPE
 // 기사의 권역(월별 교대용) 및 정보 수정
 router.patch('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const driverId = req.params.id;
     const { customRegionId, vehicleInfo, name, phone } = req.body;
 
@@ -1646,7 +1664,7 @@ router.patch('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req:
 // 기사 삭제
 router.delete('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const driverId = req.params.id;
 
     // 본인 소속 기사인지 확인
@@ -1697,7 +1715,7 @@ router.delete('/drivers/:id', authenticate, requireRole(['PARTNER']), async (req
 // ==========================================
 router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
 
     // 파트너가 담당하는 권역 ID 목록
     const coverages = await prisma.coverage.findMany({ where: { partnerId } });
@@ -2152,7 +2170,7 @@ router.post('/debug/migrate-regions', async (req, res) => {
 // 파트너 본인의 설정 정보 조회
 router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const partner = await prisma.user.findUnique({
       where: { id: partnerId },
       select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
@@ -2177,7 +2195,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
   const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
   
   try {
@@ -2201,7 +2219,7 @@ router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']),
 // 파트너별 커스텀 단가표 일괄 저장 (upsert 방식)
 // 왜 upsert인가: 카테고리가 이미 존재하면 업데이트, 없으면 생성
 router.put('/price-table', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
   const { items } = req.body as {
     items: Array<{ category: string; label: string; unitPrice: number; unitType: string; icon: string }>
   };
@@ -2293,7 +2311,7 @@ router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_AD
 // 비회원 수동 접수(전화 접수) API
 router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const requestData = req.body;
-  const partnerId = req.user!.userId;
+  const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
     let province = '';
@@ -2359,7 +2377,7 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
 // ============================================
 router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   try {
-    const partnerId = req.user!.userId;
+    const partnerId = req.user!.partnerId || req.user!.userId;
     const { date, startDate, endDate } = req.query;
     
     // 이 파트너 소속의 기사들 찾기

@@ -26,15 +26,24 @@ export default function ProtectedRoute({ children, allowedRoles, redirectTo = '/
   if (userInfoStr) {
     try {
       const userInfo = JSON.parse(userInfoStr);
-      if (!allowedRoles.includes(userInfo.role)) {
+      let isAllowed = allowedRoles.includes(userInfo.role);
+
+      // 공동 사장인 기사는 파트너 권한 허용
+      if (!isAllowed && allowedRoles.includes('PARTNER') && userInfo.role === 'DRIVER' && userInfo.isCoBoss) {
+        isAllowed = true;
+      }
+
+      if (!isAllowed) {
         return <Navigate to={redirectTo} replace />;
       }
       
       // 역할별 필수 토큰 체크
       if (userInfo.role === 'PARTNER' && !localStorage.getItem('admin_token')) {
+        // 공동 사장인 기사도 admin_token을 쓰거나 driver_token으로 접근하게 됨
+        // 하지만 이미 isAllowed = true 라면 토큰만 확인
         return <Navigate to="/staff-login" replace />;
       }
-      if (userInfo.role === 'DRIVER' && !localStorage.getItem('driver_token')) {
+      if (userInfo.role === 'DRIVER' && !localStorage.getItem('driver_token') && !localStorage.getItem('admin_token')) {
         return <Navigate to="/staff-login" replace />;
       }
       if (userInfo.role === 'SUPER_ADMIN' && !localStorage.getItem('superadmin_token')) {

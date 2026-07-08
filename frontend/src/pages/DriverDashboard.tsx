@@ -649,6 +649,15 @@ export default function DriverDashboard() {
     return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!${receiptLink}`;
   };
 
+  let isCoBoss = false;
+  try {
+    const uiStr = localStorage.getItem('userInfo');
+    if (uiStr) {
+      const ui = JSON.parse(uiStr);
+      isCoBoss = ui.isCoBoss;
+    }
+  } catch(e) {}
+
   return (
     <>
       <div className="min-h-screen bg-gray-50 pb-20 custom-scrollbar print:hidden">
@@ -665,6 +674,11 @@ export default function DriverDashboard() {
           <p className="text-sm text-gray-500 mt-0.5">안전 운전하세요!</p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
+          {isCoBoss && (
+            <button onClick={() => window.location.href = '/admin'} className="px-2.5 py-2 bg-purple-100 text-purple-700 font-bold rounded-xl text-xs hover:bg-purple-200 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+              👑 사장님 모드
+            </button>
+          )}
           {isLargeText ? (
             <button onClick={() => setIsLargeText(false)} className="px-2.5 py-2 bg-gray-200 text-gray-800 font-bold rounded-xl text-xs hover:bg-gray-300 transition-colors whitespace-nowrap flex-shrink-0">
               🔍 기본
