@@ -551,12 +551,6 @@ export default function AdminDashboard() {
   };
 
   const handlePrintDriverList = (driver: Driver, driverRequests: RequestItem[]) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('팝업 차단이 설정되어 있는지 확인해주세요.');
-      return;
-    }
-
     const todayStr = new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
 
     const timeSlots = Array.from({ length: 22 }, (_, i) => 8 + i * 0.5); // 08:00 ~ 18:30
@@ -620,44 +614,60 @@ export default function AdminDashboard() {
       `;
     });
 
-    const htmlContent = `
-      <html>
-        <head>
-          <title>${driver.user?.name || driver.name} 기사님 배정 리스트</title>
-          <style>
-            body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; padding: 20px; color: #333; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; font-size: 0.95em; word-break: keep-all; }
-            .header-table td { font-size: 1.1em; font-weight: bold; border: none; padding: 10px 0; border-bottom: 2px solid #ccc; }
-            .index { text-align: center; width: 30px; font-weight: bold; color: #555; }
-            .time { text-align: center; width: 60px; }
-            .details { min-width: 300px; }
-            @media print {
-              @page { margin: 1cm; size: A4 portrait; }
-              body { -webkit-print-color-adjust: exact; padding: 0; }
-            }
-          </style>
-        </head>
-        <body>
-          <table class="header-table" style="margin-bottom: 10px;">
-            <tr>
-              <td style="width: 50%;">${driver.user?.name || driver.name}<br/>기사님</td>
-              <td style="width: 50%; text-align: center;">${todayStr}</td>
-            </tr>
-          </table>
-          <table>
-            <tbody>
-              ${htmlRows}
-            </tbody>
-          </table>
-          <script>
-            window.onload = function() { window.print(); }
-          </script>
-        </body>
-      </html>
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    printContainer.innerHTML = `
+      <style>
+        @media print {
+          body > * { display: none !important; }
+          body > #print-container { display: block !important; }
+          @page { margin: 1cm; size: A4 portrait; }
+        }
+        #print-container {
+          display: none;
+        }
+        @media print {
+          #print-container {
+            display: block;
+            font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+            color: #333;
+          }
+          #print-container table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+          #print-container th, #print-container td { border: 1px solid #ccc; padding: 8px 10px; text-align: left; font-size: 0.95em; word-break: keep-all; }
+          #print-container .header-table td { font-size: 1.1em; font-weight: bold; border: none; padding: 10px 0; border-bottom: 2px solid #ccc; }
+          #print-container .index { text-align: center; width: 30px; font-weight: bold; color: #555; }
+          #print-container .time { text-align: center; width: 60px; }
+          #print-container .details { min-width: 300px; }
+        }
+      </style>
+      <div style="padding: 20px;">
+        <table class="header-table" style="margin-bottom: 10px;">
+          <tr>
+            <td style="width: 50%;">${driver.user?.name || driver.name}<br/>기사님</td>
+            <td style="width: 50%; text-align: center;">${todayStr}</td>
+          </tr>
+        </table>
+        <table>
+          <tbody>
+            ${htmlRows}
+          </tbody>
+        </table>
+      </div>
     `;
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+
+    document.body.appendChild(printContainer);
+    
+    // 모바일 환경에서의 렌더링을 위해 아주 짧은 지연시간 추가
+    setTimeout(() => {
+      window.print();
+      
+      // 인쇄 완료 후 컨테이너 제거
+      setTimeout(() => {
+        if (document.body.contains(printContainer)) {
+          document.body.removeChild(printContainer);
+        }
+      }, 1000);
+    }, 100);
   };
 
   const openDriverModalForEdit = (driver: Driver) => {
