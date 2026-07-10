@@ -292,7 +292,8 @@ export default function DriverDashboard() {
 
   async function fetchDriverRequests(currentPage = page) {
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&limit=50`, {
+      // 페이지 나누지 않고 한 페이지에 모든 건수 표시 (limit 1000)
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&limit=1000`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setRequests(res.data.requests || []);
@@ -864,28 +865,7 @@ export default function DriverDashboard() {
               ))
             )}
 
-            {/* Pagination UI */}
-            {totalPages > 1 && (
-              <div className="flex justify-center items-center gap-2 mt-8 pb-12">
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(p => p - 1)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
-                >
-                  이전
-                </button>
-                <span className="px-4 py-2 text-sm font-bold text-gray-900 bg-gray-100 rounded-xl">
-                  {page} / {totalPages}
-                </span>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  className="px-4 py-2 border border-gray-200 rounded-xl bg-white text-gray-700 disabled:opacity-50 font-bold hover:bg-gray-50 transition-colors"
-                >
-                  다음
-                </button>
-              </div>
-            )}
+            {/* Pagination UI removed (show all in one page) */}
           </div>
         </>
       ) : activeMainTab === 'calendar' ? (
