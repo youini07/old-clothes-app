@@ -529,16 +529,52 @@ export default function DriverDashboard() {
   const departRequest = async (id: string) => {
     if (!navigator.geolocation) { alert('위치 정보를 지원하지 않는 브라우저입니다.'); return; }
     if (!window.confirm('해당 수거지로 출발하시겠습니까?')) return;
-    navigator.geolocation.getCurrentPosition(async (pos) => {
+    
+    // 빠른 UI 반응을 위한 로딩 토스트 띄우기
+    const loadingToast = document.createElement('div');
+    loadingToast.className = 'fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-gray-900/90 text-white px-6 py-4 rounded-2xl z-[100] font-bold shadow-xl flex items-center gap-3 text-lg backdrop-blur-sm';
+    loadingToast.innerHTML = '<svg class="animate-spin w-6 h-6 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 출발 처리 중...';
+    document.body.appendChild(loadingToast);
+
+    const sendDepart = async (lat?: number, lng?: number) => {
       try {
         const res = await axios.post(`${import.meta.env.VITE_API_URL}/driver/depart/${id}`, {
-          currentLat: pos.coords.latitude, currentLng: pos.coords.longitude
+          currentLat: lat, currentLng: lng
         }, { headers: { Authorization: `Bearer ${authToken}` } });
         const eta = res.data.request.etaMinutes;
         alert(eta ? `출발 완료! (예상 ${eta}분)` : '출발 완료!');
         fetchDriverRequests();
-      } catch { alert('출발 처리 중 오류가 발생했습니다.'); }
-    }, () => alert('위치 정보를 가져올 수 없습니다.'));
+      } catch { 
+        alert('출발 처리 중 오류가 발생했습니다.'); 
+      } finally {
+        if (document.body.contains(loadingToast)) document.body.removeChild(loadingToast);
+      }
+    };
+
+    let locationResolved = false;
+    
+    // 현재 위치를 가져오되, 2초 안에 못 가져오면 그냥 위치 없이 출발 진행 (지연 방지)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (locationResolved) return;
+        locationResolved = true;
+        sendDepart(pos.coords.latitude, pos.coords.longitude);
+      }, 
+      () => {
+        if (locationResolved) return;
+        locationResolved = true;
+        sendDepart(); // 에러 시 위치 없이 출발
+      },
+      { enableHighAccuracy: false, timeout: 2000, maximumAge: 60000 } // 빠르고 대략적인 위치 우선
+    );
+    
+    // 안전장치: GPS 권한 프롬프트 등으로 getCurrentPosition이 응답이 없을 때를 대비한 2초 타임아웃
+    setTimeout(() => {
+      if (!locationResolved) {
+        locationResolved = true;
+        sendDepart();
+      }
+    }, 2000);
   };
 
   // 모바일 기기별 네비게이션 앱 강제 실행 핸들러 (T맵)
@@ -854,11 +890,7 @@ export default function DriverDashboard() {
                       >
                         T맵 안내
                       </button>
-                      {req.status === 'IN_PROGRESS' ? (
-                        <button onClick={() => openCompleteModal(req.id)} className="py-3.5 bg-blue-600 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
-                      ) : (
-                        <button onClick={() => departRequest(req.id)} className="py-3.5 bg-green-600 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform">출발하기</button>
-                      )}
+                      <button onClick={() => openCompleteModal(req.id)} className="py-3.5 bg-blue-600 text-white font-extrabold rounded-2xl text-sm shadow-md active:scale-95 transition-transform">{'📸 수거 완료하기'}</button>
                     </div>
                   )}
                 </div>
