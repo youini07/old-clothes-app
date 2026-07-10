@@ -177,6 +177,20 @@ export default function ReceiptPage() {
           )}
         </div>
 
+        {/* 홍보 영역 (영수증 바로 밑 캡처용 컴팩트 배너) */}
+        <div className="bg-blue-50 px-4 py-3.5 border-t border-dashed border-gray-200 flex flex-col items-center justify-center gap-1.5">
+          <p className="text-[13px] font-extrabold text-gray-800">✨ 쉽고 빠른 헌옷수거 <span className="text-blue-600">올클(ALL-CLEAR)</span></p>
+          <div className="flex items-center gap-3 mt-0.5">
+            <a href="https://www.all-cle.com" className="text-[13px] font-bold text-blue-600 flex items-center gap-1" target="_blank" rel="noopener noreferrer">
+              🌐 www.all-cle.com
+            </a>
+            <span className="w-px h-3 bg-gray-300"></span>
+            <a href="tel:010-5768-9952" className="text-[13px] font-bold text-gray-700 flex items-center gap-1">
+              📞 010-5768-9952
+            </a>
+          </div>
+        </div>
+
         {/* 수거 증빙 사진 갤러리 */}
         {hasPhotos && (
           <div className="p-6 bg-gray-50">
@@ -224,21 +238,6 @@ export default function ReceiptPage() {
           </div>
         )}
 
-        {/* 홍보 영역 (리뷰 캡처 시 노출) - 캡처 친화적 디자인 */}
-        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-center text-white border-t border-indigo-700">
-          <p className="text-sm font-bold text-blue-100 mb-1">쉽고 빠른 방문 헌옷수거</p>
-          <h2 className="text-2xl font-extrabold mb-4 tracking-tight">올클 (ALL-CLEAR) ✨</h2>
-          
-          <div className="flex flex-col items-center gap-2">
-            <a href="https://www.all-cle.com" className="inline-flex items-center gap-2 bg-white text-blue-700 font-extrabold px-5 py-2.5 rounded-full text-[15px] shadow-sm hover:scale-105 transition-transform" target="_blank" rel="noopener noreferrer">
-              🌐 www.all-cle.com
-            </a>
-            
-            <a href="tel:010-5768-9952" className="inline-flex items-center gap-2 text-white font-extrabold text-[15px] bg-white/20 px-5 py-2.5 rounded-full hover:bg-white/30 transition-colors mt-1">
-              📞 010-5768-9952
-            </a>
-          </div>
-        </div>
 
         {/* 푸터 영역 */}
         <div className="p-6 bg-gray-900 text-center text-gray-400 text-xs">
