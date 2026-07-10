@@ -224,6 +224,22 @@ export default function ReceiptPage() {
           </div>
         )}
 
+        {/* 홍보 영역 (리뷰 캡처 시 노출) - 캡처 친화적 디자인 */}
+        <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-6 text-center text-white border-t border-indigo-700">
+          <p className="text-sm font-bold text-blue-100 mb-1">쉽고 빠른 방문 헌옷수거</p>
+          <h2 className="text-2xl font-extrabold mb-4 tracking-tight">올클 (ALL-CLEAR) ✨</h2>
+          
+          <div className="flex flex-col items-center gap-2">
+            <a href="https://www.all-cle.com" className="inline-flex items-center gap-2 bg-white text-blue-700 font-extrabold px-5 py-2.5 rounded-full text-[15px] shadow-sm hover:scale-105 transition-transform" target="_blank" rel="noopener noreferrer">
+              🌐 www.all-cle.com
+            </a>
+            
+            <a href="tel:010-5768-9952" className="inline-flex items-center gap-2 text-white font-extrabold text-[15px] bg-white/20 px-5 py-2.5 rounded-full hover:bg-white/30 transition-colors mt-1">
+              📞 010-5768-9952
+            </a>
+          </div>
+        </div>
+
         {/* 푸터 영역 */}
         <div className="p-6 bg-gray-900 text-center text-gray-400 text-xs">
           <p className="font-medium mb-1">올클(ALL-CLEAR) 헌옷 수거 서비스를 이용해 주셔서 감사합니다.</p>
