@@ -240,7 +240,7 @@ export default function ReceiptPage() {
 
 
         {/* 푸터 영역 */}
-        <div className="p-6 bg-gray-900 text-center text-gray-400 text-xs">
+        <div className="p-6 bg-gray-900 text-center text-gray-400 text-[11px] break-keep leading-relaxed">
           <p className="font-medium mb-1">올클(ALL-CLEAR) 헌옷 수거 서비스를 이용해 주셔서 감사합니다.</p>
           <p>이 영수증 페이지는 알림톡(문자) 수신자 본인만 확인할 수 있습니다.</p>
         </div>
