@@ -145,7 +145,6 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     // 중복 좌표를 방지하기 위해 각 요청을 개별 마커로 처리하며,
     // 같은 좌표(또는 거의 같은 좌표)일 경우 약간의 오프셋을 주어 겹치지 않게 배치합니다.
     const uniqueAddresses = Array.from(new Set(unassignedRequests.map(r => r.address || 'unknown')));
-    let loadedCount = 0;
     
     // 좌표별 마커 개수를 추적하여 오프셋(퍼짐) 계산
     const coordCounts: { [key: string]: number } = {};

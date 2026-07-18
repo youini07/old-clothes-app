@@ -842,20 +842,24 @@ export default function AdminDashboard() {
     const driverId = source.droppableId;
 
     setRequests(prev => {
-      const allRequests = [...prev];
-      const driverRequests = allRequests
+      // 해당 기사의 미완료 요청들만 필터링 후 정렬
+      const driverRequests = prev
         .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
         .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
 
+      // 드래그된 아이템 위치 변경
       const [removed] = driverRequests.splice(source.index, 1);
       driverRequests.splice(destination.index, 0, removed);
 
-      driverRequests.forEach((req, idx) => {
-        req.orderIndex = idx;
-      });
+      // 새로운 객체(불변성 유지)로 orderIndex 업데이트
+      const updatedDriverRequests = driverRequests.map((req, idx) => ({
+        ...req,
+        orderIndex: idx
+      }));
 
-      return allRequests.map(req => {
-        const updated = driverRequests.find(dr => dr.id === req.id);
+      // 원본 배열 매핑 시 새 객체로 교체
+      return prev.map(req => {
+        const updated = updatedDriverRequests.find(dr => dr.id === req.id);
         return updated ? updated : req;
       });
     });
