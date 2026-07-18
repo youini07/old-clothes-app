@@ -142,92 +142,85 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     let boundsExtended = false;
     let loadedCount = 0;
 
-    // Group requests by address
-    const groupedRequests: { [address: string]: RequestItem[] } = {};
-    unassignedRequests.forEach(req => {
-      const addr = req.address || 'unknown';
-      if (!groupedRequests[addr]) groupedRequests[addr] = [];
-      groupedRequests[addr].push(req);
-    });
+    // 중복 좌표를 방지하기 위해 각 요청을 개별 마커로 처리하며,
+    // 같은 좌표(또는 거의 같은 좌표)일 경우 약간의 오프셋을 주어 겹치지 않게 배치합니다.
+    const uniqueAddresses = Array.from(new Set(unassignedRequests.map(r => r.address || 'unknown')));
+    let loadedCount = 0;
+    
+    // 좌표별 마커 개수를 추적하여 오프셋(퍼짐) 계산
+    const coordCounts: { [key: string]: number } = {};
 
-    const groups = Object.values(groupedRequests);
-
-    groups.forEach((group) => {
-      const firstReq = group[0];
-      // 이미 좌표가 있다면
+    uniqueAddresses.forEach(address => {
+      const reqsWithAddr = unassignedRequests.filter(r => (r.address || 'unknown') === address);
+      const firstReq = reqsWithAddr[0];
+      
       if ((firstReq as any).lat && (firstReq as any).lng) {
-        createGroupMarker(group, (firstReq as any).lat, (firstReq as any).lng);
+        processGeocoded(reqsWithAddr, (firstReq as any).lat, (firstReq as any).lng);
       } else {
-        // 주소로 좌표 검색
-        geocoder.addressSearch(firstReq.address, (result: any, status: any) => {
+        geocoder.addressSearch(address, (result: any, status: any) => {
           if (status === window.kakao.maps.services.Status.OK) {
             const lat = Number(result[0].y);
             const lng = Number(result[0].x);
-            group.forEach(r => { (r as any).lat = lat; (r as any).lng = lng; });
-            createGroupMarker(group, lat, lng);
+            reqsWithAddr.forEach(r => { (r as any).lat = lat; (r as any).lng = lng; });
+            processGeocoded(reqsWithAddr, lat, lng);
           } else {
             setFailedRequests(prev => {
               const newFails = [...prev];
-              group.forEach(r => {
+              reqsWithAddr.forEach(r => {
                 if (!newFails.find(fr => fr.id === r.id)) {
                   newFails.push(r);
                 }
               });
               return newFails;
             });
-          }
-          loadedCount++;
-          if (loadedCount === groups.length && boundsExtended) {
-            map.setBounds(bounds);
+            checkBounds();
           }
         });
       }
     });
 
-    function createGroupMarker(group: RequestItem[], lat: number, lng: number) {
+    function processGeocoded(reqs: RequestItem[], lat: number, lng: number) {
+      reqs.forEach((req) => {
+        // 소수점 4자리(약 10m) 단위로 같은 위치인지 판별
+        const coordKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+        const count = coordCounts[coordKey] || 0;
+        coordCounts[coordKey] = count + 1;
+        
+        let finalLat = lat;
+        let finalLng = lng;
+        
+        if (count > 0) {
+          // 중복 마커일 경우 나선형(원형)으로 약간씩 벌려서 배치 (약 15m 간격)
+          const offsetRadius = 0.00015 * Math.ceil(count / 6); 
+          const angle = count * (Math.PI * 2) / 6; 
+          finalLat += offsetRadius * Math.cos(angle);
+          finalLng += offsetRadius * Math.sin(angle);
+        }
+        
+        createSingleMarker(req, finalLat, finalLng);
+      });
+      checkBounds();
+    }
+
+    function checkBounds() {
+      loadedCount++;
+      if (loadedCount === uniqueAddresses.length && boundsExtended) {
+        map.setBounds(bounds);
+      }
+    }
+
+    function createSingleMarker(req: RequestItem, lat: number, lng: number) {
       const position = new window.kakao.maps.LatLng(lat, lng);
       
-      const selectedReqs = group.filter(r => selectedIds.includes(r.id));
-      const isFullySelected = selectedReqs.length === group.length && group.length > 0;
-      const isPartiallySelected = selectedReqs.length > 0 && selectedReqs.length < group.length;
+      const isSelected = selectedIds.includes(req.id);
+      const selectedOrder = isSelected ? selectedIds.indexOf(req.id) + 1 : 0;
+      const kg = extractKg(req.estimatedVolume);
       
-      // If fully selected, find the order index of the first selected item
-      const firstSelectedOrder = isFullySelected ? selectedIds.indexOf(selectedReqs[0].id) + 1 : 0;
-
-      let totalKg = 0;
-      group.forEach(r => {
-        totalKg += extractKg(r.estimatedVolume);
-      });
+      let markerBg = isSelected ? 'bg-orange-500' : 'bg-white';
+      let markerBorder = isSelected ? 'border-white' : 'border-orange-500';
+      let markerText = isSelected ? 'text-white' : 'text-orange-600';
       
-      const isSelected = isFullySelected || isPartiallySelected;
-      
-      let markerBg = 'bg-white';
-      let markerBorder = 'border-orange-500';
-      let markerText = 'text-orange-600';
-      
-      if (isFullySelected) {
-        markerBg = 'bg-orange-500';
-        markerBorder = 'border-white';
-        markerText = 'text-white';
-      } else if (isPartiallySelected) {
-        markerBg = 'bg-orange-200';
-        markerBorder = 'border-orange-500';
-        markerText = 'text-orange-800';
-      }
-      
-      const pointerBg = markerBg;
-      const pointerBorder = markerBorder;
-
-      let centerText = '';
-      if (group.length > 1) {
-         if (isFullySelected) {
-            centerText = `<span class="text-[10px] font-black pointer-events-none">${firstSelectedOrder}번외</span>`;
-         } else {
-            centerText = `<span class="text-[12px] font-black pointer-events-none">${group.length}건</span>`;
-         }
-      } else {
-         centerText = `<span class="${isSelected ? 'text-xl' : 'text-[11px] tracking-tighter'} font-black pointer-events-none">${isSelected ? firstSelectedOrder : '미배정'}</span>`;
-      }
+      const centerText = `<span class="${isSelected ? 'text-xl' : 'text-[11px] tracking-tighter'} font-black pointer-events-none">${isSelected ? selectedOrder : '미배정'}</span>`;
 
       // 커스텀 오버레이 내용 구성
       const content = document.createElement('div');
@@ -236,26 +229,19 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
         <div class="pointer-events-auto cursor-pointer flex items-center justify-center w-12 h-12 rounded-full shadow-2xl border-4 ${markerBg} ${markerBorder} ${markerText}">
           ${centerText}
         </div>
-        <div class="pointer-events-none w-3 h-3 ${pointerBg} rotate-45 border-r-4 border-b-4 ${pointerBorder} -mt-1.5 z-0"></div>
+        <div class="pointer-events-none w-3 h-3 ${markerBg} rotate-45 border-r-4 border-b-4 ${markerBorder} -mt-1.5 z-0"></div>
         <div class="pointer-events-auto cursor-pointer mt-1 px-2.5 py-1 bg-white/95 backdrop-blur-md rounded-lg text-xs font-extrabold text-gray-800 shadow-lg border-2 border-gray-200 whitespace-nowrap">
-          ${totalKg > 0 ? totalKg + 'kg' : '무게 미상'}
+          ${kg > 0 ? kg + 'kg' : '무상'}
         </div>
       `;
 
       // 클릭 이벤트 리스너 추가
       content.onclick = () => {
         setSelectedIds(prev => {
-          const groupIds = group.map(r => r.id);
-          // If all are selected, unselect all. Otherwise, select all.
-          const areAllSelected = groupIds.every(id => prev.includes(id));
-          if (areAllSelected) {
-             return prev.filter(id => !groupIds.includes(id));
+          if (prev.includes(req.id)) {
+            return prev.filter(id => id !== req.id);
           } else {
-             const newPrev = [...prev];
-             groupIds.forEach(id => {
-               if (!newPrev.includes(id)) newPrev.push(id);
-             });
-             return newPrev;
+            return [...prev, req.id];
           }
         });
       };
@@ -268,19 +254,19 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
       });
       
       // 클러스터 클릭 시 ID를 가져오기 위해 커스텀 프로퍼티 추가
-      (customOverlay as any).requestIds = group.map(r => r.id);
+      (customOverlay as any).requestIds = [req.id];
 
       customOverlay.setMap(map);
-      group.forEach(r => { (r as any).marker = customOverlay; }); // 나중에 지우기 위해 참조 저장
+      
+      // 나중에 지우기 위해 unassignedRequests 원본에 marker 참조 저장
+      const originalReq = unassignedRequests.find(r => r.id === req.id);
+      if (originalReq) {
+        (originalReq as any).marker = customOverlay;
+      }
       
       clusterer.addMarker(customOverlay);
       bounds.extend(position);
       boundsExtended = true;
-
-      // 이미 모든 좌표가 있다면 바운드 조정
-      if (loadedCount === groups.length && boundsExtended) {
-        map.setBounds(bounds);
-      }
     }
 
     // 회사(사장님) 마커 렌더링
