@@ -186,100 +186,148 @@ export default function DriverMap({ requests, currentLat, currentLng, partnerAdd
       });
     }
 
-    // 수거지 마커들 렌더링
+    // 수거지 마커들 렌더링 (겹치는 좌표를 그룹화하여 하나의 오버레이로 렌더링)
+    const groupedCoords: Record<string, any[]> = {};
     cachedCoords.forEach((res, i) => {
-      const pos = new kakao.maps.LatLng(res.lat, res.lng);
+      const key = `${res.lat.toFixed(6)}_${res.lng.toFixed(6)}`;
+      if (!groupedCoords[key]) groupedCoords[key] = [];
+      groupedCoords[key].push({ ...res, originalCachedIndex: i });
+    });
+
+    Object.values(groupedCoords).forEach(group => {
+      const pos = new kakao.maps.LatLng(group[0].lat, group[0].lng);
       bounds.extend(pos);
       hasBounds = true;
 
-      const isCompleted = res.req.status === 'COMPLETED';
-      const isInProgress = res.req.status === 'IN_PROGRESS';
-      
-      const originalIndex = requests.findIndex(r => r.id === res.req.id);
-      let displayIndex: string | number = originalIndex !== -1 ? originalIndex + 1 : i + 1;
-      let bgColor = '#FECACA'; 
-      let textColor = '#991B1B'; 
-      let borderStyle = '2px solid white';
-      let zIndex = 1;
+      // 마커들을 담을 flex 컨테이너
+      const markersContainer = document.createElement('div');
+      markersContainer.style.display = 'flex';
+      markersContainer.style.gap = '6px';
+      markersContainer.style.alignItems = 'center';
+      markersContainer.style.justifyContent = 'center';
 
-      // 순서 지정 모드일 경우 스타일 덮어쓰기
-      if (isSettingOrder) {
-         const orderPos = clickedOrder.indexOf(res.req.id);
-         if (orderPos !== -1) {
-           displayIndex = orderPos + 1;
-           bgColor = '#3B82F6'; // 선택됨
-           textColor = 'white';
-           borderStyle = '3px solid #DBEAFE';
-           zIndex = 20;
-         } else {
-           displayIndex = '?';
-           bgColor = '#E5E7EB'; // 회색 (미선택)
-           textColor = '#6B7280';
-           zIndex = 5;
-         }
-      } else {
-        if (isCompleted) {
-          bgColor = '#22C55E'; textColor = 'white';
-        } else if (isInProgress) {
-          bgColor = '#3B82F6'; textColor = 'white'; borderStyle = '3px solid #DBEAFE'; zIndex = 10;
+      // 라벨들을 담을 flex 컨테이너
+      const labelsContainer = document.createElement('div');
+      labelsContainer.style.display = 'flex';
+      labelsContainer.style.gap = '6px';
+      labelsContainer.style.alignItems = 'center';
+      labelsContainer.style.justifyContent = 'center';
+      labelsContainer.style.pointerEvents = 'none'; // 라벨은 클릭 방해 안 함
+
+      let highestZIndex = 1;
+
+      group.forEach(res => {
+        const isCompleted = res.req.status === 'COMPLETED';
+        const isInProgress = res.req.status === 'IN_PROGRESS';
+        
+        const originalIndex = requests.findIndex(r => r.id === res.req.id);
+        let displayIndex: string | number = originalIndex !== -1 ? originalIndex + 1 : res.originalCachedIndex + 1;
+        let bgColor = '#FECACA'; 
+        let textColor = '#991B1B'; 
+        let borderStyle = '2px solid white';
+        let zIndex = 1;
+
+        // 순서 지정 모드일 경우 스타일 덮어쓰기
+        if (isSettingOrder) {
+           const orderPos = clickedOrder.indexOf(res.req.id);
+           if (orderPos !== -1) {
+             displayIndex = orderPos + 1;
+             bgColor = '#3B82F6'; // 선택됨
+             textColor = 'white';
+             borderStyle = '3px solid #DBEAFE';
+             zIndex = 20;
+           } else {
+             displayIndex = '?';
+             bgColor = '#E5E7EB'; // 회색 (미선택)
+             textColor = '#6B7280';
+             zIndex = 5;
+           }
+        } else {
+          if (isCompleted) {
+            bgColor = '#22C55E'; textColor = 'white';
+          } else if (isInProgress) {
+            bgColor = '#3B82F6'; textColor = 'white'; borderStyle = '3px solid #DBEAFE'; zIndex = 10;
+          }
         }
-      }
 
-      const overlapIndex = res.overlapIndex || 0;
-      const el = document.createElement('div');
-      el.style.backgroundColor = bgColor;
-      el.style.color = textColor;
-      el.style.width = isSettingOrder && clickedOrder.includes(res.req.id) ? '36px' : '30px';
-      el.style.height = isSettingOrder && clickedOrder.includes(res.req.id) ? '36px' : '30px';
-      el.style.borderRadius = '50%';
-      el.style.display = 'flex';
-      el.style.alignItems = 'center';
-      el.style.justifyContent = 'center';
-      el.style.fontWeight = 'bold';
-      el.style.fontSize = isSettingOrder && clickedOrder.includes(res.req.id) ? '16px' : '14px';
-      el.style.border = borderStyle;
-      el.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
-      el.style.cursor = isSettingOrder ? 'pointer' : 'default';
-      el.style.zIndex = String(zIndex);
-      el.innerText = String(displayIndex);
-      
-      // 겹침 방지 픽셀 이동 (줌 레벨과 무관하게 항상 일정 간격으로 펼쳐짐)
-      if (overlapIndex > 0) {
-        el.style.transform = `translateX(${overlapIndex * 36}px)`;
-      }
+        if (zIndex > highestZIndex) highestZIndex = zIndex;
 
-      if (isSettingOrder) {
-        // 호버 효과
-        el.onmouseenter = () => { if(el.innerText === '?') el.style.backgroundColor = '#D1D5DB'; };
-        el.onmouseleave = () => { if(el.innerText === '?') el.style.backgroundColor = bgColor; };
-        // 클릭 이벤트
-        el.onclick = () => {
-          setClickedOrder(prev => {
-            if (prev.includes(res.req.id)) {
-              return prev.filter(id => id !== res.req.id);
-            }
-            return [...prev, res.req.id];
-          });
-        };
-      }
+        const el = document.createElement('div');
+        el.style.backgroundColor = bgColor;
+        el.style.color = textColor;
+        el.style.width = isSettingOrder && clickedOrder.includes(res.req.id) ? '36px' : '30px';
+        el.style.height = isSettingOrder && clickedOrder.includes(res.req.id) ? '36px' : '30px';
+        el.style.borderRadius = '50%';
+        el.style.display = 'flex';
+        el.style.alignItems = 'center';
+        el.style.justifyContent = 'center';
+        el.style.fontWeight = 'bold';
+        el.style.fontSize = isSettingOrder && clickedOrder.includes(res.req.id) ? '16px' : '14px';
+        el.style.border = borderStyle;
+        el.style.boxShadow = '0 2px 5px rgba(0,0,0,0.3)';
+        el.style.cursor = isSettingOrder ? 'pointer' : 'default';
+        el.innerText = String(displayIndex);
+        
+        // 겹침 방지 이동 로직 제거 (flex 컨테이너가 알아서 배치함)
 
+        if (isSettingOrder) {
+          // 호버 효과
+          el.onmouseenter = () => { if(el.innerText === '?') el.style.backgroundColor = '#D1D5DB'; };
+          el.onmouseleave = () => { if(el.innerText === '?') el.style.backgroundColor = bgColor; };
+          // 클릭 이벤트
+          el.onclick = () => {
+            setClickedOrder(prev => {
+              if (prev.includes(res.req.id)) {
+                return prev.filter(id => id !== res.req.id);
+              }
+              return [...prev, res.req.id];
+            });
+          };
+        }
+
+        markersContainer.appendChild(el);
+
+        // 라벨 생성
+        const labelEl = document.createElement('div');
+        labelEl.style.backgroundColor = 'white';
+        labelEl.style.padding = '2px 6px';
+        labelEl.style.borderRadius = '4px';
+        labelEl.style.fontSize = '11px';
+        labelEl.style.border = '1px solid #ccc';
+        labelEl.style.whiteSpace = 'nowrap';
+        labelEl.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+        // 마커 너비와 맞춰서 중앙 정렬되도록 width 설정 (마커 너비 기준)
+        labelEl.style.width = isSettingOrder && clickedOrder.includes(res.req.id) ? '36px' : '30px';
+        labelEl.style.textAlign = 'center';
+        labelEl.style.overflow = 'hidden';
+        labelEl.style.textOverflow = 'ellipsis';
+        labelEl.innerText = res.req.userName;
+        
+        labelsContainer.appendChild(labelEl);
+      });
+
+      // 마커 오버레이
       const markerOverlay = new kakao.maps.CustomOverlay({
         map: map,
         position: pos,
-        content: el,
+        content: markersContainer,
         yAnchor: 1,
-        zIndex: zIndex
+        zIndex: highestZIndex
       });
       overlaysRef.current.push(markerOverlay);
 
-      const labelHtml = `<div style="background-color: white; padding: 2px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #ccc; transform: translate(${overlapIndex * 36}px, 15px); white-space: nowrap; box-shadow: 0 1px 2px rgba(0,0,0,0.1); z-index: ${zIndex};">${res.req.userName}</div>`;
+      // 라벨 오버레이 (마커 바로 아래)
       const labelOverlay = new kakao.maps.CustomOverlay({
         map: map,
         position: pos,
-        content: labelHtml,
+        content: labelsContainer,
         yAnchor: 0,
-        zIndex: zIndex
+        zIndex: highestZIndex
       });
+      
+      // 라벨은 약간 띄움
+      labelsContainer.style.marginTop = '4px';
+      
       overlaysRef.current.push(labelOverlay);
     });
 
