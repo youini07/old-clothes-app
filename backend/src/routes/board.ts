@@ -186,22 +186,27 @@ router.get('/inquiries/unread-count', authenticate, requireRole(['PARTNER']), as
 // 고객문의 작성 (고객만)
 router.post('/inquiries', authenticate, requireRole(['CUSTOMER']), async (req: AuthRequest, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, partnerId } = req.body;
     if (!title || !content) {
       return res.status(400).json({ error: '제목과 내용을 입력해주세요.' });
     }
 
-    // 고객의 가장 최근 수거건 담당 사장님을 자동으로 찾음
-    const latestRequest = await prisma.request.findFirst({
-      where: { customerId: req.user!.userId, partnerId: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      select: { partnerId: true },
-    });
+    let targetPartnerId = partnerId;
 
-    if (!latestRequest?.partnerId) {
-      return res.status(400).json({
-        error: '수거 이력이 없어 문의를 등록할 수 없습니다. 수거 신청 후 이용해주세요.',
+    if (!targetPartnerId) {
+      // 고객의 가장 최근 수거건 담당 사장님을 자동으로 찾음
+      const latestRequest = await prisma.request.findFirst({
+        where: { customerId: req.user!.userId, partnerId: { not: null } },
+        orderBy: { createdAt: 'desc' },
+        select: { partnerId: true },
       });
+
+      if (!latestRequest?.partnerId) {
+        return res.status(400).json({
+          error: '수거 이력이 없어 문의를 등록할 수 없습니다. 수거 신청 후 이용해주세요.',
+        });
+      }
+      targetPartnerId = latestRequest.partnerId;
     }
 
     const customer = await prisma.user.findUnique({ where: { id: req.user!.userId } });
@@ -211,7 +216,7 @@ router.post('/inquiries', authenticate, requireRole(['CUSTOMER']), async (req: A
         type: 'INQUIRY',
         authorId: req.user!.userId,
         authorName: customer?.name || '고객',
-        partnerId: latestRequest.partnerId,
+        partnerId: targetPartnerId,
         title,
         content,
         isSecret: true, // 고객문의는 항상 비밀글

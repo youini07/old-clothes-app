@@ -136,7 +136,7 @@ export default function BoardPage() {
     try {
       await axios.post(
         `${import.meta.env.VITE_API_URL}/board/inquiries`,
-        inquiryForm,
+        { ...inquiryForm, partnerId },
         { headers: { Authorization: `Bearer ${authToken}` } }
       );
       setInquiryForm({ title: '', content: '' });
