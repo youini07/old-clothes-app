@@ -32,6 +32,24 @@ export default function CustomerDashboard() {
   // 영수증 상세 사진 확대 모달 상태
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
+  // 업체 선택 모달 상태
+  const [isPartnerModalOpen, setIsPartnerModalOpen] = useState(false);
+  const [partners, setPartners] = useState<any[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(false);
+
+  const handleOpenPartnerModal = async () => {
+    setIsPartnerModalOpen(true);
+    setLoadingPartners(true);
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/partners`);
+      setPartners(res.data);
+    } catch (error) {
+      console.error('업체 목록 조회 실패:', error);
+    } finally {
+      setLoadingPartners(false);
+    }
+  };
+
   useEffect(() => {
     // Kakao SDK 동적 로드 및 초기화
     const initKakao = () => {
@@ -368,7 +386,7 @@ export default function CustomerDashboard() {
               if (latestPartnerId) {
                 navigate(`/board/${latestPartnerId}`);
               } else {
-                alert('수거 이력이 없어 게시판을 이용할 수 없습니다. 수거 신청 후 이용해 주세요.');
+                handleOpenPartnerModal();
               }
             }}
             className="flex-1 py-3 text-sm font-bold rounded-xl transition-all text-gray-500 hover:text-gray-700"
@@ -734,6 +752,61 @@ export default function CustomerDashboard() {
               ✕
             </button>
             <img src={enlargedImage} alt="확대 사진" className="w-full max-h-[80vh] object-contain rounded-xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+
+      {/* 업체 선택 모달 */}
+      {isPartnerModalOpen && (
+        <div 
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-gray-900/90 backdrop-blur-sm"
+          onClick={() => setIsPartnerModalOpen(false)}
+        >
+          <div className="relative max-w-lg w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col max-h-[80vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+              <h3 className="text-lg font-bold text-gray-800">지역 업체 선택</h3>
+              <button 
+                onClick={() => setIsPartnerModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors text-2xl font-bold leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-4 overflow-y-auto flex-1">
+              <p className="text-sm text-gray-500 mb-4">
+                가까운 지역의 업체를 선택하여 공지사항을 확인하거나 문의글을 작성할 수 있습니다.
+              </p>
+              
+              {loadingPartners ? (
+                <div className="flex justify-center py-8">
+                  <Spinner className="w-8 h-8 text-blue-600" />
+                </div>
+              ) : partners.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  등록된 업체가 없습니다.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {partners.map(partner => (
+                    <button
+                      key={partner.id}
+                      onClick={() => navigate(`/board/${partner.id}`)}
+                      className="w-full text-left p-4 border border-gray-200 rounded-xl hover:border-blue-500 hover:bg-blue-50 transition-all flex flex-col gap-2"
+                    >
+                      <span className="font-bold text-gray-800 text-lg">{partner.businessName || partner.name}</span>
+                      {partner.address ? (
+                        <span className="text-sm text-gray-600 bg-gray-100 px-2 py-1.5 rounded-md self-start flex items-center gap-1">
+                          📍 {partner.address} {partner.detailAddress}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-gray-400">주소 정보 없음</span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

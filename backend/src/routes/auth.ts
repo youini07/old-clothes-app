@@ -169,7 +169,7 @@ router.get('/partners', async (req, res) => {
         role: 'PARTNER',
         email: { not: 'demo_partner@test.com' }
       },
-      select: { id: true, businessName: true, name: true, email: true }
+      select: { id: true, businessName: true, name: true, email: true, address: true, detailAddress: true }
     });
     res.json(partners);
   } catch (error) {
