@@ -149,8 +149,15 @@ export default function ReceiptPage() {
   // 주소에서 상세주소(동/호수) 제거하고 앞부분만 표시 (공백 3개 정도까지만)
   const maskAddress = (address: string) => {
     if (!address) return '';
-    const parts = address.split(' ');
-    return parts.slice(0, 3).join(' ') + ' ...';
+    const parts = address.trim().split(/\s+/);
+    
+    const guIndex = parts.findIndex(p => p.endsWith('구'));
+    if (guIndex !== -1) return parts.slice(0, guIndex + 1).join(' ');
+    
+    const siIndex = parts.findIndex(p => p.endsWith('시') || p.endsWith('군'));
+    if (siIndex !== -1) return parts.slice(0, siIndex + 1).join(' ');
+    
+    return parts.slice(0, 2).join(' ');
   };
 
   const itemPhotos = receipt.collectionItems?.filter(i => i.photoUrl) || [];

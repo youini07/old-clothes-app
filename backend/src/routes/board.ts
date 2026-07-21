@@ -414,17 +414,18 @@ router.post('/reviews', async (req, res) => {
       return name.substring(0, 2) + '*'.repeat(Math.max(name.length - 2, 1));
     };
 
-    // 주소: 동 까지만 (예: "경기도 수원시 영통구 이의동 123-45" → "경기도 수원시 영통구 이의동")
+    // 주소: 구까지만 표시 (예: "경기 화성시 동탄구", "서울 강남구", "강원도 원주시")
     const maskAddress = (address: string) => {
       if (!address) return '';
-      const parts = address.split(' ');
-      // "동", "읍", "면", "리", "가"로 끝나는 부분까지만 표시
-      let masked = '';
-      for (const part of parts) {
-        masked += (masked ? ' ' : '') + part;
-        if (/[동읍면리가]$/.test(part)) break;
-      }
-      return masked || parts.slice(0, 3).join(' ');
+      const parts = address.trim().split(/\s+/);
+      
+      const guIndex = parts.findIndex(p => p.endsWith('구'));
+      if (guIndex !== -1) return parts.slice(0, guIndex + 1).join(' ');
+      
+      const siIndex = parts.findIndex(p => p.endsWith('시') || p.endsWith('군'));
+      if (siIndex !== -1) return parts.slice(0, siIndex + 1).join(' ');
+      
+      return parts.slice(0, 2).join(' ');
     };
 
     // 전화번호: 010-xxxx-1234 형식
