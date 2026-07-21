@@ -8,6 +8,7 @@ import LoginSuccess from './pages/LoginSuccess';
 import CustomerDashboard from './pages/CustomerDashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptPage from './pages/ReceiptPage';
+import BoardPage from './pages/BoardPage';
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -89,6 +90,7 @@ function App() {
           <Route path="/login" element={<Navigate to="/staff-login" replace />} />
           <Route path="/request" element={<RequestForm />} />
           <Route path="/receipt/:id" element={<ReceiptPage />} />
+          <Route path="/board/:partnerId" element={<BoardPage />} />
           <Route path="/login-success" element={<LoginSuccess />} />
           <Route path="/status" element={<ProtectedRoute allowedRoles={['CUSTOMER']}><CustomerDashboard /></ProtectedRoute>} />
           <Route path="/super-admin" element={<ProtectedRoute allowedRoles={['SUPER_ADMIN']} redirectTo="/staff-login"><SuperAdminDashboard /></ProtectedRoute>} />

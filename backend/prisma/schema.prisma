@@ -46,6 +46,11 @@ model User {
   customerChatRooms ChatRoom[] @relation("CustomerChat")
   partnerChatRooms  ChatRoom[] @relation("PartnerChat")
   sentMessages      ChatMessage[] @relation("SentMessages")
+  
+  // 게시판 관련
+  boardPosts       BoardPost[]    @relation("BoardPostAuthor")   // 내가 작성한 게시글
+  partnerPosts     BoardPost[]    @relation("BoardPostPartner")  // 내 업체 게시판에 등록된 글
+  boardComments    BoardComment[] @relation("BoardCommentAuthor") // 내가 작성한 댓글
 }
 
 // 기사 전용 프로필 (사장이 기사를 등록/관리)
@@ -239,4 +244,59 @@ model PartnerPriceItem {
   updatedAt   DateTime @updatedAt
   
   @@unique([partnerId, category]) // 파트너당 카테고리는 고유해야 함
+}
+
+// ──────────────────────────────────────────────
+// 게시판 시스템: 공지사항 / 고객문의(비밀글) / 후기(간편리뷰)
+// ──────────────────────────────────────────────
+
+// 게시판 게시글 (공지사항, 고객문의, 후기 통합 모델)
+model BoardPost {
+  id          String   @id @default(uuid())
+  type        String   // 'NOTICE' | 'INQUIRY' | 'REVIEW'
+  
+  // 작성자 정보
+  authorId    String?  // 로그인 사용자 ID (리뷰 자동등록 시 null 가능)
+  author      User?    @relation("BoardPostAuthor", fields: [authorId], references: [id])
+  authorName  String   // 마스킹된 이름 또는 원본 이름
+  
+  // 대상 파트너(사장님) — 이 사장님의 게시판에 노출
+  partnerId   String
+  partner     User     @relation("BoardPostPartner", fields: [partnerId], references: [id])
+  
+  // 게시글 내용
+  title       String
+  content     String   // 본문 (공지/문의) 또는 한줄평 (리뷰)
+  isSecret    Boolean  @default(false) // 비밀글 여부 (고객문의용)
+  
+  // 리뷰 전용 필드
+  requestId         String?  // 연결된 수거 신청 ID (리뷰 중복 방지용)
+  ratingConvenience Int?     // 수거신청 편리성 (1~5)
+  ratingKindness    Int?     // 기사님 친절도 (1~5)
+  ratingSpeed       Int?     // 수거/정산 신속정확 (1~5)
+  maskedPhone       String?  // 마스킹된 전화번호 (010-xxxx-1234)
+  maskedAddress     String?  // 마스킹된 주소 (동 까지만)
+  receiptSnapshot   Json?    // 영수증 스냅샷 데이터 (정산금액, 항목 등)
+  
+  // 문의 전용 필드
+  isAnswered  Boolean  @default(false) // 사장님/슈퍼관리자 답변 여부
+  
+  // 댓글
+  comments    BoardComment[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 게시글 댓글 (고객문의 답변용)
+model BoardComment {
+  id        String    @id @default(uuid())
+  postId    String
+  post      BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  authorId  String
+  author    User      @relation("BoardCommentAuthor", fields: [authorId], references: [id])
+  content   String
+  
+  createdAt DateTime  @default(now())
 }

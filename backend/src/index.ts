@@ -9,6 +9,7 @@ import requestsRouter from './routes/requests';
 import adminRouter from './routes/admin';
 import driverRouter from './routes/driver';
 import chatRouter from './routes/chat';
+import boardRouter from './routes/board';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/prisma';
 
@@ -63,6 +64,7 @@ app.use('/api/requests', requestsRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/driver', driverRouter);
 app.use('/api/chat', chatRouter);
+app.use('/api/board', boardRouter);
 
 // 공개(Public) API - 공지사항 등
 app.get('/api/public/global-settings', async (req, res) => {

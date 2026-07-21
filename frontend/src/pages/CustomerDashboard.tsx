@@ -291,6 +291,10 @@ export default function CustomerDashboard() {
   const activeRequestWithPartner = requests.find(r => r.partnerId && r.status !== 'COMPLETED');
   const partnerIdForChat = activeRequestWithPartner?.partnerId;
 
+  // 최근 배정된 사장님 ID (게시판 이동용)
+  const latestRequestWithPartner = requests.find(r => r.partnerId);
+  const latestPartnerId = latestRequestWithPartner?.partnerId;
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="bg-primary-600 text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-md">
@@ -347,7 +351,7 @@ export default function CustomerDashboard() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            수거 신청 내역
+            수거 신청
           </button>
           <button
             onClick={() => setActiveTab('profile')}
@@ -357,7 +361,19 @@ export default function CustomerDashboard() {
                 : 'text-gray-500 hover:text-gray-700'
             }`}
           >
-            내 정보 관리
+            내 정보
+          </button>
+          <button
+            onClick={() => {
+              if (latestPartnerId) {
+                navigate(`/board/${latestPartnerId}`);
+              } else {
+                alert('수거 이력이 없어 게시판을 이용할 수 없습니다. 수거 신청 후 이용해 주세요.');
+              }
+            }}
+            className="flex-1 py-3 text-sm font-bold rounded-xl transition-all text-gray-500 hover:text-gray-700"
+          >
+            게시판
           </button>
         </div>
 

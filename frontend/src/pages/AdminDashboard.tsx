@@ -114,7 +114,22 @@ export default function AdminDashboard() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
-  const [activeView, setActiveView] = useState<'calendar' | 'dispatch' | 'mapDispatch' | 'stats' | 'settings'>('calendar');
+  const [activeView, setActiveView] = useState<'calendar' | 'dispatch' | 'mapDispatch' | 'stats' | 'settings' | 'board'>('calendar');
+
+  // 게시판 관련 상태
+  const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
+  const [boardTab, setBoardTab] = useState<'notices' | 'inquiries' | 'reviews'>('inquiries');
+  const [boardPosts, setBoardPosts] = useState<any[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [boardPage, setBoardPage] = useState(1);
+  const [boardTotalPages, setBoardTotalPages] = useState(1);
+  const [noticeForm, setNoticeForm] = useState({ title: '', content: '' });
+  const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+  const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
+  const [isSubmittingNotice, setIsSubmittingNotice] = useState(false);
+  const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
+  const [inquiryCommentContent, setInquiryCommentContent] = useState('');
+  const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
@@ -385,6 +400,12 @@ export default function AdminDashboard() {
       ]);
       setRequests(reqsRes.data.requests || []);
       setDrivers(driversRes.data.drivers || []);
+
+      // 미답변 문의 수 조회 (게시판 알림 뱃지용)
+      try {
+        const unreadRes = await axios.get(`${import.meta.env.VITE_API_URL}/board/inquiries/unread-count`, { headers });
+        setUnreadInquiryCount(unreadRes.data.count || 0);
+      } catch { /* 게시판 API 실패해도 메인 기능에는 영향 없음 */ }
     } catch (error) {
       console.error('데이터 조회 실패:', error);
       if (axios.isAxiosError(error) && error.response?.status === 401) {
@@ -393,6 +414,37 @@ export default function AdminDashboard() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 게시판 게시글 목록 조회 함수
+  const fetchBoardPosts = async (tab?: 'notices' | 'inquiries' | 'reviews') => {
+    const currentTab = tab || boardTab;
+    setBoardLoading(true);
+    try {
+      const headers = { Authorization: `Bearer ${authToken}` };
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      let url = '';
+
+      if (currentTab === 'notices') {
+        // 공지사항: 자기 partnerId로 조회
+        url = `${import.meta.env.VITE_API_URL}/board/notices/${userInfo.id}?page=${boardPage}`;
+      } else if (currentTab === 'inquiries') {
+        // 고객문의: 인증 필요 (사장님에게 온 문의)
+        url = `${import.meta.env.VITE_API_URL}/board/inquiries?page=${boardPage}`;
+      } else if (currentTab === 'reviews') {
+        // 후기: 자기 partnerId로 조회
+        url = `${import.meta.env.VITE_API_URL}/board/reviews/${userInfo.id}?page=${boardPage}`;
+      }
+
+      const res = await axios.get(url, { headers });
+      setBoardPosts(res.data.posts || []);
+      setBoardTotalPages(res.data.totalPages || 1);
+    } catch (err) {
+      console.error('게시판 데이터 로드 실패:', err);
+      setBoardPosts([]);
+    } finally {
+      setBoardLoading(false);
     }
   };
 
@@ -1365,6 +1417,14 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산</button>
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
+          <button onClick={() => { setActiveView('board'); fetchBoardPosts(); }} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all relative ${activeView === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+            📋 게시판
+            {unreadInquiryCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                {unreadInquiryCount > 9 ? '9+' : unreadInquiryCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* 환경 설정 뷰 */}
@@ -1943,6 +2003,222 @@ export default function AdminDashboard() {
           </div>
         )}
 
+
+        {/* ────────────────────────────────────────────
+            게시판 관리 뷰 (사장님용)
+            - 공지사항 CRUD
+            - 고객문의 답변
+            - 후기 조회/삭제
+        ──────────────────────────────────────────── */}
+        {activeView === 'board' && (
+          <div className="space-y-4">
+            {/* 게시판 서브 탭 */}
+            <div className="flex bg-gray-100 rounded-2xl p-1">
+              <button onClick={() => { setBoardTab('notices'); setBoardPage(1); fetchBoardPosts('notices'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'notices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📢 공지사항</button>
+              <button onClick={() => { setBoardTab('inquiries'); setBoardPage(1); fetchBoardPosts('inquiries'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all relative ${boardTab === 'inquiries' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+                💬 고객문의
+                {unreadInquiryCount > 0 && <span className="ml-1 inline-flex w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full items-center justify-center">{unreadInquiryCount > 9 ? '9+' : unreadInquiryCount}</span>}
+              </button>
+              <button onClick={() => { setBoardTab('reviews'); setBoardPage(1); fetchBoardPosts('reviews'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'reviews' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⭐ 후기</button>
+            </div>
+
+            {/* 공지사항 관리 */}
+            {boardTab === 'notices' && (
+              <div>
+                <button onClick={() => { setNoticeForm({ title: '', content: '' }); setEditingNoticeId(null); setIsNoticeModalOpen(true); }} className="w-full mb-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl font-bold text-sm shadow-md hover:shadow-lg active:scale-[0.98] transition-all">✏️ 새 공지 작성</button>
+                {boardLoading ? (
+                  <div className="text-center py-12"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>
+                ) : boardPosts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-3">📢</div><p className="font-medium">등록된 공지사항이 없습니다.</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {boardPosts.map((post: any) => (
+                      <div key={post.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                        <h4 className="font-bold text-gray-900 mb-2">{post.title}</h4>
+                        <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{post.content}</p>
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setNoticeForm({ title: post.title, content: post.content }); setEditingNoticeId(post.id); setIsNoticeModalOpen(true); }} className="px-3 py-1.5 text-xs font-bold text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">수정</button>
+                            <button onClick={async () => { if (!confirm('이 공지를 삭제하시겠습니까?')) return; try { await axios.delete(`${import.meta.env.VITE_API_URL}/board/notices/${post.id}`, { headers: { Authorization: `Bearer ${authToken}` } }); fetchBoardPosts('notices'); } catch(e: any) { alert(e.response?.data?.error || '삭제 실패'); } }} className="px-3 py-1.5 text-xs font-bold text-red-600 bg-red-50 rounded-lg hover:bg-red-100 transition-colors">삭제</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 고객문의 관리 */}
+            {boardTab === 'inquiries' && (
+              <div>
+                {selectedInquiry ? (
+                  <div>
+                    <button onClick={() => setSelectedInquiry(null)} className="mb-4 text-sm text-blue-600 font-bold flex items-center gap-1 hover:underline">← 목록으로</button>
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-[10px] font-bold">🔒 비밀글</span>
+                        {selectedInquiry.isAnswered ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[10px] font-bold">✅ 답변완료</span> : <span className="px-2 py-0.5 bg-amber-100 text-amber-700 rounded-md text-[10px] font-bold">⏳ 답변대기</span>}
+                      </div>
+                      <p className="text-xs text-gray-400 mb-2">작성자: {selectedInquiry.author?.name || selectedInquiry.authorName}</p>
+                      <h4 className="font-extrabold text-gray-900 text-lg mb-3">{selectedInquiry.title}</h4>
+                      <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{selectedInquiry.content}</p>
+                      <p className="text-xs text-gray-400 mt-3">{new Date(selectedInquiry.createdAt).toLocaleString('ko-KR')}</p>
+                    </div>
+
+                    {/* 댓글 목록 */}
+                    {selectedInquiry.comments && selectedInquiry.comments.length > 0 && (
+                      <div className="space-y-3 mb-4">
+                        <h4 className="text-sm font-bold text-gray-700">💬 답변 ({selectedInquiry.comments.length})</h4>
+                        {selectedInquiry.comments.map((c: any) => (
+                          <div key={c.id} className={`rounded-xl p-4 border ${c.author.role === 'PARTNER' || c.author.role === 'SUPER_ADMIN' ? 'bg-blue-50 border-blue-100' : 'bg-gray-50 border-gray-100'}`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-bold text-sm text-gray-900">{c.author.role === 'PARTNER' ? `🏢 ${c.author.businessName || c.author.name}` : c.author.role === 'SUPER_ADMIN' ? '🛡️ 관리자' : c.author.name}</span>
+                              <span className="text-xs text-gray-400">{new Date(c.createdAt).toLocaleDateString('ko-KR')}</span>
+                            </div>
+                            <p className="text-sm text-gray-700 whitespace-pre-wrap">{c.content}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* 사장님 답변 입력 */}
+                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+                      <textarea value={inquiryCommentContent} onChange={(e) => setInquiryCommentContent(e.target.value)} placeholder="답변을 입력하세요..." rows={3} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:outline-none resize-none transition-colors" />
+                      <button
+                        onClick={async () => {
+                          if (!inquiryCommentContent.trim()) return;
+                          setIsSubmittingInquiryComment(true);
+                          try {
+                            await axios.post(`${import.meta.env.VITE_API_URL}/board/inquiries/${selectedInquiry.id}/comments`, { content: inquiryCommentContent }, { headers: { Authorization: `Bearer ${authToken}` } });
+                            setInquiryCommentContent('');
+                            // 상세 다시 로드
+                            const res = await axios.get(`${import.meta.env.VITE_API_URL}/board/inquiries/${selectedInquiry.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+                            setSelectedInquiry(res.data);
+                            // 미읽음 카운트 갱신
+                            const unreadRes = await axios.get(`${import.meta.env.VITE_API_URL}/board/inquiries/unread-count`, { headers: { Authorization: `Bearer ${authToken}` } });
+                            setUnreadInquiryCount(unreadRes.data.count || 0);
+                          } catch(e: any) { alert(e.response?.data?.error || '답변 등록 실패'); }
+                          finally { setIsSubmittingInquiryComment(false); }
+                        }}
+                        disabled={isSubmittingInquiryComment || !inquiryCommentContent.trim()}
+                        className="mt-2 w-full py-3 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                      >
+                        {isSubmittingInquiryComment ? '등록 중...' : '💬 답변 등록'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    {boardLoading ? (
+                      <div className="text-center py-12"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>
+                    ) : boardPosts.length === 0 ? (
+                      <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-3">💬</div><p className="font-medium">접수된 고객문의가 없습니다.</p></div>
+                    ) : (
+                      <div className="space-y-3">
+                        {boardPosts.map((post: any) => (
+                          <button key={post.id} onClick={async () => {
+                            try {
+                              const res = await axios.get(`${import.meta.env.VITE_API_URL}/board/inquiries/${post.id}`, { headers: { Authorization: `Bearer ${authToken}` } });
+                              setSelectedInquiry(res.data);
+                            } catch(e: any) { alert(e.response?.data?.error || '문의 상세 조회 실패'); }
+                          }} className="w-full text-left bg-white rounded-2xl border border-gray-100 shadow-sm p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-md text-[10px] font-bold">🔒 비밀글</span>
+                              {post.isAnswered ? <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded-md text-[10px] font-bold">✅ 답변완료</span> : <span className="px-2 py-0.5 bg-red-100 text-red-600 rounded-md text-[10px] font-bold animate-pulse">🔴 답변대기</span>}
+                            </div>
+                            <h4 className="font-bold text-gray-900 text-sm">{post.title}</h4>
+                            <div className="flex items-center gap-2 text-xs text-gray-400 mt-2">
+                              <span>{post.author?.name || post.authorName}</span>
+                              <span>·</span>
+                              <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
+                              {post.comments && post.comments.length > 0 && <span className="text-blue-500">💬 {post.comments.length}</span>}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* 후기 관리 */}
+            {boardTab === 'reviews' && (
+              <div>
+                {boardLoading ? (
+                  <div className="text-center py-12"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>
+                ) : boardPosts.length === 0 ? (
+                  <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-3">⭐</div><p className="font-medium">등록된 후기가 없습니다.</p></div>
+                ) : (
+                  <div className="space-y-3">
+                    {boardPosts.map((post: any) => (
+                      <div key={post.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-0.5">
+                            {[1,2,3,4,5].map(s => {
+                              const avg = ((post.ratingConvenience||0) + (post.ratingKindness||0) + (post.ratingSpeed||0)) / 3;
+                              return <span key={s} className={`text-base ${s <= Math.round(avg) ? 'text-amber-400' : 'text-gray-200'}`}>★</span>;
+                            })}
+                          </div>
+                          <button onClick={async () => { if (!confirm('이 후기를 삭제하시겠습니까?')) return; try { await axios.delete(`${import.meta.env.VITE_API_URL}/board/reviews/${post.id}`, { headers: { Authorization: `Bearer ${authToken}` } }); fetchBoardPosts('reviews'); } catch(e: any) { alert(e.response?.data?.error || '삭제 실패'); } }} className="text-xs text-red-400 hover:text-red-600 font-medium transition-colors">삭제</button>
+                        </div>
+                        {post.content && <p className="text-sm text-gray-800 font-medium mb-2">"{post.content}"</p>}
+                        <div className="flex items-center gap-3 text-xs text-gray-400">
+                          <span className="font-medium">{post.authorName}</span>
+                          {post.maskedAddress && <><span>·</span><span>{post.maskedAddress}</span></>}
+                          <span>·</span>
+                          <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-4 text-[11px] text-gray-400">
+                          <span>📱 편리성 {post.ratingConvenience}점</span>
+                          <span>🤝 친절도 {post.ratingKindness}점</span>
+                          <span>⚡ 신속정확 {post.ratingSpeed}점</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 공지사항 작성/수정 모달 */}
+        {isNoticeModalOpen && (
+          <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4" onClick={() => setIsNoticeModalOpen(false)}>
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-extrabold text-gray-900 mb-4">{editingNoticeId ? '📢 공지 수정' : '📢 새 공지 작성'}</h3>
+              <input value={noticeForm.title} onChange={(e) => setNoticeForm(f => ({ ...f, title: e.target.value }))} placeholder="공지 제목" maxLength={100} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm font-medium focus:border-blue-400 focus:outline-none mb-3 transition-colors" />
+              <textarea value={noticeForm.content} onChange={(e) => setNoticeForm(f => ({ ...f, content: e.target.value }))} placeholder="공지 내용을 작성해 주세요..." rows={5} maxLength={5000} className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-blue-400 focus:outline-none resize-none transition-colors" />
+              <div className="flex gap-2 mt-4">
+                <button onClick={() => setIsNoticeModalOpen(false)} className="flex-1 py-3 border-2 border-gray-200 rounded-xl text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">취소</button>
+                <button
+                  onClick={async () => {
+                    if (!noticeForm.title.trim() || !noticeForm.content.trim()) return;
+                    setIsSubmittingNotice(true);
+                    try {
+                      const headers = { Authorization: `Bearer ${authToken}` };
+                      if (editingNoticeId) {
+                        await axios.put(`${import.meta.env.VITE_API_URL}/board/notices/${editingNoticeId}`, noticeForm, { headers });
+                      } else {
+                        await axios.post(`${import.meta.env.VITE_API_URL}/board/notices`, noticeForm, { headers });
+                      }
+                      setIsNoticeModalOpen(false);
+                      fetchBoardPosts('notices');
+                    } catch(e: any) { alert(e.response?.data?.error || '저장 실패'); }
+                    finally { setIsSubmittingNotice(false); }
+                  }}
+                  disabled={isSubmittingNotice || !noticeForm.title.trim() || !noticeForm.content.trim()}
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 transition-colors"
+                >
+                  {isSubmittingNotice ? '저장 중...' : editingNoticeId ? '수정 완료' : '공지 등록'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* 배차 관리 뷰 */}
         {activeView === 'dispatch' && <div className="flex flex-col gap-4">

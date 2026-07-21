@@ -16,6 +16,8 @@ interface CollectionItem {
 interface ReceiptData {
   id: string;
   userName: string;
+  phone: string;
+  partnerId: string | null;
   address: string;
   actualWeight: number | null;
   totalPrice: number | null;
@@ -27,11 +29,49 @@ interface ReceiptData {
   status: string;
 }
 
+// ──────────────────────────────────────────
+// 별점 버튼 컴포넌트 (1~5점, 탭 방식)
+// ──────────────────────────────────────────
+const StarRating = ({ label, emoji, value, onChange }: {
+  label: string; emoji: string; value: number; onChange: (v: number) => void;
+}) => (
+  <div className="mb-4">
+    <p className="text-sm font-bold text-gray-700 mb-2 flex items-center gap-1.5">
+      <span>{emoji}</span> {label}
+    </p>
+    <div className="flex gap-1.5">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          className={`flex-1 py-2.5 rounded-xl text-lg font-bold transition-all duration-200 ${
+            value >= star
+              ? 'bg-amber-400 text-white shadow-md scale-105'
+              : 'bg-gray-100 text-gray-300 hover:bg-gray-200'
+          }`}
+        >
+          ⭐
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
 export default function ReceiptPage() {
   const { id } = useParams<{ id: string }>();
   const [receipt, setReceipt] = useState<ReceiptData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // 간편리뷰 상태
+  const [ratingConvenience, setRatingConvenience] = useState(0); // 수거신청 편리성
+  const [ratingKindness, setRatingKindness] = useState(0);       // 기사님 친절도
+  const [ratingSpeed, setRatingSpeed] = useState(0);              // 수거/정산 신속정확
+  const [reviewContent, setReviewContent] = useState('');         // 한줄평
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchReceipt = async () => {
@@ -50,6 +90,33 @@ export default function ReceiptPage() {
       fetchReceipt();
     }
   }, [id]);
+
+  // 간편리뷰 등록 핸들러
+  const handleSubmitReview = async () => {
+    if (!ratingConvenience || !ratingKindness || !ratingSpeed) {
+      setReviewError('모든 별점 항목을 선택해주세요.');
+      return;
+    }
+
+    setIsSubmittingReview(true);
+    setReviewError(null);
+
+    try {
+      await axios.post(`${import.meta.env.VITE_API_URL}/board/reviews`, {
+        requestId: id,
+        ratingConvenience,
+        ratingKindness,
+        ratingSpeed,
+        content: reviewContent,
+      });
+      setReviewSubmitted(true);
+    } catch (err: any) {
+      const msg = err.response?.data?.error || '리뷰 등록에 실패했습니다.';
+      setReviewError(msg);
+    } finally {
+      setIsSubmittingReview(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -238,6 +305,113 @@ export default function ReceiptPage() {
           </div>
         )}
 
+        {/* ────────────────────────────────────────────
+            간편리뷰 등록 섹션
+            - 영수증 하단에서 바로 리뷰를 등록할 수 있는 폼
+            - 별점 3항목 + 한줄평으로 구성
+            - 등록하면 개인정보가 마스킹된 상태로 후기 게시판에 자동 등록됨
+        ──────────────────────────────────────────── */}
+        {receipt.status === 'COMPLETED' && receipt.partnerId && (
+          <div className="border-t-4 border-amber-400">
+            {reviewSubmitted ? (
+              // 리뷰 등록 완료 화면
+              <div className="p-8 text-center bg-gradient-to-b from-amber-50 to-white">
+                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                  <span className="text-4xl">🎉</span>
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 mb-2">리뷰가 등록되었습니다!</h3>
+                <p className="text-sm text-gray-500 leading-relaxed">
+                  소중한 후기 감사합니다.<br/>
+                  개인정보가 보호된 상태로 후기 게시판에 자동 등록되었습니다.
+                </p>
+                <div className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-100 rounded-full">
+                  <span className="text-amber-600 font-bold text-sm">⭐ {((ratingConvenience + ratingKindness + ratingSpeed) / 3).toFixed(1)}점</span>
+                </div>
+              </div>
+            ) : (
+              // 리뷰 입력 폼
+              <div className="p-6 bg-gradient-to-b from-amber-50 to-white">
+                {/* 헤더 */}
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-amber-400 text-white rounded-full text-xs font-extrabold mb-3">
+                    ⭐ 간편리뷰
+                  </div>
+                  <h3 className="text-lg font-extrabold text-gray-900">이런 점이 좋았어요!</h3>
+                  <p className="text-xs text-gray-400 mt-1">별점을 눌러 평가해 주세요 (각 항목 1~5점)</p>
+                </div>
+
+                {/* 별점 평가 3항목 */}
+                <StarRating
+                  label="수거 신청이 편리했나요?"
+                  emoji="📱"
+                  value={ratingConvenience}
+                  onChange={setRatingConvenience}
+                />
+                <StarRating
+                  label="기사님이 친절했나요?"
+                  emoji="🤝"
+                  value={ratingKindness}
+                  onChange={setRatingKindness}
+                />
+                <StarRating
+                  label="수거 및 정산이 신속·정확했나요?"
+                  emoji="⚡"
+                  value={ratingSpeed}
+                  onChange={setRatingSpeed}
+                />
+
+                {/* 한줄평 */}
+                <div className="mt-5">
+                  <label className="text-sm font-bold text-gray-700 mb-2 block">✏️ 한줄평 (선택)</label>
+                  <textarea
+                    value={reviewContent}
+                    onChange={(e) => setReviewContent(e.target.value)}
+                    placeholder="서비스 이용 후기를 한 줄로 남겨주세요..."
+                    maxLength={200}
+                    rows={2}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-amber-400 focus:outline-none resize-none transition-colors placeholder:text-gray-300"
+                  />
+                  <p className="text-right text-[11px] text-gray-300 mt-1">{reviewContent.length}/200자</p>
+                </div>
+
+                {/* 안내 문구 */}
+                <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                  <p className="text-[11px] text-blue-600 font-medium leading-relaxed break-keep">
+                    💡 등록 시 <b>간편리뷰</b>로 후기 게시판에 자동 등록됩니다.<br/>
+                    개인정보는 보호됩니다: 이름(앞 2글자만), 주소(동까지만), 전화번호(중간자리 숨김) 처리 후 영수증 요약과 함께 게시됩니다.
+                  </p>
+                </div>
+
+                {/* 에러 메시지 */}
+                {reviewError && (
+                  <div className="mt-3 p-3 bg-red-50 rounded-xl border border-red-100">
+                    <p className="text-xs text-red-600 font-medium">{reviewError}</p>
+                  </div>
+                )}
+
+                {/* 등록 버튼 */}
+                <button
+                  onClick={handleSubmitReview}
+                  disabled={isSubmittingReview || (!ratingConvenience || !ratingKindness || !ratingSpeed)}
+                  className={`w-full mt-5 py-4 rounded-2xl font-extrabold text-base transition-all duration-200 ${
+                    ratingConvenience && ratingKindness && ratingSpeed
+                      ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-lg hover:shadow-xl active:scale-[0.98]'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  {isSubmittingReview ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                      등록 중...
+                    </span>
+                  ) : (
+                    '⭐ 간편리뷰 등록하기'
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 푸터 영역 */}
         <div className="p-6 bg-gray-900 text-center text-gray-400 text-[11px] break-keep leading-relaxed">

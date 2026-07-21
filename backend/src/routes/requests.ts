@@ -29,6 +29,8 @@ router.get('/:id/receipt', async (req, res) => {
     const receiptData = {
       id: request.id,
       userName: request.userName,
+      phone: request.phone, // 간편리뷰 마스킹 처리에 사용 (백엔드에서 마스킹)
+      partnerId: request.partnerId, // 간편리뷰 등록 대상 사장님 ID
       // 예: "경기도 수원시 영통구 이의동" 까지만 노출하고 상세 주소는 제외
       address: request.address,
       actualWeight: request.actualWeight,
