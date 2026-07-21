@@ -78,7 +78,7 @@ export default function BoardPage() {
   const authToken = localStorage.getItem('auth_token') || localStorage.getItem('customer_token');
 
   // 파트너 정보 (상호명)
-  const [partnerName, setPartnerName] = useState('');
+  const [partnerName] = useState('');
 
   // ──────────────────────────────────────────
   // 데이터 fetch

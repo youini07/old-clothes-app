@@ -122,7 +122,7 @@ export default function AdminDashboard() {
   const [boardPosts, setBoardPosts] = useState<any[]>([]);
   const [boardLoading, setBoardLoading] = useState(false);
   const [boardPage, setBoardPage] = useState(1);
-  const [boardTotalPages, setBoardTotalPages] = useState(1);
+  const [, setBoardTotalPages] = useState(1);
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' });
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
   const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
