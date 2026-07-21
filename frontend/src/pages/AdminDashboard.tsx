@@ -1416,7 +1416,6 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차</button>
           <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도</button>
           <button onClick={() => setActiveView('stats')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'stats' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📊 정산</button>
-          <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
           <button onClick={() => { setActiveView('board'); fetchBoardPosts(); }} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all relative ${activeView === 'board' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
             📋 게시판
             {unreadInquiryCount > 0 && (
@@ -1425,6 +1424,7 @@ export default function AdminDashboard() {
               </span>
             )}
           </button>
+          <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
         </div>
 
         {/* 환경 설정 뷰 */}
