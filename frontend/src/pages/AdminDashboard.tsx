@@ -2274,6 +2274,29 @@ export default function AdminDashboard() {
                           <span>·</span>
                           <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
                         </div>
+                        {post.receiptSnapshot && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                            <p className="text-xs text-gray-500 font-bold mb-1">📋 수거 영수증</p>
+                            <p className="text-sm font-extrabold text-blue-600">
+                              {(post.receiptSnapshot.totalPrice || 0).toLocaleString()}원
+                            </p>
+                            {post.receiptSnapshot.collectionItems && post.receiptSnapshot.collectionItems.length > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {post.receiptSnapshot.collectionItems.map((item: any, idx: number) => (
+                                  <span key={idx} className="inline-flex px-2 py-0.5 bg-white border border-gray-200 rounded text-[10px] text-gray-500 font-medium">
+                                    {item.categoryLabel} {item.quantity}{item.unitType === 'KG' ? 'kg' : '대'}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : post.receiptSnapshot.actualWeight > 0 ? (
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                <span className="inline-flex px-2 py-0.5 bg-white border border-gray-200 rounded text-[10px] text-gray-500 font-medium">
+                                  단일 무게 정산 {post.receiptSnapshot.actualWeight}kg
+                                </span>
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                         <div className="mt-2 pt-2 border-t border-gray-100 flex items-center gap-4 text-[11px] text-gray-400">
                           <span>📱 편리성 {post.ratingConvenience}점</span>
                           <span>🤝 친절도 {post.ratingKindness}점</span>

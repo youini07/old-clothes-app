@@ -68,10 +68,20 @@ export default function ReceiptPage() {
   const [ratingConvenience, setRatingConvenience] = useState(0); // 수거신청 편리성
   const [ratingKindness, setRatingKindness] = useState(0);       // 기사님 친절도
   const [ratingSpeed, setRatingSpeed] = useState(0);              // 수거/정산 신속정확
-  const [reviewContent, setReviewContent] = useState('');         // 한줄평
+  const [selectedReviewOption, setSelectedReviewOption] = useState<string>(''); // 선택된 한줄평
+  const [reviewContent, setReviewContent] = useState('');         // 직접입력 한줄평
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+
+  const reviewOptions = [
+    "기사님이 정말 친절하시고 믿음이 가요.",
+    "연락드리니 신속하게 방문해서 깔끔하게 수거해가시네요.",
+    "신청 방법이 간편해서 이용하기 너무 편리해요.",
+    "쌓여있던 헌옷을 한 번에 정리해서 속이 시원합니다.",
+    "처리 과정이 깔끔하고 완벽해서 다음에도 또 이용할게요.",
+    "직접 입력"
+  ];
 
   useEffect(() => {
     const fetchReceipt = async () => {
@@ -98,6 +108,12 @@ export default function ReceiptPage() {
       return;
     }
 
+    const finalContent = selectedReviewOption === '직접 입력' ? reviewContent : selectedReviewOption;
+    if (!finalContent.trim()) {
+      setReviewError('한줄평을 선택하거나 입력해주세요.');
+      return;
+    }
+
     setIsSubmittingReview(true);
     setReviewError(null);
 
@@ -107,7 +123,7 @@ export default function ReceiptPage() {
         ratingConvenience,
         ratingKindness,
         ratingSpeed,
-        content: reviewContent,
+        content: finalContent,
       });
       setReviewSubmitted(true);
     } catch (err: any) {
@@ -369,16 +385,36 @@ export default function ReceiptPage() {
 
                 {/* 한줄평 */}
                 <div className="mt-5">
-                  <label className="text-sm font-bold text-gray-700 mb-2 block">✏️ 한줄평 (선택)</label>
-                  <textarea
-                    value={reviewContent}
-                    onChange={(e) => setReviewContent(e.target.value)}
-                    placeholder="서비스 이용 후기를 한 줄로 남겨주세요..."
-                    maxLength={200}
-                    rows={2}
-                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-amber-400 focus:outline-none resize-none transition-colors placeholder:text-gray-300"
-                  />
-                  <p className="text-right text-[11px] text-gray-300 mt-1">{reviewContent.length}/200자</p>
+                  <label className="text-sm font-bold text-gray-700 mb-2 block">✏️ 한줄평 (필수)</label>
+                  <div className="flex flex-col gap-2 mb-3">
+                    {reviewOptions.map((option, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setSelectedReviewOption(option)}
+                        className={`text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 border-2 ${
+                          selectedReviewOption === option
+                            ? 'border-amber-400 bg-amber-50 text-amber-700 font-bold'
+                            : 'border-gray-200 bg-white text-gray-600 hover:border-amber-200'
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                  </div>
+
+                  {selectedReviewOption === '직접 입력' && (
+                    <div className="mt-2 animate-fade-in">
+                      <textarea
+                        value={reviewContent}
+                        onChange={(e) => setReviewContent(e.target.value)}
+                        placeholder="서비스 이용 후기를 한 줄로 남겨주세요..."
+                        maxLength={200}
+                        rows={2}
+                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:border-amber-400 focus:outline-none resize-none transition-colors placeholder:text-gray-300"
+                      />
+                      <p className="text-right text-[11px] text-gray-300 mt-1">{reviewContent.length}/200자</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* 안내 문구 */}
@@ -399,9 +435,9 @@ export default function ReceiptPage() {
                 {/* 등록 버튼 */}
                 <button
                   onClick={handleSubmitReview}
-                  disabled={isSubmittingReview || (!ratingConvenience || !ratingKindness || !ratingSpeed)}
+                  disabled={isSubmittingReview || (!ratingConvenience || !ratingKindness || !ratingSpeed || !selectedReviewOption || (selectedReviewOption === '직접 입력' && !reviewContent.trim()))}
                   className={`w-full mt-5 py-4 rounded-2xl font-extrabold text-base transition-all duration-200 ${
-                    ratingConvenience && ratingKindness && ratingSpeed
+                    ratingConvenience && ratingKindness && ratingSpeed && selectedReviewOption && (selectedReviewOption !== '직접 입력' || reviewContent.trim().length > 0)
                       ? 'bg-gradient-to-r from-amber-400 to-amber-500 text-white shadow-lg hover:shadow-xl active:scale-[0.98]'
                       : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   }`}

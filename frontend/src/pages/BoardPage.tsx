@@ -474,7 +474,7 @@ export default function BoardPage() {
                         <p className="text-sm font-extrabold text-blue-600">
                           {(post.receiptSnapshot.totalPrice || 0).toLocaleString()}원
                         </p>
-                        {post.receiptSnapshot.collectionItems && post.receiptSnapshot.collectionItems.length > 0 && (
+                        {post.receiptSnapshot.collectionItems && post.receiptSnapshot.collectionItems.length > 0 ? (
                           <div className="flex flex-wrap gap-1.5 mt-1.5">
                             {post.receiptSnapshot.collectionItems.map((item: any, idx: number) => (
                               <span key={idx} className="inline-flex px-2 py-0.5 bg-white border border-gray-200 rounded text-[10px] text-gray-500 font-medium">
@@ -482,7 +482,13 @@ export default function BoardPage() {
                               </span>
                             ))}
                           </div>
-                        )}
+                        ) : post.receiptSnapshot.actualWeight > 0 ? (
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            <span className="inline-flex px-2 py-0.5 bg-white border border-gray-200 rounded text-[10px] text-gray-500 font-medium">
+                              단일 무게 정산 {post.receiptSnapshot.actualWeight}kg
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
                     )}
 
