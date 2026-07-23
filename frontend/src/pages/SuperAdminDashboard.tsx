@@ -420,7 +420,7 @@ export default function SuperAdminDashboard() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-12">
-      <div className="max-w-6xl mx-auto space-y-8">
+      <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto space-y-8">
         
         {/* Header Section */}
         <div className="glass p-8 rounded-3xl flex justify-between items-center flex-wrap gap-4">
