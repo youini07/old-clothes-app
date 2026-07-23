@@ -249,8 +249,33 @@ export default function AdminDashboard() {
   const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
 
+  const [completedFilterType, setCompletedFilterType] = useState<'day' | 'month' | 'all'>('day');
+  const [completedFilterMonth, setCompletedFilterMonth] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  });
+  const [completedFilterDriverId, setCompletedFilterDriverId] = useState<string>('ALL');
+
   const allCompletedRequests = requests
     .filter(r => r.status === 'COMPLETED')
+    .filter(r => {
+      if (completedFilterDriverId !== 'ALL' && r.driverId !== completedFilterDriverId) return false;
+      if (completedFilterType === 'all') return true;
+      if (!r.completedDate) return false;
+      
+      const d = new Date(r.completedDate);
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      
+      if (completedFilterType === 'day') {
+        return `${yyyy}-${mm}-${dd}` === completedFilterDate;
+      }
+      if (completedFilterType === 'month') {
+        return `${yyyy}-${mm}` === completedFilterMonth;
+      }
+      return true;
+    })
     .sort((a, b) => {
       const dateA = a.completedDate ? new Date(a.completedDate).getTime() : 0;
       const dateB = b.completedDate ? new Date(b.completedDate).getTime() : 0;
@@ -1880,7 +1905,49 @@ export default function AdminDashboard() {
 
                 {/* 완료된 수거 증빙 확인 섹션 */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-6">📸 완료된 수거 증빙 확인</h3>
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                    <h3 className="text-lg font-bold text-gray-900 mb-0">📸 완료된 수거 증빙 확인</h3>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <select
+                        value={completedFilterDriverId}
+                        onChange={e => setCompletedFilterDriverId(e.target.value)}
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
+                      >
+                        <option value="ALL">전체 기사</option>
+                        {drivers.map(d => (
+                          <option key={d.id} value={d.id}>{d.user?.name || d.name}</option>
+                        ))}
+                      </select>
+                      
+                      <select
+                        value={completedFilterType}
+                        onChange={e => setCompletedFilterType(e.target.value as any)}
+                        className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
+                      >
+                        <option value="day">일별 보기</option>
+                        <option value="month">월별 보기</option>
+                        <option value="all">전체 보기</option>
+                      </select>
+                      
+                      {completedFilterType === 'day' && (
+                        <input
+                          type="date"
+                          value={completedFilterDate}
+                          onChange={e => setCompletedFilterDate(e.target.value)}
+                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
+                        />
+                      )}
+                      
+                      {completedFilterType === 'month' && (
+                        <input
+                          type="month"
+                          value={completedFilterMonth}
+                          onChange={e => setCompletedFilterMonth(e.target.value)}
+                          className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm outline-none focus:border-primary-400 bg-white"
+                        />
+                      )}
+                    </div>
+                  </div>
                   {allCompletedRequests.length === 0 ? (
                     <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                       완료된 수거 건이 없습니다.
