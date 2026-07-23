@@ -395,6 +395,22 @@ router.post('/super/impersonate', authMiddleware_1.authenticate, (0, authMiddlew
         res.status(500).json({ error: '간편 로그인을 처리하는 데 실패했습니다.' });
     }
 }));
+// 0-4. 기사 계정 공동 사장 지정/해제
+router.patch('/super/accounts/:id/coboss', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { id } = req.params;
+        const { isCoBoss } = req.body;
+        yield prisma_1.prisma.driverProfile.update({
+            where: { userId: id },
+            data: { isCoBoss }
+        });
+        res.json({ message: '공동 사장 권한이 변경되었습니다.' });
+    }
+    catch (error) {
+        console.error('공동 사장 권한 변경 실패:', error);
+        res.status(500).json({ error: '공동 사장 권한 변경에 실패했습니다.' });
+    }
+}));
 // 1. 전체 지역 파트너(업체 사장님) 목록 및 신청 내역 조회
 router.get('/partners', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -599,6 +615,18 @@ router.delete('/partners/:id', authMiddleware_1.authenticate, (0, authMiddleware
             yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
         }
         yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: id } });
+        // 5.5. 게시판 및 파트너 단가표 삭제
+        // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제
+        const boardPosts = yield prisma_1.prisma.boardPost.findMany({ where: { partnerId: id } });
+        const postIds = boardPosts.map((p) => p.id);
+        if (postIds.length > 0) {
+            yield prisma_1.prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
+            yield prisma_1.prisma.boardPost.deleteMany({ where: { partnerId: id } });
+        }
+        // 파트너가 작성한 다른 댓글 삭제
+        yield prisma_1.prisma.boardComment.deleteMany({ where: { authorId: id } });
+        // 파트너의 커스텀 단가표 삭제
+        yield prisma_1.prisma.partnerPriceItem.deleteMany({ where: { partnerId: id } });
         // 6. 파트너 계정 최종 삭제
         yield prisma_1.prisma.user.delete({ where: { id, role: 'PARTNER' } });
         res.json({ message: '파트너 계정이 성공적으로 삭제되었습니다.' });
@@ -616,7 +644,7 @@ router.delete('/partners/:id', authMiddleware_1.authenticate, (0, authMiddleware
 // - 권역 설정된 사장님 → 해당 시(city) 주소의 미배정 요청 노출
 router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -664,7 +692,7 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
 // 수거 요청 수락 (선착순 방식 — 먼저 수락한 사장님에게 배정)
 router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     try {
         // 해당 요청의 현재 상태 확인
         const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
@@ -712,7 +740,7 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
 // 수거 요청 수락 취소 (다시 대기 상태로 변경)
 router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     try {
         const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
         if (!request) {
@@ -743,7 +771,7 @@ router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMidd
 // 다중 수거 요청 수락 (일괄 수락)
 router.post('/requests/bulk-claim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestIds } = req.body;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     if (!Array.isArray(requestIds) || requestIds.length === 0) {
         return res.status(400).json({ error: '수락할 요청 ID 배열이 필요합니다.' });
     }
@@ -818,7 +846,7 @@ router.patch('/requests/:id/estimated-time', authMiddleware_1.authenticate, (0, 
 // 다중 수거 요청 수락 취소 (일괄 취소)
 router.post('/requests/bulk-unclaim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestIds } = req.body;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     if (!Array.isArray(requestIds) || requestIds.length === 0) {
         return res.status(400).json({ error: '수락 취소할 요청 ID 배열이 필요합니다.' });
     }
@@ -848,7 +876,7 @@ router.post('/requests/bulk-unclaim', authMiddleware_1.authenticate, (0, authMid
 // 2. 수거 기사(Driver) 목록 조회
 router.get('/drivers', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const drivers = yield prisma_1.prisma.driverProfile.findMany({
             where: { partnerId },
             include: { user: true, customRegion: true }
@@ -862,7 +890,7 @@ router.get('/drivers', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
 // 기사(Driver) 신규 등록 (입력값 검증 포함)
 router.post('/drivers', validateMiddleware_1.validateDriver, authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const { name, phone, email, vehicleInfo, customRegionId } = req.body;
         // 초기 비밀번호는 연락처로 설정
         const initialPassword = phone || '12345678';
@@ -955,7 +983,7 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
 router.patch('/requests/:id/date', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     const { confirmedDate } = req.body;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     try {
         const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
         if (!request) {
@@ -987,7 +1015,7 @@ router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMid
         return res.status(400).json({ error: '기사 배정 또는 방문 확정일 중 하나 이상을 입력해주세요.' });
     }
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const isAdmin = req.user.role === 'SUPER_ADMIN';
         // 권한 확인: SUPER_ADMIN은 모두 허용, PARTNER는 본인 건만 허용
         const whereClause = isAdmin ? { id: { in: requestIds } } : { id: { in: requestIds }, partnerId };
@@ -1058,7 +1086,7 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
         return res.status(400).json({ error: '배정할 수거 건을 선택해주세요.' });
     }
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
         const requests = yield prisma_1.prisma.request.findMany({
             where: { id: { in: requestIds }, partnerId }
@@ -1116,7 +1144,7 @@ router.post('/requests/reorder', authMiddleware_1.authenticate, (0, authMiddlewa
         return res.status(400).json({ error: '순서를 변경할 요청 ID 목록이 필요합니다.' });
     }
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         // 본인 권한 소속인지 검증 (성능을 위해 count 사용)
         const validCount = yield prisma_1.prisma.request.count({
             where: { id: { in: requestIds }, partnerId }
@@ -1139,7 +1167,7 @@ router.post('/requests/reorder', authMiddleware_1.authenticate, (0, authMiddlewa
 // 3-3. 특정 기사의 동선 최적화 (카카오/T맵 좌표 API 기반 첫번째 수거지 출발 정렬)
 router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { driverId } = req.params;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     try {
         // 기사 프로필 확인
         const driver = yield prisma_1.prisma.driverProfile.findUnique({
@@ -1248,7 +1276,7 @@ router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, 
 router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         // 권한 확인
         const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
         if (!request || request.partnerId !== partnerId) {
@@ -1279,7 +1307,7 @@ router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authM
         return res.status(400).json({ error: '취소할 수거 건을 선택해주세요.' });
     }
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
         const requests = yield prisma_1.prisma.request.findMany({
             where: { id: { in: ids }, partnerId }
@@ -1311,7 +1339,7 @@ router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authM
 // 5. 사장님 본인을 기사로 자동 등록 (원클릭)
 router.post('/drivers/self', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const existing = yield prisma_1.prisma.driverProfile.findUnique({ where: { userId: partnerId } });
         if (existing) {
             return res.status(400).json({ error: '이미 사장님 계정으로 기사가 등록되어 있습니다.' });
@@ -1338,7 +1366,7 @@ router.post('/drivers/self', authMiddleware_1.authenticate, (0, authMiddleware_1
 // 권역 목록 조회
 router.get('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const regions = yield prisma_1.prisma.customRegion.findMany({
             where: { partnerId }
         });
@@ -1351,7 +1379,7 @@ router.get('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware_
 // 새 권역 생성
 router.post('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const { name, areas } = req.body; // areas: string[]
         if (!name || !areas || !Array.isArray(areas)) {
             return res.status(400).json({ error: '권역 이름과 지역 목록이 필요합니다.' });
@@ -1373,7 +1401,7 @@ router.post('/custom-regions', authMiddleware_1.authenticate, (0, authMiddleware
 // 권역 삭제
 router.delete('/custom-regions/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const { id } = req.params;
         // 해당 권역이 본인의 것인지 확인
         const region = yield prisma_1.prisma.customRegion.findUnique({ where: { id } });
@@ -1399,7 +1427,7 @@ router.delete('/custom-regions/:id', authMiddleware_1.authenticate, (0, authMidd
 // 기사의 권역(월별 교대용) 및 정보 수정
 router.patch('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const driverId = req.params.id;
         const { customRegionId, vehicleInfo, name, phone } = req.body;
         // 본인 기사인지 확인
@@ -1442,7 +1470,7 @@ router.patch('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
 // 기사 삭제
 router.delete('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const driverId = req.params.id;
         // 본인 소속 기사인지 확인
         const driver = yield prisma_1.prisma.driverProfile.findUnique({
@@ -1488,7 +1516,7 @@ router.delete('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_
 // ==========================================
 router.get('/stats', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         // 파트너가 담당하는 권역 ID 목록
         const coverages = yield prisma_1.prisma.coverage.findMany({ where: { partnerId } });
         const regionIds = coverages.map((c) => c.regionId);
@@ -1904,7 +1932,7 @@ router.post('/debug/migrate-regions', (req, res) => __awaiter(void 0, void 0, vo
 // 파트너 본인의 설정 정보 조회
 router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const partner = yield prisma_1.prisma.user.findUnique({
             where: { id: partnerId },
             select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
@@ -1926,7 +1954,7 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
 }));
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
     try {
         const updatedPartner = yield prisma_1.prisma.user.update({
@@ -1948,7 +1976,7 @@ router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.re
 // 파트너별 커스텀 단가표 일괄 저장 (upsert 방식)
 // 왜 upsert인가: 카테고리가 이미 존재하면 업데이트, 없으면 생성
 router.put('/price-table', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     const { items } = req.body;
     try {
         if (!items || items.length === 0) {
@@ -2028,7 +2056,7 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
 // 비회원 수동 접수(전화 접수) API
 router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const requestData = req.body;
-    const partnerId = req.user.userId;
+    const partnerId = req.user.partnerId || req.user.userId;
     try {
         let province = '';
         let city = '';
@@ -2089,7 +2117,7 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
 // ============================================
 router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const partnerId = req.user.userId;
+        const partnerId = req.user.partnerId || req.user.userId;
         const { date, startDate, endDate } = req.query;
         // 이 파트너 소속의 기사들 찾기
         const drivers = yield prisma_1.prisma.driverProfile.findMany({
@@ -2275,7 +2303,9 @@ router.get('/super/settings', authMiddleware_1.authenticate, (0, authMiddleware_
         if (!settings) {
             settings = yield prisma_1.prisma.globalSettings.create({ data: { id: 'global' } });
         }
-        res.json(settings);
+        // 비밀번호 평문은 보안상 내려주지 않습니다.
+        const { deletePassword } = settings, safeSettings = __rest(settings, ["deletePassword"]);
+        res.json(safeSettings);
     }
     catch (error) {
         console.error('설정 조회 실패:', error);
@@ -2285,18 +2315,23 @@ router.get('/super/settings', authMiddleware_1.authenticate, (0, authMiddleware_
 // 0-5. 설정 업데이트 (삭제 비밀번호 변경)
 router.put('/super/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { deletePassword } = req.body;
+        const { currentPassword, newPassword } = req.body;
         let settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
         if (!settings) {
-            settings = yield prisma_1.prisma.globalSettings.create({ data: { id: 'global', deletePassword } });
+            settings = yield prisma_1.prisma.globalSettings.create({ data: { id: 'global' } });
         }
-        else {
-            settings = yield prisma_1.prisma.globalSettings.update({
-                where: { id: 'global' },
-                data: { deletePassword }
-            });
+        if (currentPassword !== settings.deletePassword) {
+            return res.status(401).json({ error: '현재 비밀번호가 일치하지 않습니다.' });
         }
-        res.json({ message: '설정이 성공적으로 저장되었습니다.', settings });
+        if (!newPassword || newPassword.trim() === '') {
+            return res.status(400).json({ error: '새 비밀번호를 입력해주세요.' });
+        }
+        settings = yield prisma_1.prisma.globalSettings.update({
+            where: { id: 'global' },
+            data: { deletePassword: newPassword }
+        });
+        const { deletePassword: dp } = settings, safeSettings = __rest(settings, ["deletePassword"]);
+        res.json({ message: '비밀번호가 성공적으로 변경되었습니다.', settings: safeSettings });
     }
     catch (error) {
         console.error('설정 업데이트 실패:', error);

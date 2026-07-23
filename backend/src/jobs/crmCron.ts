@@ -107,6 +107,16 @@ export const initCrmCron = () => {
             await prisma.chatRoom.delete({ where: { id: r.id } });
           }
           await prisma.chatMessage.deleteMany({ where: { senderId: user.id } });
+          
+          // 게시판 및 파트너 단가표 삭제
+          const boardPosts = await prisma.boardPost.findMany({ where: { partnerId: user.id } });
+          const postIds = boardPosts.map((p: any) => p.id);
+          if (postIds.length > 0) {
+            await prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
+            await prisma.boardPost.deleteMany({ where: { partnerId: user.id } });
+          }
+          await prisma.boardComment.deleteMany({ where: { authorId: user.id } });
+          
           await prisma.partnerPriceItem.deleteMany({ where: { partnerId: user.id } });
           await prisma.user.delete({ where: { id: user.id } });
         } else if (user.role === 'DRIVER') {

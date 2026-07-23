@@ -655,6 +655,19 @@ router.delete('/partners/:id', authenticate, requireRole(['SUPER_ADMIN']), async
     }
     await prisma.chatMessage.deleteMany({ where: { senderId: id } });
 
+    // 5.5. 게시판 및 파트너 단가표 삭제
+    // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제
+    const boardPosts = await prisma.boardPost.findMany({ where: { partnerId: id } });
+    const postIds = boardPosts.map((p: any) => p.id);
+    if (postIds.length > 0) {
+      await prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
+      await prisma.boardPost.deleteMany({ where: { partnerId: id } });
+    }
+    // 파트너가 작성한 다른 댓글 삭제
+    await prisma.boardComment.deleteMany({ where: { authorId: id } });
+    // 파트너의 커스텀 단가표 삭제
+    await prisma.partnerPriceItem.deleteMany({ where: { partnerId: id } });
+
     // 6. 파트너 계정 최종 삭제
     await prisma.user.delete({ where: { id, role: 'PARTNER' } });
 

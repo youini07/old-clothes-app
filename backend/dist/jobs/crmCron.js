@@ -106,6 +106,14 @@ const initCrmCron = () => {
                         yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
                     }
                     yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: user.id } });
+                    // 게시판 및 파트너 단가표 삭제
+                    const boardPosts = yield prisma_1.prisma.boardPost.findMany({ where: { partnerId: user.id } });
+                    const postIds = boardPosts.map((p) => p.id);
+                    if (postIds.length > 0) {
+                        yield prisma_1.prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
+                        yield prisma_1.prisma.boardPost.deleteMany({ where: { partnerId: user.id } });
+                    }
+                    yield prisma_1.prisma.boardComment.deleteMany({ where: { authorId: user.id } });
                     yield prisma_1.prisma.partnerPriceItem.deleteMany({ where: { partnerId: user.id } });
                     yield prisma_1.prisma.user.delete({ where: { id: user.id } });
                 }

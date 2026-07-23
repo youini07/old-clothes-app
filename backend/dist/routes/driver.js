@@ -254,8 +254,9 @@ router.post('/depart/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.r
         if (driver && driver.phone) {
             driverPhone = driver.phone;
         }
-        // 7. 고객에게 알림톡/문자 발송
-        yield (0, notificationService_1.sendDepartureNotification)(request.phone, request.userName, etaMinutes, useBizMessage, driverPhone);
+        // 7. 고객에게 알림톡/문자 발송 (비동기로 실행하여 응답 속도 최적화)
+        (0, notificationService_1.sendDepartureNotification)(request.phone, request.userName, etaMinutes, useBizMessage, driverPhone)
+            .catch(err => console.error('출발 알림톡 전송 실패:', err));
         res.json({ message: '출발 처리가 완료되었습니다.', request: updatedRequest });
     }
     catch (error) {

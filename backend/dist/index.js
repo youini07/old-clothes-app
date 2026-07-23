@@ -23,6 +23,7 @@ const requests_1 = __importDefault(require("./routes/requests"));
 const admin_1 = __importDefault(require("./routes/admin"));
 const driver_1 = __importDefault(require("./routes/driver"));
 const chat_1 = __importDefault(require("./routes/chat"));
+const board_1 = __importDefault(require("./routes/board"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const prisma_1 = require("./lib/prisma");
 dotenv_1.default.config();
@@ -66,6 +67,7 @@ app.use('/api/requests', requests_1.default);
 app.use('/api/admin', admin_1.default);
 app.use('/api/driver', driver_1.default);
 app.use('/api/chat', chat_1.default);
+app.use('/api/board', board_1.default);
 // 공개(Public) API - 공지사항 등
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {

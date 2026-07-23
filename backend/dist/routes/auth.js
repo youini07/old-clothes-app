@@ -159,7 +159,7 @@ router.get('/partners', (req, res) => __awaiter(void 0, void 0, void 0, function
                 role: 'PARTNER',
                 email: { not: 'demo_partner@test.com' }
             },
-            select: { id: true, businessName: true, name: true, email: true }
+            select: { id: true, businessName: true, name: true, email: true, address: true, detailAddress: true }
         });
         res.json(partners);
     }
@@ -234,8 +234,17 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         if (!isMatch) {
             return res.status(401).json({ error: '비밀번호가 일치하지 않습니다.' });
         }
-        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
-        res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role } });
+        let isCoBoss = false;
+        let partnerId = undefined;
+        if (user.role === 'DRIVER') {
+            const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { userId: user.id } });
+            if (driverProfile) {
+                isCoBoss = driverProfile.isCoBoss;
+                partnerId = driverProfile.partnerId;
+            }
+        }
+        const jwtToken = jsonwebtoken_1.default.sign({ userId: user.id, role: user.role, isCoBoss, partnerId }, process.env.JWT_SECRET || 'secret', { expiresIn: '7d' });
+        res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role, isCoBoss, partnerId } });
     }
     catch (error) {
         console.error('로그인 에러:', error);
