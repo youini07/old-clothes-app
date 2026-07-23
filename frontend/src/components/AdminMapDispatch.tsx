@@ -65,6 +65,7 @@ interface AdminMapDispatchProps {
 export default function AdminMapDispatch({ requests, drivers, onAssigned, authToken, partnerAddress, partnerBusinessName }: AdminMapDispatchProps) {
   const mapRef = useRef<any>(null);
   const clustererRef = useRef<any>(null);
+  const isInitialBoundsSet = useRef(false);
   const [mapLoaded, setMapLoaded] = useState(false);
   const [unassignedRequests, setUnassignedRequests] = useState<(RequestItem & { lat?: number; lng?: number; marker?: any })[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -204,7 +205,10 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
     function checkBounds() {
       loadedCount++;
       if (loadedCount === uniqueAddresses.length && boundsExtended) {
-        map.setBounds(bounds);
+        if (!isInitialBoundsSet.current) {
+          map.setBounds(bounds);
+          isInitialBoundsSet.current = true;
+        }
       }
     }
 
@@ -294,7 +298,9 @@ export default function AdminMapDispatch({ requests, drivers, onAssigned, authTo
             zIndex: 100
           });
           
-          map.setBounds(bounds);
+          if (!isInitialBoundsSet.current) {
+            map.setBounds(bounds);
+          }
         }
       });
     }
