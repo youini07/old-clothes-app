@@ -1880,41 +1880,77 @@ export default function AdminDashboard() {
 
                 {/* 완료된 수거 증빙 확인 섹션 */}
                 <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">📸 완료된 수거 증빙 확인</h3>
+                  <h3 className="text-lg font-bold text-gray-900 mb-6">📸 완료된 수거 증빙 확인</h3>
                   {allCompletedRequests.length === 0 ? (
                     <div className="text-center py-10 text-gray-400 border-2 border-dashed border-gray-100 rounded-2xl">
                       완료된 수거 건이 없습니다.
                     </div>
                   ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {allCompletedRequests.map(req => {
-                        const driverObj = drivers.find(d => d.id === req.driverId);
-                        const driverName = driverObj?.user?.name || driverObj?.name || '미지정';
-                        return (
-                          <div 
-                            key={req.id}
-                            onClick={() => setSelectedCompletedRequest(req)}
-                            className="p-4 bg-gray-50 hover:bg-primary-50/50 border border-gray-100 hover:border-primary-300 rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col justify-between gap-3"
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <h4 className="font-extrabold text-gray-900 text-base">{req.userName} <span className="text-xs font-normal text-gray-500">{formatPhoneNumber(req.phone)}</span></h4>
-                                <p className="text-xs text-gray-500 mt-1 line-clamp-1">{req.address} {req.detailAddress}</p>
+                    <div className="space-y-8">
+                      {(() => {
+                        // 날짜별로 그룹화
+                        const grouped = allCompletedRequests.reduce((acc, req) => {
+                          const dateObj = req.completedDate ? new Date(req.completedDate) : null;
+                          const dateKey = dateObj ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'unknown';
+                          if (!acc[dateKey]) acc[dateKey] = [];
+                          acc[dateKey].push(req);
+                          return acc;
+                        }, {} as Record<string, typeof allCompletedRequests>);
+
+                        // 날짜 내림차순 정렬
+                        const sortedDateKeys = Object.keys(grouped).sort((a, b) => b.localeCompare(a));
+
+                        return sortedDateKeys.map(dateKey => {
+                          const reqs = grouped[dateKey];
+                          const dateObj = dateKey === 'unknown' ? null : new Date(dateKey);
+                          const dateTitle = dateObj 
+                            ? `${dateObj.getFullYear()}년 ${dateObj.getMonth() + 1}월 ${dateObj.getDate()}일 (${['일','월','화','수','목','금','토'][dateObj.getDay()]})`
+                            : '날짜 없음';
+
+                          return (
+                            <div key={dateKey} className="space-y-3">
+                              <div className="flex items-end justify-between border-b border-gray-200 pb-2">
+                                <h4 className="font-bold text-gray-800 text-lg">{dateTitle}</h4>
+                                <span className="text-sm font-bold text-primary-600 bg-primary-50 px-2 py-1 rounded-lg">총 {reqs.length}건</span>
                               </div>
-                              <span className="text-xs bg-green-50 text-green-700 font-bold px-2.5 py-1 rounded-lg shrink-0">
-                                {req.actualWeight}kg
-                              </span>
+                              <div className="flex flex-col gap-2">
+                                {reqs.map(req => {
+                                  const driverObj = drivers.find(d => d.id === req.driverId);
+                                  const driverName = driverObj?.user?.name || driverObj?.name || '미지정';
+                                  return (
+                                    <div 
+                                      key={req.id}
+                                      onClick={() => setSelectedCompletedRequest(req)}
+                                      className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-gray-50 hover:bg-white border border-gray-100 hover:border-primary-300 rounded-xl shadow-sm cursor-pointer transition-all gap-3 md:gap-4 group"
+                                    >
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-1">
+                                          <span className="font-extrabold text-gray-900 text-base">{req.userName}</span>
+                                          <span className="text-sm text-gray-500">{formatPhoneNumber(req.phone)}</span>
+                                          <span className="text-xs bg-green-100 text-green-700 border border-green-200 font-bold px-2 py-0.5 rounded-md ml-2 shrink-0">
+                                            {req.actualWeight}kg
+                                          </span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 truncate">{req.address} {req.detailAddress}</p>
+                                      </div>
+                                      
+                                      <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 border-t border-gray-200 md:border-none pt-3 md:pt-0 mt-1 md:mt-0">
+                                        <div className="text-sm text-gray-500 flex flex-col md:text-right">
+                                          <span className="text-xs opacity-70 mb-0.5">담당 기사</span>
+                                          <strong className="text-gray-800">{driverName}</strong>
+                                        </div>
+                                        <div className="px-3 py-2 bg-white border border-gray-200 group-hover:border-primary-300 group-hover:text-primary-600 rounded-lg text-sm font-bold text-gray-600 transition-colors flex items-center gap-1.5 shadow-sm">
+                                          📸 상세 확인
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </div>
-                            <div className="flex justify-between items-center text-xs text-gray-500 pt-2 border-t border-gray-200/50">
-                              <span>담당 기사: <strong className="text-gray-700">{driverName}</strong></span>
-                              <span>{req.completedDate ? new Date(req.completedDate).toLocaleDateString('ko-KR') : ''}</span>
-                            </div>
-                            <div className="flex items-center justify-center py-2 bg-white border border-gray-200 rounded-xl text-xs font-bold text-primary-600 hover:bg-primary-50 transition-colors">
-                              📸 완료 증빙 사진 및 내역 보기
-                            </div>
-                          </div>
-                        );
-                      })}
+                          );
+                        });
+                      })()}
                     </div>
                   )}
                 </div>
