@@ -359,13 +359,19 @@ export default function AdminDashboard() {
     e.preventDefault();
     setIsSubmittingEditRequest(true);
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${editRequestForm.id}`, {
+      const response = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${editRequestForm.id}`, {
         ...editRequestForm
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       setIsEditRequestModalOpen(false);
-      fetchData();
+      
+      if (response.data.request) {
+        setRequests(prev => prev.map(r => r.id === editRequestForm.id ? { ...r, ...response.data.request } : r));
+      } else {
+        fetchData();
+      }
+      
       alert('수거 요청 정보가 수정되었습니다.');
     } catch (error) {
       console.error('수정 실패:', error);
