@@ -2381,6 +2381,43 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
   }
 });
 
+// ============================================
+// 수거 요청 정보 수정 API (이름, 연락처, 주소 등)
+// ============================================
+router.patch('/requests/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  const requestId = req.params.id;
+  const updateData = req.body;
+  const partnerId = req.user!.partnerId || req.user!.userId;
+
+  try {
+    const existingReq = await prisma.request.findUnique({ where: { id: requestId } });
+    if (!existingReq) {
+      return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+    }
+
+    if (req.user!.role === 'PARTNER' && existingReq.partnerId && existingReq.partnerId !== partnerId) {
+       return res.status(403).json({ error: '수정 권한이 없습니다.' });
+    }
+
+    const updatedRequest = await prisma.request.update({
+      where: { id: requestId },
+      data: {
+        userName: updateData.userName !== undefined ? updateData.userName : undefined,
+        phone: updateData.phone !== undefined ? updateData.phone : undefined,
+        address: updateData.address !== undefined ? updateData.address : undefined,
+        detailAddress: updateData.detailAddress !== undefined ? updateData.detailAddress : undefined,
+        estimatedVolume: updateData.estimatedVolume !== undefined ? updateData.estimatedVolume : undefined,
+        desiredDate: updateData.desiredDate ? new Date(updateData.desiredDate) : undefined,
+      }
+    });
+
+    res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
+  } catch (error) {
+    console.error('수거 요청 수정 에러:', error);
+    res.status(500).json({ error: '수정 중 오류가 발생했습니다.' });
+  }
+});
+
 
 // ============================================
 // 전체 기사 하루 정산 통계 조회

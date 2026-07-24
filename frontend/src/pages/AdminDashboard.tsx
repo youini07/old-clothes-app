@@ -163,6 +163,11 @@ export default function AdminDashboard() {
   const [manualForm, setManualForm] = useState({ userName: '', phone: '', address: '', detailAddress: '', estimatedWeight: '', estimatedVolume: '', desiredDate: '' });
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
+  const [addressTarget, setAddressTarget] = useState<'manual' | 'edit'>('manual');
+
+  const [isEditRequestModalOpen, setIsEditRequestModalOpen] = useState(false);
+  const [editRequestForm, setEditRequestForm] = useState({ id: '', userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+  const [isSubmittingEditRequest, setIsSubmittingEditRequest] = useState(false);
 
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
@@ -349,6 +354,39 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleEditRequestSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmittingEditRequest(true);
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/admin/requests/${editRequestForm.id}`, {
+        ...editRequestForm
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      setIsEditRequestModalOpen(false);
+      fetchData();
+      alert('수거 요청 정보가 수정되었습니다.');
+    } catch (error) {
+      console.error('수정 실패:', error);
+      alert('수정 중 오류가 발생했습니다.');
+    } finally {
+      setIsSubmittingEditRequest(false);
+    }
+  };
+
+  const openEditRequestModal = (req: RequestItem) => {
+    setEditRequestForm({
+      id: req.id,
+      userName: req.userName || '',
+      phone: req.phone || '',
+      address: req.address || '',
+      detailAddress: req.detailAddress || '',
+      estimatedVolume: req.estimatedVolume || '',
+      desiredDate: req.desiredDate ? new Date(req.desiredDate).toISOString().split('T')[0] : ''
+    });
+    setIsEditRequestModalOpen(true);
+  };
+
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingManual(true);
@@ -373,12 +411,17 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleAddressSearch = () => {
+  const handleAddressSearch = (target: 'manual' | 'edit' = 'manual') => {
+    setAddressTarget(target);
     setIsAddressModalOpen(true);
   };
 
   const handleAddressComplete = (data: any) => {
-    setManualForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
+    if (addressTarget === 'manual') {
+      setManualForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
+    } else {
+      setEditRequestForm(prev => ({ ...prev, address: data.address, detailAddress: '' }));
+    }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -2002,6 +2045,14 @@ export default function AdminDashboard() {
                                       </div>
                                       
                                       <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 border-t border-gray-200 md:border-none pt-3 md:pt-0 mt-1 md:mt-0">
+                                        <div className="flex gap-2">
+                                          <button 
+                                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors"
+                                          >
+                                            수정
+                                          </button>
+                                        </div>
                                         <div className="text-sm text-gray-500 flex flex-col md:text-right">
                                           <span className="text-xs opacity-70 mb-0.5">담당 기사</span>
                                           <strong className="text-gray-800">{driverName}</strong>
@@ -2499,6 +2550,12 @@ export default function AdminDashboard() {
                       
                       <div className="mt-1 pl-8 flex justify-end gap-2">
                         <button
+                          onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                        >
+                          ✏️ 정보 수정
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
                           className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
                         >
@@ -2636,6 +2693,12 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="mt-1 pl-8 flex justify-end gap-2">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                        className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                      >
+                        ✏️ 정보 수정
+                      </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
                         className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
@@ -2932,28 +2995,36 @@ export default function AdminDashboard() {
                                             </button>
                                           </div>
                                         </div>
-                                        <button
-                                          disabled={unassigningReqId === req.id}
-                                          onClick={async (e) => {
-                                            e.stopPropagation();
-                                            if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
-                                            setUnassigningReqId(req.id);
-                                            try {
-                                              await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
-                                                headers: { Authorization: `Bearer ${authToken}` }
-                                              });
-                                              fetchData();
-                                            } catch (error) {
-                                              alert('배정 취소에 실패했습니다.');
-                                            } finally {
-                                              setUnassigningReqId(null);
-                                            }
-                                          }}
-                                          className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
-                                        >
-                                          {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
-                                          배정 취소
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                                            className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 shadow-sm"
+                                          >
+                                            ✏️ 수정
+                                          </button>
+                                          <button
+                                            disabled={unassigningReqId === req.id}
+                                            onClick={async (e) => {
+                                              e.stopPropagation();
+                                              if(!confirm('해당 수거 건의 배정을 취소하시겠습니까?')) return;
+                                              setUnassigningReqId(req.id);
+                                              try {
+                                                await axios.post(`${import.meta.env.VITE_API_URL}/admin/requests/${req.id}/unassign`, {}, {
+                                                  headers: { Authorization: `Bearer ${authToken}` }
+                                                });
+                                                fetchData();
+                                              } catch (error) {
+                                                alert('배정 취소에 실패했습니다.');
+                                              } finally {
+                                                setUnassigningReqId(null);
+                                              }
+                                            }}
+                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                          >
+                                            {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
+                                            배정 취소
+                                          </button>
+                                        </div>
                                       </div>
                                     </div>
                                   </div>
@@ -3382,6 +3453,60 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* 수거 요청 정보 수정 모달 */}
+      {isEditRequestModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 rounded-t-3xl">
+              <h3 className="text-xl font-bold text-gray-900">✏️ 수거 요청 정보 수정</h3>
+              <button onClick={() => setIsEditRequestModalOpen(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditRequestSubmit} className="p-6 overflow-y-auto space-y-5">
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">고객명 / 상호명</label>
+                  <input type="text" required value={editRequestForm.userName} onChange={e => setEditRequestForm({...editRequestForm, userName: e.target.value})} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">연락처</label>
+                  <input type="text" required value={editRequestForm.phone} onChange={e => setEditRequestForm({...editRequestForm, phone: e.target.value})} placeholder="010-0000-0000" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
+                  <div className="flex gap-2">
+                    <input type="text" required value={editRequestForm.address} onChange={e => setEditRequestForm({...editRequestForm, address: e.target.value})} className="flex-1 px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                    <button type="button" onClick={() => handleAddressSearch('edit')} className="px-4 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 whitespace-nowrap text-sm border border-gray-200">주소검색</button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">상세주소</label>
+                  <input type="text" value={editRequestForm.detailAddress} onChange={e => setEditRequestForm({...editRequestForm, detailAddress: e.target.value})} placeholder="동/호수 등" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">수거 품목 및 예상 무게/부피</label>
+                  <input type="text" value={editRequestForm.estimatedVolume} onChange={e => setEditRequestForm({...editRequestForm, estimatedVolume: e.target.value})} placeholder="예: 헌옷 3봉지, 후라이팬 등" className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-1">고객 수거 희망일</label>
+                  <input type="date" value={editRequestForm.desiredDate} onChange={e => setEditRequestForm({...editRequestForm, desiredDate: e.target.value})} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-sm outline-none" />
+                </div>
+              </div>
+              
+              <div className="pt-4 flex gap-3 border-t border-gray-100 mt-6">
+                <button type="button" onClick={() => setIsEditRequestModalOpen(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200 transition-colors">취소</button>
+                <button type="submit" disabled={isSubmittingEditRequest} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors flex items-center justify-center gap-2">
+                  {isSubmittingEditRequest && <Spinner className="w-4 h-4" />}
+                  {isSubmittingEditRequest ? '저장 중...' : '저장하기'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* 비회원 수동 접수 모달 */}
       {isManualModalOpen && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
@@ -3406,7 +3531,7 @@ export default function AdminDashboard() {
                 <label className="block text-sm font-bold text-gray-700 mb-1">주소</label>
                 <div className="flex gap-2 mb-2">
                   <input type="text" required readOnly value={manualForm.address} className="flex-1 min-w-0 bg-gray-50 border rounded-lg p-2" placeholder="주소 검색을 눌러주세요" />
-                  <button type="button" onClick={handleAddressSearch} className="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap shrink-0">주소 검색</button>
+                  <button type="button" onClick={() => handleAddressSearch('manual')} className="bg-gray-800 text-white px-3 py-2 rounded-lg text-sm font-bold whitespace-nowrap shrink-0">주소 검색</button>
                 </div>
                 <input type="text" required value={manualForm.detailAddress} onChange={e => setManualForm({...manualForm, detailAddress: e.target.value})} className="w-full border rounded-lg p-2" placeholder="상세 주소 (동/호수)" />
               </div>
