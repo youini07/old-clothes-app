@@ -15,6 +15,7 @@ interface RequestItem {
   phone: string;
   address: string;
   detailAddress: string;
+  customerId?: string | null;
   estimatedVolume: string;
   status: string;
   partnerId: string | null;
@@ -2046,12 +2047,14 @@ export default function AdminDashboard() {
                                       
                                       <div className="flex items-center justify-between md:justify-end gap-4 shrink-0 border-t border-gray-200 md:border-none pt-3 md:pt-0 mt-1 md:mt-0">
                                         <div className="flex gap-2">
-                                          <button 
-                                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                                            className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors"
-                                          >
-                                            수정
-                                          </button>
+                                          {!req.customerId && (
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                                              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-bold transition-colors"
+                                            >
+                                              수정
+                                            </button>
+                                          )}
                                         </div>
                                         <div className="text-sm text-gray-500 flex flex-col md:text-right">
                                           <span className="text-xs opacity-70 mb-0.5">담당 기사</span>
@@ -2549,12 +2552,14 @@ export default function AdminDashboard() {
                       </div>
                       
                       <div className="mt-1 pl-8 flex justify-end gap-2">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
-                        >
-                          ✏️ 정보 수정
-                        </button>
+                        {!req.customerId && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                            className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                          >
+                            ✏️ 정보 수정
+                          </button>
+                        )}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
                           className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
@@ -2693,12 +2698,14 @@ export default function AdminDashboard() {
                     </div>
                     
                     <div className="mt-1 pl-8 flex justify-end gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                        className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
-                      >
-                        ✏️ 정보 수정
-                      </button>
+                      {!req.customerId && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                        >
+                          ✏️ 정보 수정
+                        </button>
+                      )}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
                         className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
@@ -2996,12 +3003,14 @@ export default function AdminDashboard() {
                                           </div>
                                         </div>
                                         <div className="flex items-center gap-2">
-                                          <button
-                                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                                            className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 shadow-sm"
-                                          >
-                                            ✏️ 수정
-                                          </button>
+                                          {!req.customerId && (
+                                            <button
+                                              onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                                              className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 shadow-sm"
+                                            >
+                                              ✏️ 수정
+                                            </button>
+                                          )}
                                           <button
                                             disabled={unassigningReqId === req.id}
                                             onClick={async (e) => {
