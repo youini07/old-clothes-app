@@ -2557,18 +2557,18 @@ export default function AdminDashboard() {
                         </div>
                       </div>
                       
-                      <div className="mt-1 pl-8 flex justify-end gap-2">
+                      <div className="mt-1 pl-8 flex flex-wrap justify-end gap-2">
                         {!req.customerId && (
                           <button
                             onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                            className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                            className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap"
                           >
                             ✏️ 정보 수정
                           </button>
                         )}
                         <button
                           onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
+                          className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap"
                         >
                           🗑️ 강제 삭제
                         </button>
@@ -2576,7 +2576,7 @@ export default function AdminDashboard() {
                           <button
                             onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
                             disabled={claimingId === req.id}
-                            className={`flex-1 sm:flex-none px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm justify-center flex items-center gap-1 ${claimingId === req.id ? 'opacity-70 cursor-not-allowed bg-orange-300' : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'}`}
+                            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm justify-center flex items-center gap-1 whitespace-nowrap ${claimingId === req.id ? 'opacity-70 cursor-not-allowed bg-orange-300' : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'}`}
                           >
                             {claimingId === req.id ? <Spinner className="w-4 h-4 text-white" /> : '✋ 수락'}
                           </button>
@@ -2703,18 +2703,18 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     
-                    <div className="mt-1 pl-8 flex justify-end gap-2">
+                    <div className="mt-1 pl-8 flex flex-wrap justify-end gap-2">
                       {!req.customerId && (
                         <button
                           onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                          className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100"
+                          className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap"
                         >
                           ✏️ 정보 수정
                         </button>
                       )}
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                        className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100"
+                        className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap"
                       >
                         🗑️ 강제 삭제
                       </button>
@@ -2722,7 +2722,7 @@ export default function AdminDashboard() {
                         <button
                           onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
                           disabled={unclaimingId === req.id}
-                          className={`flex-1 sm:flex-none px-3 py-2 text-xs font-bold rounded-xl transition-colors justify-center flex items-center gap-1 border ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600 active:scale-95'}`}
+                          className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors justify-center flex items-center gap-1 border whitespace-nowrap ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600 active:scale-95'}`}
                         >
                           {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
                           수락 취소
@@ -2983,7 +2983,7 @@ export default function AdminDashboard() {
                                           onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
                                           className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors whitespace-nowrap"
                                         >
-                                          📱 방문 안내 문자
+                                          📱 문자
                                         </button>
                                       </div>
                                       
