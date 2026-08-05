@@ -12,6 +12,7 @@ interface Partner {
   isApproved: boolean;
   regions: { regionId: string; province: string; city: string; town?: string }[];
   useBizMessage: boolean;
+  useChat?: boolean;
 }
 
 export default function SuperAdminDashboard() {
@@ -418,6 +419,23 @@ export default function SuperAdminDashboard() {
     }
   };
 
+  const toggleChat = async (partnerId: string, currentState: boolean) => {
+    if (!authToken) return alert('로그인이 필요합니다.');
+    // Optimistic update
+    setPartners(prev => prev.map(p => p.id === partnerId ? { ...p, useChat: !currentState } : p));
+    
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/admin/partners/${partnerId}/chat`, {
+        useChat: !currentState
+      }, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+    } catch (error) {
+      alert('설정 변경 중 오류가 발생했습니다.');
+      fetchPartners(); // rollback
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6 md:p-12">
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto space-y-8">
@@ -695,20 +713,38 @@ export default function SuperAdminDashboard() {
                       승인 및 권역 할당하기
                     </button>
                   ) : (
-                    <div className="mt-6 pt-4 border-t border-gray-100 flex justify-between items-center bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
-                      <div>
-                        <p className="text-sm font-bold text-gray-800">알림톡 발송 <span className="text-primary-600 text-xs">(유료옵션)</span></p>
-                        <p className="text-xs text-gray-500 mt-0.5">기사 출발 시 자동 전송</p>
+                    <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col gap-4 bg-gray-50 -mx-6 -mb-6 p-6 rounded-b-2xl">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">알림톡 발송 <span className="text-primary-600 text-xs">(유료옵션)</span></p>
+                          <p className="text-xs text-gray-500 mt-0.5">기사 출발 시 자동 전송</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={partner.useBizMessage}
+                            onChange={() => toggleBizMessage(partner.id, partner.useBizMessage)}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                        </label>
                       </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input 
-                          type="checkbox" 
-                          className="sr-only peer" 
-                          checked={partner.useBizMessage}
-                          onChange={() => toggleBizMessage(partner.id, partner.useBizMessage)}
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
-                      </label>
+
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-bold text-gray-800">실시간 고객문의</p>
+                          <p className="text-xs text-gray-500 mt-0.5">고객이 1:1 채팅 문의 가능</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input 
+                            type="checkbox" 
+                            className="sr-only peer" 
+                            checked={partner.useChat ?? true}
+                            onChange={() => toggleChat(partner.id, partner.useChat ?? true)}
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600"></div>
+                        </label>
+                      </div>
                     </div>
                   )}
                 </div>

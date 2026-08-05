@@ -30,6 +30,7 @@ model User {
   drivers         DriverProfile[] // 사장님이 고용한 기사들
   useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
   useCrmAutomation Boolean @default(false) // 파트너의 3개월 리텐션 CRM 자동화 사용 여부 (유료 서비스)
+  useChat         Boolean  @default(true) // 실시간 고객문의 사용 여부
   pricePerKg      Int      @default(300) // 1kg당 수거 단가 (레거시, 사장님이 설정 가능)
   priceItems      PartnerPriceItem[] // 파트너별 커스텀 단가표 (카테고리별)
   

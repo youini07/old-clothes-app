@@ -454,6 +454,8 @@ router.get('/partners', authenticate, requireRole(['SUPER_ADMIN']), async (req: 
       ownerName: user.name,
       phone: user.phone || '연락처 없음',
       isApproved: user.isApproved,
+      useCrmAutomation: user.useCrmAutomation,
+      useChat: user.useChat,
       useBizMessage: user.useBizMessage,
       regions: user.coverageRegions.map((cr: any) => ({
         regionId: cr.region.id,
@@ -617,6 +619,21 @@ router.patch('/partners/:id/biz-message', authenticate, requireRole(['SUPER_ADMI
     res.json({ message: '알림톡 설정이 변경되었습니다.', partner: updatedPartner });
   } catch (error) {
     res.status(500).json({ error: '알림톡 설정 변경 실패' });
+  }
+});
+
+// 3-1. 파트너 실시간 채팅 사용 여부 토글 (ON/OFF)
+router.patch('/partners/:id/chat', authenticate, requireRole(['SUPER_ADMIN']), async (req: any, res: any) => {
+  const { id } = req.params;
+  const { useChat } = req.body;
+  try {
+    const updatedPartner = await prisma.user.update({
+      where: { id, role: 'PARTNER' },
+      data: { useChat }
+    });
+    res.json({ message: '채팅 설정이 변경되었습니다.', partner: updatedPartner });
+  } catch (error) {
+    res.status(500).json({ error: '채팅 설정 변경 실패' });
   }
 });
 
@@ -2186,7 +2203,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
     const partnerId = req.user!.partnerId || req.user!.userId;
     const partner = await prisma.user.findUnique({
       where: { id: partnerId },
-      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
     });
     
     if (!partner) {
@@ -2209,7 +2226,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const partnerId = req.user!.partnerId || req.user!.userId;
-  const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
+  const { pricePerKg, useBizMessage, useCrmAutomation, useChat } = req.body;
   
   try {
     const updatedPartner = await prisma.user.update({
@@ -2217,9 +2234,10 @@ router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']),
       data: { 
         pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
         useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
+        useChat: useChat !== undefined ? Boolean(useChat) : undefined,
         useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
       },
-      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
     });
     
     res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });

@@ -42,7 +42,7 @@ export default function CustomerDashboard() {
     setLoadingPartners(true);
     try {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/partners`);
-      setPartners(res.data);
+      setPartners(res.data.filter((p: any) => p.useChat !== false));
     } catch (error) {
       console.error('업체 목록 조회 실패:', error);
     } finally {
@@ -730,7 +730,7 @@ export default function CustomerDashboard() {
         )}
       </div>
 
-      {userId && (
+      {userId && activeRequestWithPartner?.partner?.useChat !== false && (
         <ChatWidget userId={userId} partnerId={partnerIdForChat || ''} />
       )}
       <AddressSearchModal 
