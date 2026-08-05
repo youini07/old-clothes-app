@@ -159,7 +159,7 @@ router.get('/partners', (req, res) => __awaiter(void 0, void 0, void 0, function
                 role: 'PARTNER',
                 email: { not: 'demo_partner@test.com' }
             },
-            select: { id: true, businessName: true, name: true, email: true, address: true, detailAddress: true }
+            select: { id: true, businessName: true, name: true, email: true, address: true, detailAddress: true, useChat: true }
         });
         res.json(partners);
     }

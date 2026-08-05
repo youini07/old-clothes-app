@@ -178,7 +178,7 @@ router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0,
             take: limit,
             include: {
                 driver: { include: { user: true } },
-                partner: { select: { businessName: true, name: true, phone: true } },
+                partner: { select: { businessName: true, name: true, phone: true, useChat: true } },
                 collectionItems: true // 항목별 수거 정산 내역 (영수증 표시용)
             }
         });

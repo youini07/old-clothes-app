@@ -432,6 +432,8 @@ router.get('/partners', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             ownerName: user.name,
             phone: user.phone || '연락처 없음',
             isApproved: user.isApproved,
+            useCrmAutomation: user.useCrmAutomation,
+            useChat: user.useChat,
             useBizMessage: user.useBizMessage,
             regions: user.coverageRegions.map((cr) => ({
                 regionId: cr.region.id,
@@ -583,6 +585,21 @@ router.patch('/partners/:id/biz-message', authMiddleware_1.authenticate, (0, aut
     }
     catch (error) {
         res.status(500).json({ error: '알림톡 설정 변경 실패' });
+    }
+}));
+// 3-1. 파트너 실시간 채팅 사용 여부 토글 (ON/OFF)
+router.patch('/partners/:id/chat', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const { id } = req.params;
+    const { useChat } = req.body;
+    try {
+        const updatedPartner = yield prisma_1.prisma.user.update({
+            where: { id, role: 'PARTNER' },
+            data: { useChat }
+        });
+        res.json({ message: '채팅 설정이 변경되었습니다.', partner: updatedPartner });
+    }
+    catch (error) {
+        res.status(500).json({ error: '채팅 설정 변경 실패' });
     }
 }));
 // 4. 파트너 계정 강제 삭제 (관련 데이터 연쇄 삭제 및 초기화)
@@ -1935,7 +1952,7 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         const partnerId = req.user.partnerId || req.user.userId;
         const partner = yield prisma_1.prisma.user.findUnique({
             where: { id: partnerId },
-            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
         });
         if (!partner) {
             return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
@@ -1955,16 +1972,17 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const partnerId = req.user.partnerId || req.user.userId;
-    const { pricePerKg, useBizMessage, useCrmAutomation } = req.body;
+    const { pricePerKg, useBizMessage, useCrmAutomation, useChat } = req.body;
     try {
         const updatedPartner = yield prisma_1.prisma.user.update({
             where: { id: partnerId },
             data: {
                 pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
                 useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
+                useChat: useChat !== undefined ? Boolean(useChat) : undefined,
                 useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
             },
-            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
         });
         res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
     }
@@ -2107,6 +2125,39 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
     catch (error) {
         console.error('수동 접수 에러:', error);
         res.status(500).json({ error: '수동 접수 중 오류가 발생했습니다.' });
+    }
+}));
+// ============================================
+// 수거 요청 정보 수정 API (이름, 연락처, 주소 등)
+// ============================================
+router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    const requestId = req.params.id;
+    const updateData = req.body;
+    const partnerId = req.user.partnerId || req.user.userId;
+    try {
+        const existingReq = yield prisma_1.prisma.request.findUnique({ where: { id: requestId } });
+        if (!existingReq) {
+            return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+        }
+        if (req.user.role === 'PARTNER' && existingReq.partnerId && existingReq.partnerId !== partnerId) {
+            return res.status(403).json({ error: '수정 권한이 없습니다.' });
+        }
+        const updatedRequest = yield prisma_1.prisma.request.update({
+            where: { id: requestId },
+            data: {
+                userName: updateData.userName !== undefined ? updateData.userName : undefined,
+                phone: updateData.phone !== undefined ? updateData.phone : undefined,
+                address: updateData.address !== undefined ? updateData.address : undefined,
+                detailAddress: updateData.detailAddress !== undefined ? updateData.detailAddress : undefined,
+                estimatedVolume: updateData.estimatedVolume !== undefined ? updateData.estimatedVolume : undefined,
+                desiredDate: updateData.desiredDate ? new Date(updateData.desiredDate) : undefined,
+            }
+        });
+        res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
+    }
+    catch (error) {
+        console.error('수거 요청 수정 에러:', error);
+        res.status(500).json({ error: '수정 중 오류가 발생했습니다.' });
     }
 }));
 // ============================================
