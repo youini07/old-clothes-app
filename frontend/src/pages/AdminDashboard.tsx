@@ -131,7 +131,7 @@ export default function AdminDashboard() {
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
-  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean } | null>(null);
+  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
@@ -439,7 +439,8 @@ export default function AdminDashboard() {
       const res = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/settings`, {
         pricePerKg: settings.pricePerKg,
         useBizMessage: settings.useBizMessage,
-        useCrmAutomation: settings.useCrmAutomation
+        useCrmAutomation: settings.useCrmAutomation,
+        useChat: settings.useChat
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -3601,7 +3602,9 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
+      {settings?.useChat !== false && (
+        <AdminChatDashboard adminId={JSON.parse(localStorage.getItem('user_info') || '{}').id || ''} />
+      )}
       <AddressSearchModal 
         isOpen={isAddressModalOpen} 
         onClose={() => setIsAddressModalOpen(false)} 
