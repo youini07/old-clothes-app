@@ -638,7 +638,7 @@ export default function DriverDashboard() {
 
   let isCoBoss = false;
   try {
-    const uiStr = localStorage.getItem('userInfo');
+    const uiStr = localStorage.getItem('user_info');
     if (uiStr) {
       const ui = JSON.parse(uiStr);
       isCoBoss = ui.isCoBoss;

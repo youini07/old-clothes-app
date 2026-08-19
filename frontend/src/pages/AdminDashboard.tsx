@@ -973,7 +973,14 @@ export default function AdminDashboard() {
       // 해당 기사의 미완료 요청들만 필터링 후 정렬
       const driverRequests = prev
         .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
-        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+        .sort((a, b) => {
+          const diffOrder = (a.orderIndex || 0) - (b.orderIndex || 0);
+          if (diffOrder !== 0) return diffOrder;
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA === timeB) return a.id.localeCompare(b.id);
+          return timeA - timeB;
+        });
 
       // 드래그된 아이템 위치 변경
       const [removed] = driverRequests.splice(source.index, 1);
@@ -1001,7 +1008,14 @@ export default function AdminDashboard() {
     try {
       const driverRequests = requests
         .filter(r => r.driverId === driverId && r.status !== 'COMPLETED')
-        .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0));
+        .sort((a, b) => {
+          const diffOrder = (a.orderIndex || 0) - (b.orderIndex || 0);
+          if (diffOrder !== 0) return diffOrder;
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          if (timeA === timeB) return a.id.localeCompare(b.id);
+          return timeA - timeB;
+        });
         
       const requestIds = driverRequests.map(r => r.id);
 
