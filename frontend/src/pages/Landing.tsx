@@ -312,7 +312,7 @@ export default function Landing() {
       </header>
 
       {/* ================= 히어로 ================= */}
-      <section id="top" className="relative min-h-[90svh] flex flex-col justify-center overflow-hidden pb-24">
+      <section id="top" className="relative min-h-[75svh] sm:min-h-[90svh] flex flex-col justify-center overflow-hidden py-12 sm:pb-24 sm:pt-0">
         {/* 배경 그라데이션 + 워터마크 */}
         <div
           className="absolute inset-0"
@@ -370,7 +370,7 @@ export default function Landing() {
       {/* ================= 이용 방법 ================= */}
       <section 
         id="how" 
-        className="relative min-h-[100svh] flex items-center scroll-mt-16 py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
+        className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{ backgroundImage: "url('/how-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
@@ -479,7 +479,7 @@ export default function Landing() {
       {/* ================= 안심 & 맞춤 수거 ================= */}
       <section 
         id="trust" 
-        className="relative min-h-[100svh] flex items-center scroll-mt-16 py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
+        className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{ backgroundImage: "url('/trust-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
@@ -566,7 +566,7 @@ export default function Landing() {
       </section>
 
       {/* ================= 고객 후기 (Marquee) ================= */}
-      <section id="reviews" className="relative py-24 bg-sky-50 overflow-hidden scroll-mt-16">
+      <section id="reviews" className="relative py-16 sm:py-24 bg-sky-50 overflow-hidden scroll-mt-16">
         <div className="max-w-7xl mx-auto px-5 md:px-8 mb-12 text-center">
           <p className="reveal text-primary-600 font-black tracking-widest text-base sm:text-xl mb-3">생생한 수거 후기</p>
           <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black tracking-tight text-gray-900 break-keep">
@@ -599,7 +599,7 @@ export default function Landing() {
       </section>
 
       {/* ================= 리클 성과 (통계) ================= */}
-      <section id="stats" className="relative min-h-[100svh] flex items-center scroll-mt-16 py-24 overflow-hidden bg-white">
+      <section id="stats" className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 overflow-hidden bg-white">
         <div
           className="absolute inset-0 opacity-40"
           style={{
@@ -642,7 +642,7 @@ export default function Landing() {
       {/* ================= 환경 가치 & 최종 CTA + 푸터 ================= */}
       <footer 
         id="eco"
-        className="relative pt-32 pb-12 text-center border-t border-gray-200 bg-cover bg-center bg-no-repeat overflow-hidden"
+        className="relative pt-16 sm:pt-32 pb-12 text-center border-t border-gray-200 bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{ backgroundImage: "url('/eco-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px]"></div>
