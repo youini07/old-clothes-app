@@ -487,7 +487,7 @@ export default function Landing() {
             </PhoneMockup>
           </div>
 
-          <div className="order-2 sm:order-1 flex-1 min-w-[55%]">
+          <div className="order-2 sm:order-1 flex-1 min-w-[55%] sm:pl-8 md:pl-16 lg:pl-32">
             <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">헌옷 수거 서비스</p>
             <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               신청부터 정산까지,<br />
@@ -589,7 +589,7 @@ export default function Landing() {
             </PhoneMockup>
           </div>
 
-          <div className="order-2 flex-1 min-w-[55%]">
+          <div className="order-2 flex-1 min-w-[55%] sm:pr-8 md:pr-16 lg:pr-32">
             <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">맞춤 & 안심 수거</p>
             <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               원하는 날짜에,<br />
