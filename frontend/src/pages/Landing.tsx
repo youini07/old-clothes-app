@@ -253,7 +253,7 @@ export default function Landing() {
     <div className="bg-[#F7F8FC] text-gray-900 font-sans">
       {/* ================= 헤더 ================= */}
       <header
-        className={`sticky top-0 inset-x-0 z-50 transition-all duration-300 ${
+        className={`hidden sm:block sticky top-0 inset-x-0 z-50 transition-all duration-300 ${
           scrolled ? 'bg-white/95 backdrop-blur-md shadow-md shadow-primary-900/5' : 'bg-white shadow-sm'
         }`}
       >
