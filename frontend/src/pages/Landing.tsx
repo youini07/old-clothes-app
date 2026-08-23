@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { Menu, X } from 'lucide-react';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -125,30 +126,33 @@ function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
 // CSS로 그린 스마트폰 목업 프레임 (Galaxy Style, 16:9 Ratio)
 function PhoneMockup({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative w-[270px] sm:w-[300px] mx-auto">
-      {/* 갤럭시에 가까운 각진 메탈릭 프레임 */}
-      <div className="rounded-[1.75rem] bg-[#1c1c1e] p-[4px] shadow-[0_30px_60px_-15px_rgba(37,99,235,0.3)] ring-1 ring-gray-900/10 border-2 border-[#3a3a3c]">
-        <div className="rounded-[1.6rem] bg-white overflow-hidden relative aspect-[9/16] flex flex-col">
-          
-          {/* 펀치홀 카메라 */}
-          <div className="absolute top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-black rounded-full z-50"></div>
-          
-          {/* 안드로이드 상태바 */}
-          <div className="flex items-center justify-between px-5 pt-2 pb-1 text-[10px] font-bold text-gray-800 relative z-40 shrink-0">
-            <span>12:45</span>
-            <span className="flex items-center gap-1 tracking-tight">
-              <span className="font-sans">5G</span>
-              <span>📶</span>
-              <span className="text-[12px]">🔋</span>
-            </span>
-          </div>
-          
-          {/* 화면 컨텐츠 */}
-          <div className="flex-1 overflow-hidden relative bg-white">{children}</div>
-          
-          {/* 안드로이드 제스처 힌트바 */}
-          <div className="pb-1.5 pt-1.5 flex justify-center bg-white relative z-40 shrink-0">
-            <div className="w-12 h-1 rounded-full bg-gray-300"></div>
+    <div className="relative flex justify-center items-center w-[130px] h-[230px] sm:w-[300px] sm:h-auto mx-auto shrink-0">
+      {/* 모바일에서는 absolute & scale 로 작게 렌더링하여 영역을 맞춤 */}
+      <div className="absolute sm:relative transform scale-[0.48] sm:scale-100 origin-center sm:origin-auto w-[270px] sm:w-[300px]">
+        {/* 갤럭시에 가까운 각진 메탈릭 프레임 */}
+        <div className="rounded-[1.75rem] bg-[#1c1c1e] p-[4px] shadow-[0_30px_60px_-15px_rgba(37,99,235,0.3)] ring-1 ring-gray-900/10 border-2 border-[#3a3a3c]">
+          <div className="rounded-[1.6rem] bg-white overflow-hidden relative aspect-[9/16] flex flex-col">
+            
+            {/* 펀치홀 카메라 */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-black rounded-full z-50"></div>
+            
+            {/* 안드로이드 상태바 */}
+            <div className="flex items-center justify-between px-5 pt-2 pb-1 text-[10px] font-bold text-gray-800 relative z-40 shrink-0">
+              <span>12:45</span>
+              <span className="flex items-center gap-1 tracking-tight">
+                <span className="font-sans">5G</span>
+                <span>📶</span>
+                <span className="text-[12px]">🔋</span>
+              </span>
+            </div>
+            
+            {/* 화면 컨텐츠 */}
+            <div className="flex-1 overflow-hidden relative bg-white">{children}</div>
+            
+            {/* 안드로이드 제스처 힌트바 */}
+            <div className="pb-1.5 pt-1.5 flex justify-center bg-white relative z-40 shrink-0">
+              <div className="w-12 h-1 rounded-full bg-gray-300"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -188,6 +192,7 @@ function ReviewCard({ review }: { review: typeof DUMMY_REVIEWS[0] }) {
 
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [reviews, setReviews] = useState(DUMMY_REVIEWS);
   const extendedReviews = [...reviews, ...reviews];
 
@@ -252,13 +257,14 @@ export default function Landing() {
           scrolled ? 'bg-white/95 backdrop-blur-md shadow-md shadow-primary-900/5' : 'bg-white shadow-sm'
         }`}
       >
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-5 md:px-8 h-16">
-          <a href="#top" className="flex items-baseline gap-2">
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-5 md:px-8 h-16 relative">
+          <a href="#top" className="flex items-baseline gap-2 z-50" onClick={() => setIsMobileMenuOpen(false)}>
             <span className="text-2xl font-black tracking-tight text-primary-600">올클</span>
             <span className="text-2xl font-medium tracking-tight text-gray-900 hidden sm:block">OLD CLOTHES, ALL CLEAR</span>
           </a>
 
-          <div className="flex items-center gap-3 md:gap-8">
+          <div className="flex items-center gap-3 md:gap-8 z-50">
+            {/* 데스크탑 네비게이션 */}
             <nav className="hidden lg:flex items-center gap-8 text-base font-bold text-gray-600">
               <a href="#top" className="hover:text-primary-600 transition-colors">수거 신청</a>
               <a href="#how" className="hover:text-primary-600 transition-colors">서비스 소개</a>
@@ -269,12 +275,40 @@ export default function Landing() {
 
             <a
               href="#eco"
-              className="px-3 py-2 md:px-5 md:py-2.5 text-xs md:text-base font-bold rounded-full bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors flex items-center gap-1 md:gap-1.5"
+              className="hidden lg:flex px-5 py-2.5 font-bold rounded-full bg-green-50 border border-green-200 text-green-700 hover:bg-green-100 transition-colors items-center gap-1.5"
             >
-              올클의 환경 가치 <span className="text-sm md:text-base">🌿</span>
+              올클의 환경 가치 <span className="text-base">🌿</span>
             </a>
+
+            {/* 모바일 햄버거 메뉴 버튼 */}
+            <button 
+              className="lg:hidden p-1.5 text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
           </div>
         </div>
+
+        {/* 모바일 전체화면 메뉴 */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden absolute top-16 inset-x-0 bg-white border-b border-gray-100 shadow-xl flex flex-col px-5 py-6 gap-6 z-40">
+            <nav className="flex flex-col gap-6 text-lg font-bold text-gray-800">
+              <a href="#top" onClick={() => setIsMobileMenuOpen(false)}>수거 신청</a>
+              <a href="#how" onClick={() => setIsMobileMenuOpen(false)}>서비스 소개</a>
+              <a href="#trust" onClick={() => setIsMobileMenuOpen(false)}>안심 수거</a>
+              <a href="#reviews" onClick={() => setIsMobileMenuOpen(false)}>고객 후기</a>
+              <a href="#stats" onClick={() => setIsMobileMenuOpen(false)}>올클 성과</a>
+            </nav>
+            <a
+              href="#eco"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="mt-2 py-4 rounded-xl bg-green-50 text-green-700 text-center font-bold flex items-center justify-center gap-2 border border-green-100"
+            >
+              올클의 환경 가치 <span>🌿</span>
+            </a>
+          </div>
+        )}
       </header>
 
       {/* ================= 히어로 ================= */}
@@ -306,8 +340,9 @@ export default function Landing() {
           </div>
 
           <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
-            <p className="reveal reveal-delay-2 text-lg sm:text-xl md:text-2xl text-gray-600 font-medium max-w-2xl leading-relaxed">
-              문 앞에 헌옷을 담아두기만 하면 모든 것이 <strong className="text-primary-600 font-black tracking-tight">ALL CLEAR!</strong>
+            <p className="reveal reveal-delay-2 text-base sm:text-xl md:text-2xl text-gray-600 font-medium max-w-2xl leading-relaxed break-keep">
+              문 앞에 헌옷을 담아두기만 하면 모든 것이 <br className="block sm:hidden" />
+              <strong className="text-primary-600 font-black tracking-tight">ALL CLEAR!</strong>
               <br />
               투명하고 안전한 비대면 수거부터 
               <br />
@@ -339,32 +374,92 @@ export default function Landing() {
         style={{ backgroundImage: "url('/how-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 grid md:grid-cols-2 gap-14 items-center">
-          <div className="order-2 md:order-1">
-            <p className="reveal text-primary-600 font-black tracking-widest text-lg sm:text-xl mb-4">헌옷 수거 서비스</p>
-            <h2 className="reveal reveal-delay-1 text-3xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900">
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-4 sm:gap-14 items-center justify-between">
+          
+          <div className="reveal reveal-delay-2 shrink-0 order-1 sm:order-2 w-[130px] sm:w-auto">
+            <PhoneMockup>
+              <div className="px-5 py-4 text-left bg-white h-full overflow-hidden flex flex-col">
+                <div className="flex items-center gap-2 text-gray-500 mb-3">
+                  <span className="text-lg leading-none">‹</span>
+                  <span className="text-[11px] font-medium">대시보드로 돌아가기</span>
+                </div>
+                
+                <h3 className="text-lg font-black text-gray-900 tracking-tight">헌옷 수거 신청</h3>
+                <p className="text-[10px] text-gray-500 font-medium mt-1 mb-5">방문하실 주소와 희망 일정을 입력해주세요.</p>
+
+                <div className="space-y-4 overflow-y-auto pb-6 no-scrollbar">
+                  {/* 이름 */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">이름</label>
+                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
+                      홍길동
+                    </div>
+                  </div>
+
+                  {/* 연락처 */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">연락처</label>
+                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
+                      010-1234-5678
+                    </div>
+                  </div>
+
+                  {/* 방문 주소 */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">방문 주소</label>
+                    <div className="flex gap-2 mb-2">
+                      <div className="px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] font-medium text-gray-900 w-20 text-center">
+                        06236
+                      </div>
+                      <div className="flex-1 py-2.5 rounded-lg bg-primary-600 text-white text-[11px] font-bold text-center shadow-sm">
+                        주소 찾기
+                      </div>
+                    </div>
+                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] font-medium text-gray-900 mb-2">
+                      서울특별시 강남구 테헤란로 123
+                    </div>
+                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
+                      올클타워 101호
+                    </div>
+                  </div>
+
+                  {/* 무게 */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">대략적인 헌옷 무게 (kg)</label>
+                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-400">
+                      예: 20 (숫자만 입력)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </PhoneMockup>
+          </div>
+
+          <div className="order-2 sm:order-1 flex-1 min-w-[55%]">
+            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4">헌옷 수거 서비스</p>
+            <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               신청부터 정산까지,<br />
               완벽하게 ALL CLEAR!
             </h2>
-            <p className="reveal reveal-delay-2 mt-6 text-gray-600 font-medium leading-relaxed sm:text-lg">
+            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep">
               무겁게 들고 나갈 필요 없이 문 앞에만 두세요.
               <br className="hidden sm:block" />
               올클이 알아서 수거하고, 기분 좋은 정산금으로 돌려드립니다.
             </p>
 
-            <ol className="mt-10 space-y-5">
+            <ol className="mt-8 sm:mt-10 space-y-4 sm:space-y-5">
               {[
-                { icon: '📱', title: '카카오로 간편 신청', desc: '로그인 후 주소와 수거 희망일만 선택하면 끝' },
-                { icon: '📦', title: '문 앞에 담아두기', desc: '벌커박스·가방·봉투, 무엇에 담든 상관없어요' },
-                { icon: '💰', title: '수거 후 바로 정산', desc: '무게 측정 결과를 알림톡으로 받아보고 정산받으세요' },
+                { icon: '📱', title: '카카오로 간편 신청', desc: '주소와 수거 희망일만 선택' },
+                { icon: '📦', title: '문 앞에 담아두기', desc: '박스·가방·봉투 무엇이든 OK' },
+                { icon: '💰', title: '수거 후 바로 정산', 대sc: '무게 측정 후 알림톡으로 정산' },
               ].map((step, i) => (
-                <li key={i} className={`reveal reveal-delay-${i + 1} flex items-start gap-4`}>
-                  <span className="shrink-0 w-12 h-12 rounded-2xl bg-primary-50 border border-primary-100 flex items-center justify-center text-2xl shadow-sm text-primary-600">
+                <li key={i} className={`reveal reveal-delay-${i + 1} flex items-start gap-3 sm:gap-4`}>
+                  <span className="shrink-0 w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-primary-50 border border-primary-100 flex items-center justify-center text-xl sm:text-2xl shadow-sm text-primary-600">
                     {step.icon}
                   </span>
                   <div>
-                    <p className="font-extrabold text-base text-gray-900">{step.title}</p>
-                    <p className="text-sm text-gray-500 font-medium mt-1">{step.desc}</p>
+                    <p className="font-extrabold text-sm sm:text-base text-gray-900">{step.title}</p>
+                    <p className="text-xs sm:text-sm text-gray-500 font-medium mt-0.5 sm:mt-1 break-keep">{step.desc || step.대sc}</p>
                   </div>
                 </li>
               ))}
@@ -372,13 +467,12 @@ export default function Landing() {
 
             <a
               href={KAKAO_LOGIN_URL}
-              className="reveal reveal-delay-3 inline-block mt-10 px-8 py-4 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 font-extrabold hover:bg-primary-700 active:scale-95 transition-all"
+              className="reveal reveal-delay-3 flex justify-center sm:inline-flex mt-8 sm:mt-10 px-6 py-3 sm:px-8 sm:py-4 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 font-extrabold hover:bg-primary-700 active:scale-95 transition-all text-sm sm:text-base w-full sm:w-auto text-center"
             >
               수거신청 하러가기
             </a>
           </div>
 
-          <div className="reveal reveal-delay-2 block mt-12 md:mt-0">
             <PhoneMockup>
               <div className="px-5 py-4 text-left bg-white h-full overflow-hidden flex flex-col">
                 <div className="flex items-center gap-2 text-gray-500 mb-3">
@@ -446,8 +540,8 @@ export default function Landing() {
         style={{ backgroundImage: "url('/trust-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 grid md:grid-cols-2 gap-14 items-center">
-          <div className="reveal block order-2 md:order-1 mt-12 md:mt-0">
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-4 sm:gap-14 items-center justify-between">
+          <div className="reveal reveal-delay-2 shrink-0 order-1 w-[130px] sm:w-auto">
             <PhoneMockup>
               <div className="px-5 py-5 text-left h-full flex flex-col bg-[#F7F8FC] overflow-y-auto no-scrollbar">
                 <p className="text-[13px] font-black text-gray-900 mb-4 tracking-tight">최근 신청 내역</p>
@@ -500,28 +594,28 @@ export default function Landing() {
             </PhoneMockup>
           </div>
 
-          <div className="order-1 md:order-2">
-            <p className="reveal text-primary-600 font-black tracking-widest text-lg sm:text-xl mb-4">맞춤 & 안심 수거</p>
-            <h2 className="reveal reveal-delay-1 text-3xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900">
+          <div className="order-2 flex-1 min-w-[55%]">
+            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4">맞춤 & 안심 수거</p>
+            <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               원하는 날짜에,<br />
               믿을 수 있게
             </h2>
-            <p className="reveal reveal-delay-2 mt-6 text-gray-600 font-medium leading-relaxed">
+            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep">
               이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>, 앱에서 직접 수거일을 확정할 수 있어요.
               <br className="hidden sm:block" />
               또한 비대면 수거를 하더라도 기사님이 <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이 투명하고 신뢰감 있는 정산이 가능합니다.
             </p>
 
-            <div className="reveal reveal-delay-2 mt-10 grid grid-cols-2 gap-4 max-w-md">
-              <div className="rounded-2xl bg-white border border-gray-200 shadow-sm p-5">
-                <p className="text-2xl mb-1">📅</p>
-                <p className="font-extrabold text-sm text-gray-900">수거일 지정</p>
-                <p className="text-xs text-gray-500 font-medium mt-1">원하는 날짜로 확정 가능</p>
+            <div className="reveal reveal-delay-2 mt-6 sm:mt-10 grid grid-cols-2 gap-2 sm:gap-4 max-w-md">
+              <div className="rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-sm p-4 sm:p-5">
+                <p className="text-xl sm:text-2xl mb-1">📅</p>
+                <p className="font-extrabold text-xs sm:text-sm text-gray-900">수거일 지정</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">원하는 날짜로 확정</p>
               </div>
-              <div className="rounded-2xl bg-primary-50 border border-primary-200 shadow-sm p-5">
-                <p className="text-2xl mb-1">📸</p>
-                <p className="font-extrabold text-sm text-primary-900">투명한 증빙</p>
-                <p className="text-xs text-gray-500 font-medium mt-1">현장 사진으로 안심 확인</p>
+              <div className="rounded-xl sm:rounded-2xl bg-primary-50 border border-primary-200 shadow-sm p-4 sm:p-5">
+                <p className="text-xl sm:text-2xl mb-1">📸</p>
+                <p className="font-extrabold text-xs sm:text-sm text-primary-900">투명한 증빙</p>
+                <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">현장 사진으로 확인</p>
               </div>
             </div>
           </div>
@@ -531,8 +625,8 @@ export default function Landing() {
       {/* ================= 고객 후기 (Marquee) ================= */}
       <section id="reviews" className="relative py-24 bg-sky-50 overflow-hidden scroll-mt-16">
         <div className="max-w-7xl mx-auto px-5 md:px-8 mb-12 text-center">
-          <p className="reveal text-primary-600 font-black tracking-widest text-lg sm:text-xl mb-3">생생한 수거 후기</p>
-          <h2 className="reveal reveal-delay-1 text-3xl sm:text-5xl font-black tracking-tight text-gray-900">
+          <p className="reveal text-primary-600 font-black tracking-widest text-base sm:text-xl mb-3">생생한 수거 후기</p>
+          <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black tracking-tight text-gray-900 break-keep">
             고객님들이 직접 증명하는<br />올클의 만족도
           </h2>
         </div>
@@ -635,45 +729,41 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 lg:gap-12">
+          <div className="grid grid-cols-2 md:grid-cols-2 gap-4 sm:gap-8 lg:gap-12">
             {/* 데이터 카드 1 */}
-            <div className="reveal reveal-delay-1 bg-white/70 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
-              <div className="text-5xl mb-6">💧</div>
-              <h4 className="text-2xl font-black text-gray-900 mb-3">물 2,700 리터 절약</h4>
-              <p className="text-gray-600 font-medium leading-relaxed mb-6">
-                티셔츠 한 벌을 새로 생산하는 데는 무려 <strong>2,700리터</strong>의 물이 소비됩니다. 이는 한 사람이 약 <strong>2.5년 동안 마실 수 있는 막대한 양의 물</strong>입니다. 옷을 버리지 않고 재활용하는 것만으로도 수자원 고갈을 막을 수 있습니다.
+            <div className="reveal reveal-delay-1 bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-6">💧</div>
+              <h4 className="text-base sm:text-2xl font-black text-gray-900 mb-2 sm:mb-3">물 2,700L 절약</h4>
+              <p className="text-xs sm:text-base text-gray-600 font-medium leading-relaxed mb-4 sm:mb-6 break-keep">
+                티셔츠 생산엔 <strong>2,700리터</strong>의 물이 소비됩니다. <strong>약 2.5년 마실 양</strong>으로, 재활용 시 수자원을 보호합니다.
               </p>
-              <p className="text-xs text-gray-400 font-bold">* 세계자연기금(WWF) 통계 기준</p>
             </div>
 
             {/* 데이터 카드 2 */}
-            <div className="reveal reveal-delay-2 bg-white/70 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
-              <div className="text-5xl mb-6">🌲</div>
-              <h4 className="text-2xl font-black text-gray-900 mb-3">탄소 배출 19.5kg 감축</h4>
-              <p className="text-gray-600 font-medium leading-relaxed mb-6">
-                중고 의류 한 벌을 새 옷 대신 입을 경우 평균 <strong>19.5kg의 온실가스를 감축</strong>할 수 있습니다. 이는 <strong>30년생 소나무 약 3그루가 1년 내내 흡수하는 탄소량</strong>과 맞먹는 훌륭한 환경 보호 효과입니다.
+            <div className="reveal reveal-delay-2 bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-6">🌲</div>
+              <h4 className="text-base sm:text-2xl font-black text-gray-900 mb-2 sm:mb-3">탄소 배출 19.5kg 감축</h4>
+              <p className="text-xs sm:text-base text-gray-600 font-medium leading-relaxed mb-4 sm:mb-6 break-keep">
+                중고 의류 착용은 평균 <strong>19.5kg 온실가스 감축</strong> 효과를 주며, <strong>소나무 3그루 1년 흡수량</strong>과 같습니다.
               </p>
-              <p className="text-xs text-gray-400 font-bold">* 영국 랩(WRAP) 글로벌 환경 연구 기준</p>
             </div>
 
             {/* 데이터 카드 3 */}
-            <div className="reveal reveal-delay-1 bg-white/70 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
-              <div className="text-5xl mb-6">⏳</div>
-              <h4 className="text-2xl font-black text-gray-900 mb-3">탄소 발자국 25% 감소</h4>
-              <p className="text-gray-600 font-medium leading-relaxed mb-6">
-                현재 가지고 있는 의류의 수명을 <strong>단 1년만 연장</strong>해도 의류 산업이 발생시키는 <strong>탄소 발자국을 약 25% 획기적으로 줄일 수 있습니다.</strong> 올클을 통한 재활용은 옷의 수명을 연장하는 가장 확실한 방법입니다.
+            <div className="reveal reveal-delay-1 bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-6">⏳</div>
+              <h4 className="text-base sm:text-2xl font-black text-gray-900 mb-2 sm:mb-3">탄소 발자국 25% 감소</h4>
+              <p className="text-xs sm:text-base text-gray-600 font-medium leading-relaxed mb-4 sm:mb-6 break-keep">
+                옷의 수명을 <strong>단 1년만 연장</strong>해도 의류 산업의 <strong>탄소 발자국을 약 25%</strong> 줄일 수 있습니다.
               </p>
-              <p className="text-xs text-gray-400 font-bold">* 글로벌 패션 아젠다(GFA) 보고서</p>
             </div>
 
             {/* 데이터 카드 4 */}
-            <div className="reveal reveal-delay-2 bg-white/70 backdrop-blur-md rounded-3xl p-8 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
-              <div className="text-5xl mb-6">🔥</div>
-              <h4 className="text-2xl font-black text-gray-900 mb-3">국가적 폐기물 비용 절감</h4>
-              <p className="text-gray-600 font-medium leading-relaxed mb-6">
-                대한민국에서는 <strong>매년 약 80만 톤 이상의 폐의류</strong>가 쏟아집니다. 재활용되지 못한 옷들은 소각 및 매립되며 치명적인 유독가스를 뿜어냅니다. 올클 수거 서비스는 막대한 환경 처리 비용과 대기 오염을 근본적으로 막습니다.
+            <div className="reveal reveal-delay-2 bg-white/70 backdrop-blur-md rounded-2xl sm:rounded-3xl p-4 sm:p-10 border border-gray-100 shadow-sm hover:-translate-y-1 transition-transform">
+              <div className="text-3xl sm:text-5xl mb-3 sm:mb-6">🔥</div>
+              <h4 className="text-base sm:text-2xl font-black text-gray-900 mb-2 sm:mb-3">매년 폐의류 80만 톤</h4>
+              <p className="text-xs sm:text-base text-gray-600 font-medium leading-relaxed mb-4 sm:mb-6 break-keep">
+                매년 쏟아지는 <strong>80만 톤 이상의 옷</strong>이 매립/소각되는 것을 막고 막대한 환경 비용을 절감합니다.
               </p>
-              <p className="text-xs text-gray-400 font-bold">* 환경부 전국 폐기물 통계</p>
             </div>
           </div>
         </div>
