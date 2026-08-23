@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import axios from 'axios';
 import AdminMapDispatch from '../components/AdminMapDispatch';
@@ -116,6 +116,11 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('admin_token'));
   const [activeView, setActiveView] = useState<'calendar' | 'dispatch' | 'mapDispatch' | 'stats' | 'settings' | 'board'>('calendar');
+
+  // 달력 뷰 전용 상태 (월 단위 조회로 성능 개선)
+  const [calendarRequests, setCalendarRequests] = useState<RequestItem[]>([]);
+  const calendarRangeRef = useRef({ year: new Date().getFullYear(), month: new Date().getMonth() + 1 });
+  const calendarFetchSeqRef = useRef(0);
 
   // 게시판 관련 상태
   const [unreadInquiryCount, setUnreadInquiryCount] = useState(0);
@@ -466,6 +471,31 @@ export default function AdminDashboard() {
   };
 
 
+  // 달력 데이터 조회 (해당 월만 서버에서 필터링해서 가져옴)
+  const fetchCalendarData = async (year?: number, month?: number) => {
+    const y = year ?? calendarRangeRef.current.year;
+    const m = month ?? calendarRangeRef.current.month;
+    const seq = ++calendarFetchSeqRef.current;
+    try {
+      const headers = { Authorization: `Bearer ${authToken}` };
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/admin/requests/calendar?year=${y}&month=${m}`,
+        { headers }
+      );
+      // 빠른 월 이동 시 늦게 도착한 이전 응답이 최신 데이터를 덮어쓰지 않도록 방어
+      if (seq !== calendarFetchSeqRef.current) return;
+      setCalendarRequests(res.data.requests || []);
+    } catch (err) {
+      console.error('달력 데이터 조회 실패:', err);
+    }
+  };
+
+  // CalendarView의 표시 월 변경 콜백
+  const handleCalendarMonthChange = (year: number, month: number) => {
+    calendarRangeRef.current = { year, month };
+    fetchCalendarData(year, month);
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -476,6 +506,9 @@ export default function AdminDashboard() {
       ]);
       setRequests(reqsRes.data.requests || []);
       setDrivers(driversRes.data.drivers || []);
+
+      // 달력 뷰 데이터도 함께 갱신 (배정/취소 등 변경 사항 반영)
+      fetchCalendarData();
 
       // 미답변 문의 수 조회 (게시판 알림 뱃지용)
       try {
@@ -923,6 +956,12 @@ export default function AdminDashboard() {
 
     // Optimistic Update
     setRequests(prev => prev.map(req => {
+      if (req.id === requestId) {
+        return { ...req, confirmedDate: new Date(dateStr) };
+      }
+      return req;
+    }));
+    setCalendarRequests(prev => prev.map(req => {
       if (req.id === requestId) {
         return { ...req, confirmedDate: new Date(dateStr) };
       }
@@ -1815,8 +1854,9 @@ export default function AdminDashboard() {
 
         {/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}
         {activeView === 'calendar' && (
-          <CalendarView 
-            requests={requests}
+          <CalendarView
+            requests={calendarRequests}
+            onMonthChange={handleCalendarMonthChange}
             onUpdateDate={handleUpdateDate}
             onBulkAssignClick={(ids) => {
               setCalendarBulkSelectedIds(ids);

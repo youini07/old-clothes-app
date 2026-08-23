@@ -32,7 +32,6 @@ const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const statusService_1 = require("../services/statusService");
 const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
-const googleSheets_1 = require("../services/googleSheets");
 const socket_1 = require("../socket");
 const router = express_1.default.Router();
 const demoExcludeFilter = {
@@ -706,6 +705,57 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         res.status(500).json({ error: '수거 신청 목록 조회 실패' });
     }
 }));
+// 달력용 월 단위 수거 조회 (성능 최적화: 해당 월 데이터만 반환)
+router.get('/requests/calendar', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const partnerId = req.user.partnerId || req.user.userId;
+        const year = parseInt(req.query.year);
+        const month = parseInt(req.query.month); // 1~12
+        if (!year || !month || month < 1 || month > 12) {
+            return res.status(400).json({ error: 'year와 month(1~12) 파라미터가 필요합니다.' });
+        }
+        // 서버/클라이언트 타임존 차이(KST 등)로 인한 경계일 누락 방지를 위해 ±2일 여유를 둠
+        const startDate = new Date(year, month - 1, -1);
+        const endDate = new Date(year, month, 3);
+        // 파트너가 담당하는 권역 정보 가져오기
+        const coverages = yield prisma_1.prisma.coverage.findMany({
+            where: { partnerId },
+            include: { region: true }
+        });
+        let scopeCondition;
+        if (coverages.length === 0) {
+            scopeCondition = { OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
+        }
+        else {
+            const cities = coverages.map((c) => c.region.city);
+            const cityFilters = cities.map((city) => ({ address: { contains: city } }));
+            scopeCondition = { OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
+        }
+        // 달력 표시 기준(confirmedDate || desiredDate)이 해당 월에 속하는 건만 조회
+        const whereCondition = {
+            AND: [
+                demoExcludeFilter,
+                scopeCondition,
+                {
+                    OR: [
+                        { desiredDate: { gte: startDate, lt: endDate } },
+                        { confirmedDate: { gte: startDate, lt: endDate } }
+                    ]
+                }
+            ]
+        };
+        const requests = yield prisma_1.prisma.request.findMany({
+            where: whereCondition,
+            include: { driver: { include: { user: true } }, collectionItems: true },
+            orderBy: { createdAt: 'desc' }
+        });
+        res.json({ requests });
+    }
+    catch (error) {
+        console.error('달력 수거 목록 조회 실패:', error);
+        res.status(500).json({ error: '달력 수거 목록 조회 실패' });
+    }
+}));
 // 수거 요청 수락 (선착순 방식 — 먼저 수락한 사장님에게 배정)
 router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
@@ -734,8 +784,6 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
             },
             include: { partner: true }
         });
-        // 구글 시트 상태 연동
-        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         // 업체 배정 안내 알림톡 발송 (비동기)
         if (updated.partner && updated.partner.useBizMessage) {
             (0, notificationService_1.sendAssignmentToCustomer)(updated.phone, updated.userName, updated.partner.businessName || updated.partner.name, updated.partner.useBizMessage).catch(err => console.error('배정 안내 알림톡 전송 실패:', err));
@@ -776,8 +824,6 @@ router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMidd
                 status: 'PENDING'
             }
         });
-        // 구글 시트 상태 연동
-        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'PENDING').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         res.json({ message: '수락이 취소되었습니다.', request: updated });
     }
     catch (error) {
@@ -832,8 +878,7 @@ router.delete('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
         }
-        // Google Sheets 연동되어 있다면 삭제 표시(상태 업데이트로 우회하거나 시트 지원 안하면 무시)
-        // 현재는 DB 삭제만 진행
+        // Google Sheets 연동 제거됨 - DB 삭제만 진행
         yield prisma_1.prisma.request.delete({
             where: { id }
         });
@@ -971,8 +1016,6 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
             },
             include: { partner: true }
         });
-        // 구글 시트 상태 연동
-        (0, googleSheets_1.updateRequestStatusInSheet)(requestId, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         // 기사 전화번호 및 알림톡 발송
         let driverPhone = undefined;
         if (request.driverId) {
@@ -1066,10 +1109,6 @@ router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMid
         }).filter(Boolean);
         yield prisma_1.prisma.$transaction(updatePromises);
         if (driverId) {
-            // 구글 시트 비동기 업데이트
-            validIds.forEach(id => {
-                (0, googleSheets_1.updateRequestStatusInSheet)(id, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
-            });
             // 채팅 자동 응답 일괄 발송 및 알림톡
             try {
                 const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } });
@@ -1128,10 +1167,6 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
             });
         }).filter(Boolean);
         yield prisma_1.prisma.$transaction(updatePromises);
-        // 구글 시트 비동기 업데이트
-        validIds.forEach(id => {
-            (0, googleSheets_1.updateRequestStatusInSheet)(id, statusService_1.getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
-        });
         // 채팅 자동 응답 일괄 발송
         try {
             const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true } });
@@ -1308,8 +1343,6 @@ router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMid
                 etaMinutes: null
             }
         });
-        // 구글 시트 상태 연동
-        (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
         res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
     }
     catch (error) {
@@ -1341,10 +1374,6 @@ router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authM
                 confirmedDate: null,
                 etaMinutes: null
             }
-        });
-        // 구글 시트 비동기 업데이트 (각각 실행)
-        validIds.forEach(id => {
-            (0, googleSheets_1.updateRequestStatusInSheet)(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패:', err));
         });
         res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
     }
@@ -2109,17 +2138,6 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
                 customerId: null, // 비회원
             }
         });
-        // 구글 시트 연동
-        (0, googleSheets_1.addRequestToSheet)({
-            id: newRequest.id,
-            userName: newRequest.userName,
-            phone: newRequest.phone,
-            address: newRequest.address,
-            detailAddress: newRequest.detailAddress,
-            desiredDate: newRequest.desiredDate.toISOString(),
-            estimatedVolume: newRequest.estimatedVolume,
-            status: newRequest.status,
-        }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
         res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
     }
     catch (error) {

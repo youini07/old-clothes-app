@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 
 /**
  * CalendarView — 순수 React 월간 캘린더 컴포넌트
@@ -32,6 +32,7 @@ interface CalendarViewProps {
   compact?: boolean;
   onUpdateDate?: (requestId: string, dateStr: string) => void;
   onBulkAssignClick?: (selectedIds: string[]) => void;
+  onMonthChange?: (year: number, month: number) => void; // 표시 월 변경 시 호출 (month는 1~12)
 }
 
 // 상태별 색상 맵 (뱃지 UI에 사용)
@@ -52,7 +53,7 @@ const toDateKey = (date: Date): string => {
   return `${y}-${m}-${d}`;
 };
 
-export default function CalendarView({ requests, onRequestClick, compact = false, onUpdateDate, onBulkAssignClick }: CalendarViewProps) {
+export default function CalendarView({ requests, onRequestClick, compact = false, onUpdateDate, onBulkAssignClick, onMonthChange }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   
@@ -70,6 +71,13 @@ export default function CalendarView({ requests, onRequestClick, compact = false
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // 표시 월이 바뀔 때(최초 마운트 포함) 부모에게 알려 해당 월 데이터만 fetch하도록 함
+  const onMonthChangeRef = useRef(onMonthChange);
+  onMonthChangeRef.current = onMonthChange;
+  useEffect(() => {
+    onMonthChangeRef.current?.(year, month + 1);
+  }, [year, month]);
 
   // 현재 월의 캘린더 그리드 생성 (6주 x 7일)
   const calendarDays = useMemo(() => {

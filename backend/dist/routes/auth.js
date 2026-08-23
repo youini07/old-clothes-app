@@ -85,6 +85,9 @@ router.get('/kakao/callback', (req, res) => __awaiter(void 0, void 0, void 0, fu
 }));
 // 데모용 로그인 (테스트 용도)
 router.post('/demo', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    if (process.env.ALLOW_DEMO !== 'true') {
+        return res.status(403).json({ error: '데모 기능이 비활성화되어 있습니다. (보안상의 이유로 차단됨)' });
+    }
     const { role } = req.body; // 'PARTNER' or 'DRIVER'
     try {
         let user;
@@ -251,40 +254,7 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
         res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.' });
     }
 }));
-// 초기 슈퍼 관리자 생성 API (테스트/초기화 용도 - 실 서비스에서는 삭제 권장)
-router.post('/init-superadmin', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
-    const { email, password, name } = req.body;
-    if (!email || !password || !name) {
-        return res.status(400).json({ error: '이메일, 비밀번호, 이름을 모두 입력해주세요.' });
-    }
-    try {
-        const existing = yield prisma_1.prisma.user.findFirst({ where: { role: 'SUPER_ADMIN' } });
-        if (existing && existing.email !== email) {
-            // 기존 슈퍼관리자가 있으면 일반 유저로 강등시키거나, 삭제하지 않고 
-            // 이메일만 새걸로 업데이트하도록 합니다.
-            yield prisma_1.prisma.user.update({
-                where: { id: existing.id },
-                data: { role: 'CUSTOMER' } // 기존 관리자는 고객으로 강등
-            });
-        }
-        const hashedPassword = yield bcryptjs_1.default.hash(password, 10);
-        const user = yield prisma_1.prisma.user.upsert({
-            where: { email },
-            update: { password: hashedPassword, name, role: 'SUPER_ADMIN' },
-            create: {
-                email,
-                password: hashedPassword,
-                name,
-                role: 'SUPER_ADMIN'
-            }
-        });
-        res.json({ message: '슈퍼 관리자 계정이 생성/업데이트 되었습니다.', email: user.email });
-    }
-    catch (error) {
-        console.error('슈퍼관리자 생성 에러:', error);
-        res.status(500).json({ error: '슈퍼관리자 계정 생성 실패' });
-    }
-}));
+// 초기 슈퍼 관리자 생성 API는 보안상 삭제되었습니다.
 // 비밀번호 변경 API
 router.patch('/password', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { currentPassword, newPassword } = req.body;

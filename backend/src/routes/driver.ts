@@ -4,7 +4,6 @@ import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { getSingleRouteETA, getCoordinates } from '../services/kakaoRoute';
 import axios from 'axios';
 import { sendDepartureNotification, sendCompletionToCustomer } from '../services/notificationService';
-import { updateRequestStatusInSheet } from '../services/googleSheets';
 import { getStatusForAction } from '../services/statusService';
 
 // ==========================================
@@ -232,8 +231,7 @@ router.post('/complete/:id', authenticate, requireRole(['DRIVER', 'PARTNER']), a
       ).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
     }
     
-    // 6. 구글 시트에 완료 상태 및 무게/메모 업데이트
-    await updateRequestStatusInSheet(id as string, 'COMPLETED', totalWeight, driverNote as string);
+    // 6. 구글 시트 연동 제거됨
     
     res.json({ message: '수거가 완료되었습니다!', request });
   } catch (error) {

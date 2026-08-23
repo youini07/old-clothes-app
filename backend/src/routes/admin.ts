@@ -8,7 +8,6 @@ import { validatePartner, validateDriver } from '../middleware/validateMiddlewar
 import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
 import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
-import { updateRequestStatusInSheet, addRequestToSheet } from '../services/googleSheets';
 import { sendDriverAssignedSystemMessage } from '../socket';
 
 const router = express.Router();
@@ -755,6 +754,63 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
   }
 });
 
+// 달력용 월 단위 수거 조회 (성능 최적화: 해당 월 데이터만 반환)
+router.get('/requests/calendar', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
+  try {
+    const partnerId = req.user!.partnerId || req.user!.userId;
+    const year = parseInt(req.query.year as string);
+    const month = parseInt(req.query.month as string); // 1~12
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'year와 month(1~12) 파라미터가 필요합니다.' });
+    }
+
+    // 서버/클라이언트 타임존 차이(KST 등)로 인한 경계일 누락 방지를 위해 ±2일 여유를 둠
+    const startDate = new Date(year, month - 1, -1);
+    const endDate = new Date(year, month, 3);
+
+    // 파트너가 담당하는 권역 정보 가져오기
+    const coverages = await prisma.coverage.findMany({
+      where: { partnerId },
+      include: { region: true }
+    });
+
+    let scopeCondition: any;
+    if (coverages.length === 0) {
+      scopeCondition = { OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
+    } else {
+      const cities = coverages.map((c: any) => c.region.city);
+      const cityFilters = cities.map((city: string) => ({ address: { contains: city } }));
+      scopeCondition = { OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
+    }
+
+    // 달력 표시 기준(confirmedDate || desiredDate)이 해당 월에 속하는 건만 조회
+    const whereCondition = {
+      AND: [
+        demoExcludeFilter,
+        scopeCondition,
+        {
+          OR: [
+            { desiredDate: { gte: startDate, lt: endDate } },
+            { confirmedDate: { gte: startDate, lt: endDate } }
+          ]
+        }
+      ]
+    };
+
+    const requests = await prisma.request.findMany({
+      where: whereCondition,
+      include: { driver: { include: { user: true } }, collectionItems: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.json({ requests });
+  } catch (error) {
+    console.error('달력 수거 목록 조회 실패:', error);
+    res.status(500).json({ error: '달력 수거 목록 조회 실패' });
+  }
+});
+
 // 수거 요청 수락 (선착순 방식 — 먼저 수락한 사장님에게 배정)
 router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const { id } = req.params;
@@ -787,9 +843,6 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
       },
       include: { partner: true }
     });
-
-    // 구글 시트 상태 연동
-    updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
 
     // 업체 배정 안내 알림톡 발송 (비동기)
     if (updated.partner && updated.partner.useBizMessage) {
@@ -841,9 +894,6 @@ router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPE
         status: 'PENDING'
       }
     });
-
-    // 구글 시트 상태 연동
-    updateRequestStatusInSheet(id, 'PENDING').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
 
     res.json({ message: '수락이 취소되었습니다.', request: updated });
   } catch (error) {
@@ -911,8 +961,7 @@ router.delete('/requests/:id', authenticate, requireRole(['SUPER_ADMIN', 'PARTNE
       return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
     }
 
-    // Google Sheets 연동되어 있다면 삭제 표시(상태 업데이트로 우회하거나 시트 지원 안하면 무시)
-    // 현재는 DB 삭제만 진행
+    // Google Sheets 연동 제거됨 - DB 삭제만 진행
     await prisma.request.delete({
       where: { id }
     });
@@ -1060,9 +1109,6 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
       include: { partner: true }
     });
 
-    // 구글 시트 상태 연동
-    updateRequestStatusInSheet(requestId, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
-
     // 기사 전화번호 및 알림톡 발송
     let driverPhone = undefined;
     if (request.driverId) {
@@ -1182,11 +1228,6 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
     await prisma.$transaction(updatePromises as any);
 
     if (driverId) {
-      // 구글 시트 비동기 업데이트
-      validIds.forEach(id => {
-        updateRequestStatusInSheet(id, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
-      });
-
       // 채팅 자동 응답 일괄 발송 및 알림톡
       try {
         const driverProfile = await prisma.driverProfile.findUnique({ where: { id: driverId }, include: { user: true }});
@@ -1262,11 +1303,6 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
     }).filter(Boolean);
 
     await prisma.$transaction(updatePromises as any);
-
-    // 구글 시트 비동기 업데이트
-    validIds.forEach(id => {
-      updateRequestStatusInSheet(id, getStatusForAction.onDriverAssigned()).catch(err => console.error('시트 상태 업데이트 실패:', err));
-    });
 
     // 채팅 자동 응답 일괄 발송
     try {
@@ -1485,9 +1521,6 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
       }
     });
 
-    // 구글 시트 상태 연동
-    updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패 (비동기):', err));
-
     res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
   } catch (error) {
     console.error('배정 취소 에러:', error);
@@ -1524,11 +1557,6 @@ router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), 
         confirmedDate: null,
         etaMinutes: null
       }
-    });
-
-    // 구글 시트 비동기 업데이트 (각각 실행)
-    validIds.forEach(id => {
-      updateRequestStatusInSheet(id, 'ASSIGNED').catch(err => console.error('시트 상태 업데이트 실패:', err));
     });
 
     res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
@@ -2379,18 +2407,6 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
         customerId: null, // 비회원
       }
     });
-
-    // 구글 시트 연동
-    addRequestToSheet({
-      id: newRequest.id,
-      userName: newRequest.userName,
-      phone: newRequest.phone,
-      address: newRequest.address,
-      detailAddress: newRequest.detailAddress,
-      desiredDate: newRequest.desiredDate.toISOString(),
-      estimatedVolume: newRequest.estimatedVolume,
-      status: newRequest.status,
-    }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
 
     res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
   } catch (error) {

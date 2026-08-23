@@ -18,7 +18,6 @@ const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
-const googleSheets_1 = require("../services/googleSheets");
 const statusService_1 = require("../services/statusService");
 // ==========================================
 // 항목별 수거 단가표 (카테고리별 단가 정의)
@@ -202,8 +201,7 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
             (0, notificationService_1.sendCompletionToCustomer)(request.phone, request.userName, items, // 변경: 항목 배열을 전달하여 영수증 형태 메시지 생성
             totalPrice, request.partner.useBizMessage).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
         }
-        // 6. 구글 시트에 완료 상태 및 무게/메모 업데이트
-        yield (0, googleSheets_1.updateRequestStatusInSheet)(id, 'COMPLETED', totalWeight, driverNote);
+        // 6. 구글 시트 연동 제거됨
         res.json({ message: '수거가 완료되었습니다!', request });
     }
     catch (error) {

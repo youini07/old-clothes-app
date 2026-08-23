@@ -1,5 +1,4 @@
 import express from 'express';
-import { addRequestToSheet } from '../services/googleSheets';
 import { getCoordinates, getOptimalRoute } from '../services/kakaoRoute';
 import { prisma } from '../lib/prisma';
 import { authenticate, optionalAuthenticate, AuthRequest } from '../middleware/authMiddleware';
@@ -126,18 +125,6 @@ router.post('/', validateRequest, optionalAuthenticate, async (req: AuthRequest,
         console.error('회원 정보 자동 업데이트 실패:', err);
       }
     }
-
-    // 4. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
-    addRequestToSheet({
-      id: newRequest.id,
-      userName: newRequest.userName,
-      phone: newRequest.phone,
-      address: newRequest.address,
-      detailAddress: newRequest.detailAddress,
-      desiredDate: newRequest.desiredDate.toISOString(),
-      estimatedVolume: newRequest.estimatedVolume,
-      status: newRequest.status,
-    }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
 
     // 4. 파트너 사장님께 신규 신청 알림톡 발송 (비동기 처리)
     if (partnerToNotify && partnerToNotify.phone) {

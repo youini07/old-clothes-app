@@ -157,6 +157,14 @@ model Request {
   
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
+
+  @@index([partnerId, status])
+  @@index([driverId, status])
+  @@index([customerId])
+  @@index([status, createdAt])
+  @@index([desiredDate])
+  @@index([confirmedDate])
+  @@index([completedDate])
 }
 
 // 사장님이 직접 커스터마이징하는 권역 (예: A권역 = 수원, 화성)

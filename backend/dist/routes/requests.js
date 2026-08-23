@@ -13,7 +13,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
-const googleSheets_1 = require("../services/googleSheets");
 const kakaoRoute_1 = require("../services/kakaoRoute");
 const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
@@ -136,17 +135,6 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
                 console.error('회원 정보 자동 업데이트 실패:', err);
             }
         }
-        // 4. 구글 스프레드시트에 연동 (이중 백업, 비동기 처리 - 응답 지연 방지)
-        (0, googleSheets_1.addRequestToSheet)({
-            id: newRequest.id,
-            userName: newRequest.userName,
-            phone: newRequest.phone,
-            address: newRequest.address,
-            detailAddress: newRequest.detailAddress,
-            desiredDate: newRequest.desiredDate.toISOString(),
-            estimatedVolume: newRequest.estimatedVolume,
-            status: newRequest.status,
-        }).catch(err => console.error('구글 시트 연동 실패 (비동기):', err));
         // 4. 파트너 사장님께 신규 신청 알림톡 발송 (비동기 처리)
         if (partnerToNotify && partnerToNotify.phone) {
             (0, notificationService_1.sendNewRequestToPartner)(partnerToNotify.phone, newRequest.userName, newRequest.address, partnerToNotify.useBizMessage).catch(err => console.error('신규 신청 알림톡 전송 실패:', err));
