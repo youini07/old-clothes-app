@@ -11,8 +11,6 @@ import ReceiptPage from './pages/ReceiptPage';
 import BoardPage from './pages/BoardPage';
 import Landing from './pages/Landing';
 
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 import GlobalNoticeBanner from './components/GlobalNoticeBanner';
 

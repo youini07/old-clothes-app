@@ -119,16 +119,7 @@ function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
   );
 }
 
-// 인라인 이모지 필 (포인트 컬러 강조용)
-function EmojiPill({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <span
-      className={`inline-flex items-center justify-center align-middle rounded-full border-2 border-primary-100 bg-white shadow-md shadow-primary-100/50 px-3 py-0.5 mx-1 sm:px-5 sm:py-1 ${className}`}
-    >
-      {children}
-    </span>
-  );
-}
+
 
 
 // CSS로 그린 스마트폰 목업 프레임 (Galaxy Style, 16:9 Ratio)
