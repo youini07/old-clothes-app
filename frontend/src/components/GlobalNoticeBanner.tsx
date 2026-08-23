@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { Megaphone, X } from 'lucide-react';
 
@@ -13,7 +14,8 @@ export default function GlobalNoticeBanner() {
       axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
         .then(res => {
           if (res.data?.noticeIsActive && res.data?.globalNotice) {
-            setNotice(res.data.globalNotice);
+            // 줄바꿈 문자를 공백으로 치환하여 무조건 한 줄로 보이게 처리
+            setNotice(res.data.globalNotice.replace(/\n/g, ' '));
             setDetail(res.data.globalNoticeDetail || null);
             
             const currentHash = res.data.globalNotice + (res.data.globalNoticeDetail || '');
@@ -68,16 +70,16 @@ export default function GlobalNoticeBanner() {
       >
         <div className="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between flex-wrap">
-            <div className="w-0 flex-1 flex items-center">
-              <span className="flex p-2 rounded-lg bg-indigo-800 bg-opacity-50">
+            <div className="w-0 flex-1 flex items-center min-w-0">
+              <span className="flex p-2 rounded-lg bg-indigo-800 bg-opacity-50 shrink-0">
                 <Megaphone className="h-5 w-5 text-white" aria-hidden="true" />
               </span>
-              <p className="ml-3 font-medium text-sm md:text-base whitespace-pre-wrap flex items-center">
+              <p className="ml-3 font-medium text-sm md:text-base whitespace-nowrap truncate flex items-center">
                 {notice}
-                {detail && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800">자세히 보기</span>}
+                {detail && <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-indigo-100 text-indigo-800 shrink-0">자세히 보기</span>}
               </p>
             </div>
-            <div className="order-2 flex-shrink-0 sm:order-3 sm:ml-3">
+            <div className="order-2 flex-shrink-0 sm:order-3 sm:ml-3 shrink-0">
               <button
                 type="button"
                 onClick={handleDismiss}
@@ -91,29 +93,33 @@ export default function GlobalNoticeBanner() {
         </div>
       </div>
 
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" onClick={() => setIsModalOpen(false)}></div>
+      {isModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onClick={() => setIsModalOpen(false)}></div>
           
-          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col z-10">
-            <div className="px-4 pt-5 pb-4 sm:p-6 sm:pb-4 overflow-y-auto">
-              <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-indigo-100 sm:mx-0 sm:h-10 sm:w-10">
-                  <Megaphone className="h-6 w-6 text-indigo-600" aria-hidden="true" />
-                </div>
-                <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left w-full">
-                  <h3 className="text-lg leading-6 font-medium text-gray-900" id="modal-title">
-                    공지사항 상세 내용
-                  </h3>
-                  <div className="mt-4">
-                    <p className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-md border border-gray-100">
-                      {detail}
-                    </p>
-                  </div>
-                </div>
+          <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col z-10 m-4 sm:m-8">
+            
+            {/* 모달 헤더 (아이콘 + 제목) */}
+            <div className="px-5 pt-6 pb-4 sm:px-8 sm:pt-8 sm:pb-5 shrink-0 flex items-center gap-3 border-b border-gray-100">
+              <div className="flex-shrink-0 flex items-center justify-center h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-indigo-50 border border-indigo-100">
+                <Megaphone className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" aria-hidden="true" />
+              </div>
+              <h3 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight" id="modal-title">
+                공지사항 상세 내용
+              </h3>
+            </div>
+            
+            {/* 모달 본문 (텍스트 영역 전체 폭 활용) */}
+            <div className="px-5 sm:px-8 py-6 overflow-y-auto flex-1">
+              <div className="bg-gray-50 p-5 sm:p-7 rounded-xl border border-gray-100">
+                <p className="text-sm sm:text-base text-gray-700 whitespace-pre-wrap leading-relaxed break-keep">
+                  {detail}
+                </p>
               </div>
             </div>
-            <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse rounded-b-lg shrink-0">
+
+            {/* 하단 버튼 */}
+            <div className="bg-white px-5 py-4 sm:px-8 sm:flex sm:flex-row-reverse rounded-b-xl shrink-0 border-t border-gray-100">
               <button
                 type="button"
                 className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
@@ -123,7 +129,8 @@ export default function GlobalNoticeBanner() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

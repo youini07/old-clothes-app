@@ -323,6 +323,31 @@ router.post('/inquiries/:id/comments', authenticate, async (req: AuthRequest, re
 // 3. 후기/리뷰 (REVIEW) API
 // ──────────────────────────────────────────
 
+// 랜딩페이지용 모든 리뷰 목록 전체 조회 (공개 API)
+router.get('/public/reviews', async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit as string) || 20;
+
+    const posts = await prisma.boardPost.findMany({
+      where: { type: 'REVIEW' },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true, content: true, authorName: true,
+        ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
+        maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
+        createdAt: true,
+      },
+    });
+
+    res.json({ posts });
+  } catch (error) {
+    console.error('랜딩페이지 리뷰 목록 조회 실패:', error);
+    res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+  }
+});
+
+
 // 리뷰 목록 조회 (공개) — 특정 파트너의 리뷰
 router.get('/reviews/:partnerId', async (req, res) => {
   try {
