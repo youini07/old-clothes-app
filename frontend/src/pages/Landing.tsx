@@ -334,6 +334,24 @@ export default function Landing() {
             -webkit-backdrop-filter: blur(8px);
             border: 1px solid rgba(255, 255, 255, 0.6);
           }
+
+          /* 카카오 전용 글래스모피즘 노란색 버튼 */
+          .glass-btn-yellow {
+            background: rgba(254, 229, 0, 0.75);
+            box-shadow: 0 8px 32px 0 rgba(254, 229, 0, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+          }
+          
+          /* 파란색 메인 버튼 글래스모피즘 */
+          .glass-btn-primary {
+            background: rgba(37, 99, 235, 0.75);
+            box-shadow: 0 8px 32px 0 rgba(37, 99, 235, 0.3);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+          }
         `}</style>
 
         {/* === 데스크탑(웹) 배경 (기존) === */}
@@ -381,30 +399,18 @@ export default function Landing() {
             </p>
 
             <div className="reveal reveal-delay-3 flex flex-col sm:flex-row items-center gap-4 shrink-0">
-              {/* 카카오 로그인 버튼 (모바일 글래스모피즘 / 데스크탑 기존) */}
+              {/* 카카오 로그인 버튼 (공통 글래스모피즘) */}
               <a
                 href={KAKAO_LOGIN_URL}
-                className="sm:hidden glass-panel flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#FEE500]/90 text-yellow-950 text-base font-extrabold shadow-[0_8px_30px_rgba(254,229,0,0.3)] hover:bg-[#FEE500] active:scale-95 transition-all w-full"
-              >
-                💬 카카오로 3초만에 시작
-              </a>
-              <a
-                href={KAKAO_LOGIN_URL}
-                className="hidden sm:flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#FEE500] text-yellow-950 text-base font-extrabold shadow-[0_8px_30px_rgba(254,229,0,0.25)] hover:brightness-95 active:scale-95 transition-all w-full sm:w-auto"
+                className="glass-btn-yellow flex items-center justify-center gap-2 px-8 py-4 rounded-full text-yellow-950 text-base font-extrabold hover:brightness-105 active:scale-95 transition-all w-full sm:w-auto"
               >
                 💬 카카오로 3초만에 시작
               </a>
 
-              {/* 자세히 알아보기 버튼 (모바일 글래스모피즘 / 데스크탑 기존) */}
+              {/* 자세히 알아보기 버튼 (공통 글래스모피즘) */}
               <a
                 href="#how"
-                className="sm:hidden glass-panel flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white/60 text-gray-700 text-base font-bold hover:bg-white/90 active:scale-95 shadow-sm transition-all w-full"
-              >
-                자세히 알아보기
-              </a>
-              <a
-                href="#how"
-                className="hidden sm:flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white border border-gray-200 text-gray-700 text-base font-bold hover:bg-gray-50 active:scale-95 shadow-sm transition-all w-full sm:w-auto"
+                className="glass-panel flex items-center justify-center gap-2 px-8 py-4 rounded-full text-gray-700 text-base font-bold hover:brightness-105 active:scale-95 transition-all w-full sm:w-auto"
               >
                 자세히 알아보기
               </a>
@@ -513,7 +519,7 @@ export default function Landing() {
 
             <a
               href={KAKAO_LOGIN_URL}
-              className="reveal reveal-delay-3 flex justify-center sm:inline-flex mt-8 sm:mt-10 px-6 py-3 sm:px-8 sm:py-4 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 font-extrabold hover:bg-primary-700 active:scale-95 transition-all text-sm sm:text-base w-full sm:w-auto text-center"
+              className="reveal reveal-delay-3 glass-btn-primary flex justify-center sm:inline-flex mt-8 sm:mt-10 px-6 py-3 sm:px-8 sm:py-4 rounded-full text-white font-extrabold hover:brightness-110 active:scale-95 transition-all text-sm sm:text-base w-full sm:w-auto text-center"
             >
               수거신청 하러가기
             </a>
@@ -678,7 +684,7 @@ export default function Landing() {
 
           <a
             href="#eco"
-            className="reveal reveal-delay-3 inline-block mt-14 px-10 py-4 rounded-full bg-primary-600 text-white shadow-lg shadow-primary-600/30 font-extrabold hover:bg-primary-700 active:scale-95 transition-all"
+            className="reveal reveal-delay-3 glass-btn-primary inline-block mt-14 px-10 py-4 rounded-full text-white font-extrabold hover:brightness-110 active:scale-95 transition-all"
           >
             지금 바로 수거 신청하기
           </a>
