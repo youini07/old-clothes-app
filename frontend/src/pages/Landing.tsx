@@ -473,63 +473,6 @@ export default function Landing() {
             </a>
           </div>
 
-            <PhoneMockup>
-              <div className="px-5 py-4 text-left bg-white h-full overflow-hidden flex flex-col">
-                <div className="flex items-center gap-2 text-gray-500 mb-3">
-                  <span className="text-lg leading-none">‹</span>
-                  <span className="text-[11px] font-medium">대시보드로 돌아가기</span>
-                </div>
-                
-                <h3 className="text-lg font-black text-gray-900 tracking-tight">헌옷 수거 신청</h3>
-                <p className="text-[10px] text-gray-500 font-medium mt-1 mb-5">방문하실 주소와 희망 일정을 입력해주세요.</p>
-
-                <div className="space-y-4 overflow-y-auto pb-6 no-scrollbar">
-                  {/* 이름 */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">이름</label>
-                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
-                      홍길동
-                    </div>
-                  </div>
-
-                  {/* 연락처 */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">연락처</label>
-                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
-                      010-1234-5678
-                    </div>
-                  </div>
-
-                  {/* 방문 주소 */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">방문 주소</label>
-                    <div className="flex gap-2 mb-2">
-                      <div className="px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] font-medium text-gray-900 w-20 text-center">
-                        06236
-                      </div>
-                      <div className="flex-1 py-2.5 rounded-lg bg-primary-600 text-white text-[11px] font-bold text-center shadow-sm">
-                        주소 찾기
-                      </div>
-                    </div>
-                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-[11px] font-medium text-gray-900 mb-2">
-                      서울특별시 강남구 테헤란로 123
-                    </div>
-                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-900">
-                      올클타워 101호
-                    </div>
-                  </div>
-
-                  {/* 무게 */}
-                  <div>
-                    <label className="block text-[10px] font-bold text-gray-700 mb-1.5">대략적인 헌옷 무게 (kg)</label>
-                    <div className="px-3 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-400">
-                      예: 20 (숫자만 입력)
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </PhoneMockup>
-          </div>
         </div>
       </section>
 
