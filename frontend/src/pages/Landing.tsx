@@ -311,58 +311,83 @@ export default function Landing() {
         )}
       </header>
 
-      {/* ================= 히어로 ================= */}
-      <section id="top" className="relative min-h-[75svh] sm:min-h-[90svh] flex flex-col justify-center overflow-hidden py-12 sm:pb-24 sm:pt-0">
-        {/* 배경 그라데이션 + 워터마크 */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse 90% 70% at 30% 20%, #dbeafe 0%, #F7F8FC 55%), radial-gradient(ellipse 70% 60% at 80% 90%, #e0f2fe 0%, transparent 60%)',
-          }}
-        />
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none overflow-hidden pb-24">
-          <span className="text-[22vw] leading-none font-black text-[rgba(37,99,235,0.08)] whitespace-nowrap">
-            ALLCLEAR
-          </span>
+      {/* ================= 히어로 (Glassmorphism & Original Layout) ================= */}
+      <section id="top" className="relative min-h-[90svh] flex flex-col items-center justify-center overflow-hidden py-12 sm:py-24">
+        
+        {/* 애니메이션 스타일 정의 */}
+        <style>{`
+          @keyframes blob {
+            0% { transform: translate(0px, 0px) scale(1); }
+            33% { transform: translate(30px, -50px) scale(1.1); }
+            66% { transform: translate(-20px, 20px) scale(0.9); }
+            100% { transform: translate(0px, 0px) scale(1); }
+          }
+          .animate-blob { animation: blob 10s infinite alternate; }
+          .animation-delay-2000 { animation-delay: 2s; }
+          .animation-delay-4000 { animation-delay: 4s; }
+          
+          /* 글래스모피즘 컨테이너 효과 */
+          .glass-panel {
+            background: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+          }
+        `}</style>
+
+        {/* 3D Glassmorphism Background Blobs */}
+        <div className="absolute inset-0 bg-[#f4f7fb] overflow-hidden pointer-events-none">
+          <div className="absolute top-[-5%] left-[-10%] w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-sky-300 rounded-full mix-blend-multiply filter blur-[70px] opacity-50 animate-blob"></div>
+          <div className="absolute top-[20%] right-[-10%] w-[250px] h-[250px] md:w-[400px] md:h-[400px] bg-teal-200 rounded-full mix-blend-multiply filter blur-[70px] opacity-50 animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-[-10%] left-[10%] w-[350px] h-[350px] md:w-[600px] md:h-[600px] bg-blue-300 rounded-full mix-blend-multiply filter blur-[70px] opacity-40 animate-blob animation-delay-4000"></div>
+          
+          {/* 전체 배경 오버레이로 은은하고 고급스럽게 */}
+          <div className="absolute inset-0 bg-white/30 backdrop-blur-[1px]"></div>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 pt-4 pb-10 flex flex-col">
-          <div className="flex-1 flex flex-col items-center text-center">
-            <h1 className="font-black leading-[1.1] tracking-tighter text-[11vw] sm:text-7xl md:text-8xl lg:text-[7.5rem] uppercase w-full">
-              <span className="block reveal text-gray-900 transition-colors hover:text-gray-700">
-                Old Clothes,
-              </span>
-              <span className="block reveal reveal-delay-1 text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-400 mt-1 md:mt-2">
-                All Clear.
-              </span>
-            </h1>
+        <div className="relative z-10 w-full max-w-4xl mx-auto px-5 flex flex-col items-center mt-8 sm:mt-12">
+          
+          {/* 1. 상단 텍스트 */}
+          <div className="reveal text-center mb-8 sm:mb-12 drop-shadow-sm">
+            <h2 className="text-[1.35rem] sm:text-4xl font-black text-slate-800 tracking-tight leading-snug break-keep">
+              지구를 구하는 의류 수거, <br />
+              비우는 기쁨과 채워지는 환경 가치
+            </h2>
           </div>
 
-          <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
-            <p className="reveal reveal-delay-2 text-base sm:text-xl md:text-2xl text-gray-600 font-medium max-w-2xl leading-relaxed break-keep">
-              문 앞에 헌옷을 담아두기만 하면 모든 것이 <br className="block sm:hidden" />
-              <strong className="text-primary-600 font-black tracking-tight text-3xl sm:text-inherit block sm:inline mt-2 sm:mt-0">ALL CLEAR!</strong>
-              <br />
-              투명하고 안전한 비대면 수거부터 
-              <br />
-              기분 좋은 정산까지 완벽하게 해결해 드립니다.
-            </p>
+          {/* 2. 중앙 로고 (allclear-logo.png) */}
+          <div className="reveal reveal-delay-1 flex justify-center w-full px-8 sm:px-12 mb-8 sm:mb-12 hover:scale-105 transition-transform duration-500">
+            <img 
+              src="/allclear-logo.png" 
+              alt="ALL CLEAR Logo" 
+              className="w-full max-w-[280px] sm:max-w-[360px] object-contain drop-shadow-2xl" 
+            />
+          </div>
 
-            <div className="reveal reveal-delay-3 flex flex-col sm:flex-row items-center gap-4 shrink-0">
-              <a
-                href={KAKAO_LOGIN_URL}
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#FEE500] text-yellow-950 text-base font-extrabold shadow-[0_8px_30px_rgba(254,229,0,0.25)] hover:brightness-95 active:scale-95 transition-all w-full sm:w-auto"
-              >
-                💬 카카오로 3초만에 시작
-              </a>
-              <a
-                href="#how"
-                className="flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white border border-gray-200 text-gray-700 text-base font-bold hover:bg-gray-50 active:scale-95 shadow-sm transition-all w-full sm:w-auto"
-              >
-                자세히 알아보기
-              </a>
-            </div>
+          {/* 3. 하단 일러스트 그래픽 (hero-graphic.png) */}
+          <div className="reveal reveal-delay-2 flex justify-center w-full px-4 sm:px-10 mb-12 sm:mb-16">
+            <img 
+              src="/hero-graphic.png" 
+              alt="수거와 정산 프로세스" 
+              className="w-full max-w-[320px] sm:max-w-[420px] object-contain drop-shadow-lg opacity-90" 
+            />
+          </div>
+
+          {/* 4. 버튼 영역 */}
+          <div className="reveal reveal-delay-3 flex flex-col w-full max-w-[320px] sm:max-w-md gap-3 shrink-0">
+            <a
+              href={KAKAO_LOGIN_URL}
+              className="glass-panel flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-[#FEE500]/90 text-yellow-950 text-[15px] sm:text-lg font-extrabold shadow-[0_8px_30px_rgba(254,229,0,0.3)] hover:bg-[#FEE500] active:scale-95 transition-all w-full"
+            >
+              💬 카카오로 3초만에 시작
+            </a>
+            <a
+              href="#how"
+              className="glass-panel flex items-center justify-center gap-2 px-8 py-4 rounded-full bg-white/60 text-gray-700 text-[15px] sm:text-lg font-bold hover:bg-white/90 active:scale-95 shadow-sm transition-all w-full"
+            >
+              자세히 알아보기
+            </a>
           </div>
         </div>
       </section>
