@@ -342,7 +342,7 @@ export default function Landing() {
           <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
             <p className="reveal reveal-delay-2 text-base sm:text-xl md:text-2xl text-gray-600 font-medium max-w-2xl leading-relaxed break-keep">
               문 앞에 헌옷을 담아두기만 하면 모든 것이 <br className="block sm:hidden" />
-              <strong className="text-primary-600 font-black tracking-tight">ALL CLEAR!</strong>
+              <strong className="text-primary-600 font-black tracking-tight text-3xl sm:text-inherit block sm:inline mt-2 sm:mt-0">ALL CLEAR!</strong>
               <br />
               투명하고 안전한 비대면 수거부터 
               <br />
@@ -436,12 +436,12 @@ export default function Landing() {
           </div>
 
           <div className="order-2 sm:order-1 flex-1 min-w-[55%]">
-            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4">헌옷 수거 서비스</p>
+            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">헌옷 수거 서비스</p>
             <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               신청부터 정산까지,<br />
               완벽하게 ALL CLEAR!
             </h2>
-            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep">
+            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep hidden sm:block">
               무겁게 들고 나갈 필요 없이 문 앞에만 두세요.
               <br className="hidden sm:block" />
               올클이 알아서 수거하고, 기분 좋은 정산금으로 돌려드립니다.
@@ -538,12 +538,12 @@ export default function Landing() {
           </div>
 
           <div className="order-2 flex-1 min-w-[55%]">
-            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4">맞춤 & 안심 수거</p>
+            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">맞춤 & 안심 수거</p>
             <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
               원하는 날짜에,<br />
               믿을 수 있게
             </h2>
-            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep">
+            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep hidden sm:block">
               이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>, 앱에서 직접 수거일을 확정할 수 있어요.
               <br className="hidden sm:block" />
               또한 비대면 수거를 하더라도 기사님이 <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이 투명하고 신뢰감 있는 정산이 가능합니다.
