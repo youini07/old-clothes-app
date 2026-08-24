@@ -368,10 +368,12 @@ export default function Landing() {
           </span>
         </div>
 
-        {/* === 모바일 배경 (새로운 이미지 + 오버레이) === */}
-        <div className="sm:hidden absolute inset-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: "url('/mobile-hero-bg.jpg')" }}>
-          {/* 이미지가 너무 밝을 수 있으므로 하단에 어두운(혹은 흰색) 그라데이션을 살짝 깔아 텍스트 가독성 확보 */}
-          <div className="absolute inset-0 bg-gradient-to-t from-sky-50 via-white/10 to-transparent"></div>
+        {/* === 모바일 배경 (미니멀 스타일) === */}
+        <div className="sm:hidden absolute inset-0 bg-[#eef1fd] overflow-hidden pointer-events-none">
+          {/* 배경 원형 데코레이션 */}
+          <div className="absolute top-[-5%] right-[-10%] w-[250px] h-[250px] bg-white rounded-full opacity-40"></div>
+          <div className="absolute top-[15%] right-[15%] w-[120px] h-[120px] bg-white rounded-full opacity-60"></div>
+          <div className="absolute bottom-[-10%] left-[-15%] w-[350px] h-[350px] bg-white rounded-full opacity-40"></div>
         </div>
 
         {/* === 데스크탑(웹) 전용 컨텐츠 === */}
@@ -417,32 +419,41 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* === 모바일 전용 컨텐츠 (Glassmorphism 적용) === */}
-        <div className="sm:hidden relative z-10 w-full px-4 flex flex-col h-full justify-end">
-          {/* 타이틀을 화면 상단~중간에 적절히 배치하려면 여기 추가 가능하지만, 일러스트를 강조하기 위해 패널에 몰아넣음 */}
+        {/* === 모바일 전용 컨텐츠 (예전 미니멀 버전 참고) === */}
+        <div className="sm:hidden relative z-10 w-full flex flex-col h-full items-center pt-10 pb-8 px-6">
           
-          <div className="reveal glass-panel rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col items-center text-center backdrop-blur-xl border border-white/60 bg-white/40">
-            <span className="inline-block px-3 py-1 bg-white/50 rounded-full text-primary-700 text-[10px] font-black mb-4 border border-white/80 shadow-sm">
-              친환경 비대면 헌옷수거
-            </span>
-            <h1 className="font-black leading-tight tracking-tight text-[8vw] uppercase w-full mb-3 text-gray-900">
-              Old Clothes,<br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-500 drop-shadow-sm">All Clear.</span>
-            </h1>
-            <p className="text-[13px] text-gray-800 font-semibold leading-relaxed mb-6 break-keep">
-              문 앞에 헌옷을 담아두기만 하면 끝!<br/>
-              투명한 정산부터 환경 보호까지 한 번에.
-            </p>
+          {/* 상단 텍스트 */}
+          <div className="text-center mt-2 mb-auto reveal">
+            <h2 className="text-[#203468] font-extrabold text-xl leading-snug break-keep">
+              지구를 구하는 의류 수거,<br/>
+              비우는 기쁨과 채워지는 환경 가치
+            </h2>
+          </div>
+
+          {/* 중앙 로고 */}
+          <div className="flex flex-col items-center justify-center my-6 w-full max-w-[220px] reveal reveal-delay-1">
+            {/* 실제 로고 이미지가 있으면 띄우고, 없으면 텍스트(fallback)로 보이게 처리 */}
+            <img src="/new-logo.png" alt="올클 로고" className="w-full object-contain mb-4" onError={(e) => { e.currentTarget.style.display = 'none'; document.getElementById('fallback-logo')!.style.display = 'flex'; }} />
+            <div id="fallback-logo" className="text-center hidden flex-col items-center">
+              <h1 className="text-[#09359e] font-black text-5xl tracking-tighter">ALL<span className="text-[#09359e]">CLEAR</span></h1>
+              <h2 className="text-[#1a2d5c] font-black text-5xl mt-2">올클</h2>
+            </div>
+          </div>
+
+          {/* 하단 일러스트 및 버튼 영역 */}
+          <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-2">
+            {/* 생성한 일러스트 (mix-blend-multiply로 배경 투명화) */}
+            <img src="/minimal-recycle.jpg" alt="재활용 과정" className="w-full max-w-[280px] mix-blend-multiply opacity-90 mb-6" />
             
             <a
               href={KAKAO_LOGIN_URL}
-              className="glass-btn-yellow w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full text-yellow-950 text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-lg"
+              className="bg-[#FEE500] text-[#391B1B] w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-md"
             >
               💬 카카오로 3초만에 시작
             </a>
             <a
               href="#how"
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-gray-700 text-sm font-bold bg-white/50 hover:bg-white/70 active:scale-95 transition-all border border-white/60"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-[#4a5568] text-sm font-bold bg-white/60 hover:bg-white border border-white transition-all shadow-sm"
             >
               자세히 알아보기
             </a>
