@@ -696,21 +696,19 @@ export default function Landing() {
           </div>
 
           <div className="contents sm:block sm:order-2 sm:flex-1 sm:min-w-[55%] sm:pr-8 md:pr-16 lg:pr-32">
-            <div className="col-start-2 row-start-1 self-center">
+            <div className="col-start-2 row-start-1 self-center sm:self-auto flex flex-col justify-center">
               <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">맞춤 & 안심 수거</p>
-              <h2 className="reveal reveal-delay-1 text-[26px] sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
+              
+              <h2 className="reveal reveal-delay-1 text-[24px] sm:text-5xl font-black leading-[1.25] tracking-tight text-gray-900 break-keep">
                 원하는 날짜에,<br />
                 믿을 수 있게
               </h2>
+              
+              <p className="reveal reveal-delay-2 mt-3 sm:mt-6 text-gray-600 font-medium leading-[1.65] text-[12.5px] sm:text-lg break-keep block">
+                이삿날처럼 꼭 그날 수거가 필요한 경우, 앱에서 직접 수거일을 확정할 수 있어요. 
+                또한 비대면 수거를 하더라도 기사님이 현장 증빙 사진을 남겨주어, 누락 없이 투명하고 신뢰감 있는 정산이 가능합니다.
+              </p>
             </div>
-            
-            <p className="reveal col-span-2 reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-[1.65] text-[14px] sm:text-lg break-keep block">
-              이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>,<br className="block sm:hidden" />
-              앱에서 직접 수거일을 확정할 수 있어요.<br className="block sm:hidden" />
-              또한 비대면 수거를 하더라도 기사님이<br className="block sm:hidden" />
-              <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이<br className="block sm:hidden" />
-              투명하고 신뢰감 있는 정산이 가능합니다.
-            </p>
 
             <div className="reveal col-span-2 reveal-delay-2 mt-6 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-4 max-w-md">
               <button 
