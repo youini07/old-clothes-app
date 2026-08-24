@@ -589,8 +589,8 @@ export default function Landing() {
         style={{ backgroundImage: "url('/trust-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-6 sm:gap-14 items-center justify-between">
-          <div className="reveal reveal-delay-2 shrink-0 order-1 w-[140px] sm:w-auto mx-auto sm:mx-0">
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 grid grid-cols-[145px_1fr] sm:flex sm:flex-row gap-x-5 gap-y-6 sm:gap-14 items-center justify-between">
+          <div className="reveal reveal-delay-2 shrink-0 col-span-1 row-start-1 w-full sm:w-auto sm:order-1">
             <PhoneMockup>
               <div className="px-4 sm:px-5 py-5 text-left h-full flex flex-col bg-[#F7F8FC] overflow-y-auto no-scrollbar">
                 
@@ -695,34 +695,39 @@ export default function Landing() {
             </PhoneMockup>
           </div>
 
-          <div className="order-2 flex-1 min-w-[55%] sm:pr-8 md:pr-16 lg:pr-32">
-            <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">맞춤 & 안심 수거</p>
-            <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
-              원하는 날짜에,<br />
-              믿을 수 있게
-            </h2>
-            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-[13px] sm:text-lg break-keep block">
-              이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>, 앱에서 직접 수거일을 확정할 수 있어요.
-              <br className="hidden sm:block" />
-              또한 비대면 수거를 하더라도 기사님이 <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이 투명하고 신뢰감 있는 정산이 가능합니다.
+          <div className="contents sm:block sm:order-2 sm:flex-1 sm:min-w-[55%] sm:pr-8 md:pr-16 lg:pr-32">
+            <div className="col-start-2 row-start-1 self-center">
+              <p className="reveal text-primary-600 font-black tracking-widest text-sm sm:text-xl mb-2 sm:mb-4 hidden sm:block">맞춤 & 안심 수거</p>
+              <h2 className="reveal reveal-delay-1 text-[26px] sm:text-5xl font-black leading-tight tracking-tight text-gray-900 break-keep">
+                원하는 날짜에,<br />
+                믿을 수 있게
+              </h2>
+            </div>
+            
+            <p className="reveal col-span-2 reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-[1.65] text-[14px] sm:text-lg break-keep block">
+              이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>,<br className="block sm:hidden" />
+              앱에서 직접 수거일을 확정할 수 있어요.<br className="block sm:hidden" />
+              또한 비대면 수거를 하더라도 기사님이<br className="block sm:hidden" />
+              <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이<br className="block sm:hidden" />
+              투명하고 신뢰감 있는 정산이 가능합니다.
             </p>
 
-            <div className="reveal reveal-delay-2 mt-6 sm:mt-10 grid grid-cols-2 gap-2 sm:gap-4 max-w-md">
+            <div className="reveal col-span-2 reveal-delay-2 mt-6 sm:mt-10 grid grid-cols-2 gap-3 sm:gap-4 max-w-md">
               <button 
                 onClick={() => setActiveTrustTab('date')}
-                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'date' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'date' ? 'bg-white border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
               >
-                <p className="text-xl sm:text-2xl mb-1">📅</p>
-                <p className={`font-extrabold text-xs sm:text-sm ${activeTrustTab === 'date' ? 'text-primary-900' : 'text-gray-900'}`}>수거일 지정</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">원하는 날짜로 확정</p>
+                <p className="text-[22px] sm:text-2xl mb-1.5">📅</p>
+                <p className={`font-extrabold text-[13px] sm:text-sm ${activeTrustTab === 'date' ? 'text-primary-900' : 'text-gray-900'}`}>수거일 지정</p>
+                <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1">원하는 날짜로 확정</p>
               </button>
               <button 
                 onClick={() => setActiveTrustTab('proof')}
-                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'proof' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'proof' ? 'bg-white border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
               >
-                <p className="text-xl sm:text-2xl mb-1">📸</p>
-                <p className={`font-extrabold text-xs sm:text-sm ${activeTrustTab === 'proof' ? 'text-primary-900' : 'text-gray-900'}`}>투명한 증빙</p>
-                <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">현장 사진으로 확인</p>
+                <p className="text-[22px] sm:text-2xl mb-1.5">📸</p>
+                <p className={`font-extrabold text-[13px] sm:text-sm ${activeTrustTab === 'proof' ? 'text-primary-900' : 'text-gray-900'}`}>투명한 증빙</p>
+                <p className="text-[11px] sm:text-xs text-gray-500 font-medium mt-1">현장 사진으로 확인</p>
               </button>
             </div>
           </div>
