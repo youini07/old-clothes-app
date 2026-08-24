@@ -312,7 +312,7 @@ export default function Landing() {
       </header>
 
       {/* ================= 히어로 ================= */}
-      <section id="top" className="relative min-h-[75svh] sm:min-h-[90svh] flex flex-col justify-center overflow-hidden py-12 sm:pb-24 sm:pt-0">
+      <section id="top" className="relative min-h-[100svh] sm:min-h-[90svh] flex flex-col justify-end sm:justify-center overflow-hidden pb-6 sm:pb-24 pt-4 sm:pt-0">
         
         {/* 애니메이션 스타일 정의 */}
         <style>{`
@@ -368,15 +368,14 @@ export default function Landing() {
           </span>
         </div>
 
-        {/* === 모바일 배경 (Glassmorphism) === */}
-        <div className="sm:hidden absolute inset-0 bg-[#f4f7fb] overflow-hidden pointer-events-none">
-          <div className="absolute top-[-5%] left-[-10%] w-[300px] h-[300px] bg-sky-300 rounded-full mix-blend-multiply filter blur-[70px] opacity-50 animate-blob"></div>
-          <div className="absolute top-[20%] right-[-10%] w-[250px] h-[250px] bg-teal-200 rounded-full mix-blend-multiply filter blur-[70px] opacity-50 animate-blob animation-delay-2000"></div>
-          <div className="absolute bottom-[-10%] left-[10%] w-[350px] h-[350px] bg-blue-300 rounded-full mix-blend-multiply filter blur-[70px] opacity-40 animate-blob animation-delay-4000"></div>
-          <div className="absolute inset-0 bg-white/30 backdrop-blur-[2px]"></div>
+        {/* === 모바일 배경 (새로운 이미지 + 오버레이) === */}
+        <div className="sm:hidden absolute inset-0 bg-cover bg-center pointer-events-none" style={{ backgroundImage: "url('/mobile-hero-bg.jpg')" }}>
+          {/* 이미지가 너무 밝을 수 있으므로 하단에 어두운(혹은 흰색) 그라데이션을 살짝 깔아 텍스트 가독성 확보 */}
+          <div className="absolute inset-0 bg-gradient-to-t from-sky-50 via-white/10 to-transparent"></div>
         </div>
 
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 pt-4 pb-10 flex flex-col">
+        {/* === 데스크탑(웹) 전용 컨텐츠 === */}
+        <div className="hidden sm:flex relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 pt-4 pb-10 flex-col">
           <div className="flex-1 flex flex-col items-center text-center">
             <h1 className="font-black leading-[1.1] tracking-tighter text-[11vw] sm:text-7xl md:text-8xl lg:text-[7.5rem] uppercase w-full">
               <span className="block reveal text-gray-900 transition-colors hover:text-gray-700">
@@ -415,6 +414,38 @@ export default function Landing() {
                 자세히 알아보기
               </a>
             </div>
+          </div>
+        </div>
+
+        {/* === 모바일 전용 컨텐츠 (Glassmorphism 적용) === */}
+        <div className="sm:hidden relative z-10 w-full px-4 flex flex-col h-full justify-end">
+          {/* 타이틀을 화면 상단~중간에 적절히 배치하려면 여기 추가 가능하지만, 일러스트를 강조하기 위해 패널에 몰아넣음 */}
+          
+          <div className="reveal glass-panel rounded-[2rem] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.08)] flex flex-col items-center text-center backdrop-blur-xl border border-white/60 bg-white/40">
+            <span className="inline-block px-3 py-1 bg-white/50 rounded-full text-primary-700 text-[10px] font-black mb-4 border border-white/80 shadow-sm">
+              친환경 비대면 헌옷수거
+            </span>
+            <h1 className="font-black leading-tight tracking-tight text-[8vw] uppercase w-full mb-3 text-gray-900">
+              Old Clothes,<br/>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-500 drop-shadow-sm">All Clear.</span>
+            </h1>
+            <p className="text-[13px] text-gray-800 font-semibold leading-relaxed mb-6 break-keep">
+              문 앞에 헌옷을 담아두기만 하면 끝!<br/>
+              투명한 정산부터 환경 보호까지 한 번에.
+            </p>
+            
+            <a
+              href={KAKAO_LOGIN_URL}
+              className="glass-btn-yellow w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full text-yellow-950 text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-lg"
+            >
+              💬 카카오로 3초만에 시작
+            </a>
+            <a
+              href="#how"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-gray-700 text-sm font-bold bg-white/50 hover:bg-white/70 active:scale-95 transition-all border border-white/60"
+            >
+              자세히 알아보기
+            </a>
           </div>
         </div>
       </section>
