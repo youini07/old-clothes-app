@@ -193,6 +193,7 @@ function ReviewCard({ review }: { review: typeof DUMMY_REVIEWS[0] }) {
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [activeTrustTab, setActiveTrustTab] = useState<'date' | 'proof'>('proof');
   const [reviews, setReviews] = useState(DUMMY_REVIEWS);
   const extendedReviews = [...reviews, ...reviews];
 
@@ -584,60 +585,112 @@ export default function Landing() {
       {/* ================= 안심 & 맞춤 수거 ================= */}
       <section 
         id="trust" 
-        className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
+        className="relative min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
         style={{ backgroundImage: "url('/trust-bg.jpg')" }}
       >
         <div className="absolute inset-0 bg-white/30"></div>
-        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-4 sm:gap-14 items-center justify-between">
-          <div className="reveal reveal-delay-2 shrink-0 order-1 w-[130px] sm:w-auto">
+        <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-6 sm:gap-14 items-center justify-between">
+          <div className="reveal reveal-delay-2 shrink-0 order-1 w-[140px] sm:w-auto mx-auto sm:mx-0">
             <PhoneMockup>
-              <div className="px-5 py-5 text-left h-full flex flex-col bg-[#F7F8FC] overflow-y-auto no-scrollbar">
-                <p className="text-[13px] font-black text-gray-900 mb-4 tracking-tight">최근 신청 내역</p>
+              <div className="px-4 sm:px-5 py-5 text-left h-full flex flex-col bg-[#F7F8FC] overflow-y-auto no-scrollbar">
                 
-                <div className="bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-extrabold rounded-full">수거 완료</span>
-                    <span className="text-[10px] text-gray-400 font-medium">2026. 6. 27. 신청</span>
-                  </div>
-                  <h4 className="text-sm font-black text-gray-900 mb-1 tracking-tight truncate">서울특별시 강남구 테헤란로 123</h4>
-                  <p className="text-[11px] text-gray-500 font-medium mb-4">희망일: 2026. 6. 29.</p>
-                  
-                  <div className="bg-gray-50 rounded-xl p-3.5 mb-4">
-                    <p className="text-[11px] font-extrabold text-gray-800 mb-3 flex items-center gap-1"><span>🧾</span> 수거 정산서</p>
-                    <div className="space-y-2.5 text-[11px]">
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 font-bold">헌옷 <span className="text-gray-400 text-[9px] font-medium ml-1">20kg × 400원</span></span>
-                        <span className="font-black text-gray-900">8,000원</span>
+                {activeTrustTab === 'proof' ? (
+                  <>
+                    <p className="text-[13px] font-black text-gray-900 mb-4 tracking-tight">최근 신청 내역</p>
+                    
+                    <div className="bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
+                      <div className="flex justify-between items-center mb-3">
+                        <span className="px-3 py-1 bg-green-100 text-green-700 text-[10px] font-extrabold rounded-full">수거 완료</span>
+                        <span className="text-[10px] text-gray-400 font-medium">2026. 6. 27. 신청</span>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600 font-bold">후라이팬, 냄비류 <span className="text-gray-400 text-[9px] font-medium ml-1">20kg × 300원</span></span>
-                        <span className="font-black text-gray-900">6,000원</span>
+                      <h4 className="text-sm font-black text-gray-900 mb-1 tracking-tight truncate">서울특별시 강남구 테헤란로 123</h4>
+                      <p className="text-[11px] text-gray-500 font-medium mb-4">희망일: 2026. 6. 29.</p>
+                      
+                      <div className="bg-gray-50 rounded-xl p-3.5 mb-4">
+                        <p className="text-[11px] font-extrabold text-gray-800 mb-3 flex items-center gap-1"><span>🧾</span> 수거 정산서</p>
+                        <div className="space-y-2.5 text-[11px]">
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600 font-bold">헌옷 <span className="text-gray-400 text-[9px] font-medium ml-1">20kg × 400원</span></span>
+                            <span className="font-black text-gray-900">8,000원</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-gray-600 font-bold">후라이팬, 냄비류 <span className="text-gray-400 text-[9px] font-medium ml-1">20kg × 300원</span></span>
+                            <span className="font-black text-gray-900">6,000원</span>
+                          </div>
+                          <div className="pt-3 border-t border-gray-200 flex justify-between items-center mt-3">
+                            <span className="font-extrabold text-gray-900">합계</span>
+                            <span className="font-black text-green-600 text-sm">14,000원</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="pt-3 border-t border-gray-200 flex justify-between items-center mt-3">
-                        <span className="font-extrabold text-gray-900">합계</span>
-                        <span className="font-black text-green-600 text-sm">14,000원</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div>
-                    <p className="text-[11px] font-extrabold text-gray-800 mb-3 flex items-center gap-1"><span>📸</span> 수거 증빙 사진</p>
-                    <div className="flex gap-2.5">
-                      <div className="flex flex-col items-center gap-1.5 flex-1">
-                        <div className="w-full aspect-square bg-blue-50 rounded-xl flex items-center justify-center text-3xl border border-blue-100 shadow-sm">📦</div>
-                        <span className="text-[9px] font-bold text-gray-500">고객 포장</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5 flex-1">
-                        <div className="w-full aspect-square bg-indigo-50 rounded-xl flex items-center justify-center text-3xl border border-indigo-100 shadow-sm">👕</div>
-                        <span className="text-[9px] font-bold text-gray-500">헌옷, 신발</span>
-                      </div>
-                      <div className="flex flex-col items-center gap-1.5 flex-1">
-                        <div className="w-full aspect-square bg-orange-50 rounded-xl flex items-center justify-center text-3xl border border-orange-100 shadow-sm">🍳</div>
-                        <span className="text-[9px] font-bold text-gray-500">후라이팬, 냄비</span>
+                      <div>
+                        <p className="text-[11px] font-extrabold text-gray-800 mb-3 flex items-center gap-1"><span>📸</span> 수거 증빙 사진</p>
+                        <div className="flex gap-2.5">
+                          <div className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className="w-full aspect-square bg-blue-50 rounded-xl flex items-center justify-center text-3xl border border-blue-100 shadow-sm">📦</div>
+                            <span className="text-[9px] font-bold text-gray-500">고객 포장</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className="w-full aspect-square bg-indigo-50 rounded-xl flex items-center justify-center text-3xl border border-indigo-100 shadow-sm">👕</div>
+                            <span className="text-[9px] font-bold text-gray-500">헌옷, 신발</span>
+                          </div>
+                          <div className="flex flex-col items-center gap-1.5 flex-1">
+                            <div className="w-full aspect-square bg-orange-50 rounded-xl flex items-center justify-center text-3xl border border-orange-100 shadow-sm">🍳</div>
+                            <span className="text-[9px] font-bold text-gray-500">후라이팬, 냄비</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[13px] font-black text-gray-900 mb-4 tracking-tight">헌옷 수거 신청</p>
+                    <div className="bg-white rounded-[1.25rem] p-4 shadow-sm border border-gray-100">
+                      
+                      <div className="mb-4">
+                        <label className="block text-[10px] font-bold text-gray-700 mb-1.5">대략적인 헌옷 무게 (kg)</label>
+                        <div className="px-3 py-2 rounded-lg border border-gray-200 text-[11px] text-gray-400 mb-2">예: 20 (숫자만 입력)</div>
+                        <div className="px-3 py-1.5 bg-blue-50 text-primary-700 rounded-md flex items-center gap-1 text-[9px] font-bold">
+                          <span>ℹ️</span> 최소 수거 무게는 20kg 이상입니다.
+                        </div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-[10px] font-bold text-gray-700 mb-1.5">상세 품목 메모 (선택)</label>
+                        <div className="px-3 py-2 rounded-lg border border-gray-200 text-[11px] text-gray-400 h-12 overflow-hidden whitespace-nowrap text-ellipsis">예: 신발 2켤레 추가요청</div>
+                      </div>
+
+                      <div className="mb-4">
+                        <label className="block text-[10px] font-bold text-gray-700 mb-1.5">수거 희망일</label>
+                        <div className="px-3 py-2 rounded-lg border border-gray-200 text-[11px] text-gray-800 flex justify-between items-center">
+                          <span>날짜 선택</span>
+                          <span className="text-[8px]">▼</span>
+                        </div>
+                      </div>
+
+                      <div className="bg-gray-50 rounded-xl p-3 border border-gray-100 mb-3">
+                        <div className="flex gap-2 items-start">
+                          <div className="w-3 h-3 mt-0.5 shrink-0 rounded bg-primary-600 flex items-center justify-center text-white text-[8px]">✓</div>
+                          <div>
+                            <p className="text-[10px] font-extrabold text-gray-800 leading-snug">이삿날 등 무조건 해당 일자에 수거가 필요합니다.</p>
+                            <p className="text-[8px] text-gray-500 font-medium mt-1 leading-snug">기본적으로 기사님 동선에 따라 조율되나, 부득이한 경우 체크해 주세요.</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bg-orange-50/50 rounded-xl p-3 border border-orange-100 mb-4">
+                        <p className="text-[8px] text-orange-800 font-bold leading-snug">
+                          🚨 필수 수거를 선택하신 경우, 원활한 일정 조율을 위해 접수 후 반드시 카카오톡 채널로 문의를 남겨주세요.
+                        </p>
+                      </div>
+
+                      <div className="w-full py-2.5 bg-primary-600 text-white text-[11px] font-bold rounded-lg text-center shadow-sm">
+                        신청 완료하기
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </PhoneMockup>
           </div>
@@ -648,23 +701,29 @@ export default function Landing() {
               원하는 날짜에,<br />
               믿을 수 있게
             </h2>
-            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-sm sm:text-lg break-keep hidden sm:block">
+            <p className="reveal reveal-delay-2 mt-4 sm:mt-6 text-gray-600 font-medium leading-relaxed text-[13px] sm:text-lg break-keep block">
               이삿날처럼 <strong>꼭 그날 수거가 필요한 경우</strong>, 앱에서 직접 수거일을 확정할 수 있어요.
               <br className="hidden sm:block" />
               또한 비대면 수거를 하더라도 기사님이 <strong>현장 증빙 사진</strong>을 남겨주어, 누락 없이 투명하고 신뢰감 있는 정산이 가능합니다.
             </p>
 
             <div className="reveal reveal-delay-2 mt-6 sm:mt-10 grid grid-cols-2 gap-2 sm:gap-4 max-w-md">
-              <div className="rounded-xl sm:rounded-2xl bg-white border border-gray-200 shadow-sm p-4 sm:p-5">
+              <button 
+                onClick={() => setActiveTrustTab('date')}
+                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'date' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+              >
                 <p className="text-xl sm:text-2xl mb-1">📅</p>
-                <p className="font-extrabold text-xs sm:text-sm text-gray-900">수거일 지정</p>
+                <p className={`font-extrabold text-xs sm:text-sm ${activeTrustTab === 'date' ? 'text-primary-900' : 'text-gray-900'}`}>수거일 지정</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">원하는 날짜로 확정</p>
-              </div>
-              <div className="rounded-xl sm:rounded-2xl bg-primary-50 border border-primary-200 shadow-sm p-4 sm:p-5">
+              </button>
+              <button 
+                onClick={() => setActiveTrustTab('proof')}
+                className={`rounded-xl sm:rounded-2xl border shadow-sm p-4 sm:p-5 text-left transition-all ${activeTrustTab === 'proof' ? 'bg-primary-50 border-primary-200 ring-2 ring-primary-100' : 'bg-white border-gray-200 hover:bg-gray-50'}`}
+              >
                 <p className="text-xl sm:text-2xl mb-1">📸</p>
-                <p className="font-extrabold text-xs sm:text-sm text-primary-900">투명한 증빙</p>
+                <p className={`font-extrabold text-xs sm:text-sm ${activeTrustTab === 'proof' ? 'text-primary-900' : 'text-gray-900'}`}>투명한 증빙</p>
                 <p className="text-[10px] sm:text-xs text-gray-500 font-medium mt-1">현장 사진으로 확인</p>
-              </div>
+              </button>
             </div>
           </div>
         </div>
