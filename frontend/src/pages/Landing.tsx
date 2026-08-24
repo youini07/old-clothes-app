@@ -368,12 +368,14 @@ export default function Landing() {
           </span>
         </div>
 
-        {/* === 모바일 배경 (모던 미니멀 메쉬 그라데이션) === */}
-        <div className="sm:hidden absolute inset-0 bg-white overflow-hidden pointer-events-none">
-          {/* 아주 미세한 모던 메쉬 그라데이션 포인트 (프리미엄 느낌) */}
-          <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-primary-50 rounded-full blur-[80px] opacity-70"></div>
-          <div className="absolute bottom-[-10%] left-[-10%] w-[350px] h-[350px] bg-blue-50 rounded-full blur-[80px] opacity-70"></div>
-          <div className="absolute top-[30%] left-[20%] w-[200px] h-[200px] bg-sky-50 rounded-full blur-[60px] opacity-50"></div>
+        {/* === 모바일 배경 (청량한 아이폰 UI 스타일) === */}
+        <div className="sm:hidden absolute inset-0 bg-gradient-to-b from-sky-50/80 to-blue-50/40 overflow-hidden pointer-events-none">
+          {/* 청량한 물방울/빛망울 느낌의 데코레이션 */}
+          <div className="absolute top-[5%] right-[-10%] w-[280px] h-[280px] bg-sky-200/40 rounded-full blur-[40px] animate-blob"></div>
+          <div className="absolute top-[30%] left-[-5%] w-[180px] h-[180px] bg-blue-200/40 rounded-full blur-[30px] animate-blob animation-delay-2000"></div>
+          <div className="absolute bottom-[10%] right-[10%] w-[220px] h-[220px] bg-indigo-100/40 rounded-full blur-[40px] animate-blob animation-delay-4000"></div>
+          <div className="absolute top-[15%] left-[20%] w-[60px] h-[60px] bg-white/60 rounded-full blur-[15px]"></div>
+          <div className="absolute bottom-[30%] left-[15%] w-[100px] h-[100px] bg-white/50 rounded-full blur-[25px]"></div>
         </div>
 
         {/* === 데스크탑(웹) 전용 컨텐츠 === */}
@@ -419,49 +421,53 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* === 모바일 전용 컨텐츠 (모던 타이포그래피 위주) === */}
-        <div className="sm:hidden relative z-10 w-full flex flex-col h-full pt-16 pb-8 px-6">
+        {/* === 모바일 전용 컨텐츠 (아이폰 글래스모피즘 스타일) === */}
+        <div className="sm:hidden relative z-10 w-full flex flex-col h-full pt-16 pb-8 px-5">
           
-          <div className="flex-1 flex flex-col justify-center">
-            {/* 상단 태그라인 (에디토리얼 느낌) */}
-            <div className="reveal flex items-center gap-2 mb-6">
-              <span className="h-[2px] w-8 bg-primary-600"></span>
-              <span className="text-primary-600 font-extrabold tracking-widest text-[11px] uppercase">Eco-friendly Service</span>
+          {/* 전체를 감싸는 유리 패널 */}
+          <div className="flex flex-col h-full bg-white/30 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(37,99,235,0.05)] rounded-[2.5rem] p-7">
+            
+            <div className="flex-1 flex flex-col justify-center mt-2">
+              {/* 상단 태그라인 */}
+              <div className="reveal flex items-center gap-2 mb-5">
+                <span className="h-[2px] w-6 bg-primary-500 rounded-full"></span>
+                <span className="text-primary-600 font-extrabold tracking-widest text-[11px] uppercase">Eco-friendly</span>
+              </div>
+
+              {/* 메인 타이포그래피 */}
+              <h1 className="reveal reveal-delay-1 font-black leading-[1.1] tracking-tighter text-[13vw] uppercase text-gray-900 break-words mb-5">
+                Old <br/>Clothes,<br/>
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-500">All Clear.</span>
+              </h1>
+
+              {/* 서브 타이포그래피 */}
+              <h2 className="reveal reveal-delay-2 text-[15px] font-extrabold text-gray-800 leading-snug mb-3">
+                지구를 구하는 의류 수거,<br/>
+                비우는 기쁨과 채워지는 환경 가치
+              </h2>
+              
+              <p className="reveal reveal-delay-3 text-[13px] text-gray-600 font-medium leading-relaxed">
+                문 앞에 헌옷을 담아두기만 하면 끝납니다.<br/>
+                투명하고 안전한 비대면 수거부터<br/>
+                기분 좋은 정산까지 완벽하게.
+              </p>
             </div>
 
-            {/* 메인 타이포그래피 (크고 임팩트 있게) */}
-            <h1 className="reveal reveal-delay-1 font-black leading-[1.05] tracking-tighter text-[15vw] uppercase text-gray-900 break-words mb-5">
-              Old <br/>Clothes,<br/>
-              <span className="text-primary-600">All Clear.</span>
-            </h1>
-
-            {/* 서브 타이포그래피 */}
-            <h2 className="reveal reveal-delay-2 text-[16px] font-extrabold text-gray-800 leading-snug mb-3">
-              지구를 구하는 의류 수거,<br/>
-              비우는 기쁨과 채워지는 환경 가치
-            </h2>
-            
-            <p className="reveal reveal-delay-3 text-[13px] text-gray-500 font-semibold leading-relaxed">
-              문 앞에 헌옷을 담아두기만 하면 끝납니다.<br/>
-              투명하고 안전한 비대면 수거부터<br/>
-              기분 좋은 정산까지 완벽하게.
-            </p>
-          </div>
-
-          {/* 하단 버튼 영역 */}
-          <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-3 pt-6">
-            <a
-              href={KAKAO_LOGIN_URL}
-              className="bg-[#FEE500] text-[#391B1B] w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-[0_4px_14px_0_rgba(254,229,0,0.39)]"
-            >
-              💬 카카오로 3초만에 시작
-            </a>
-            <a
-              href="#how"
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-gray-600 text-sm font-bold bg-gray-50 border border-gray-200 hover:bg-gray-100 active:scale-95 transition-all"
-            >
-              자세히 알아보기
-            </a>
+            {/* 하단 버튼 영역 */}
+            <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-3 pt-6">
+              <a
+                href={KAKAO_LOGIN_URL}
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-[#FEE500]/80 backdrop-blur-md border border-[#FEE500]/40 text-[#391B1B] text-[15px] font-extrabold hover:bg-[#FEE500] active:scale-95 transition-all mb-3 shadow-[0_4px_16px_rgba(254,229,0,0.25)]"
+              >
+                카카오로 로그인
+              </a>
+              <a
+                href="#how"
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/40 backdrop-blur-md border border-white/60 text-gray-700 text-[14px] font-bold hover:bg-white/60 active:scale-95 transition-all shadow-sm"
+              >
+                자세히 알아보기
+              </a>
+            </div>
           </div>
         </div>
       </section>
