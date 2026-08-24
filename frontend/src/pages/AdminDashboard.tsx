@@ -2565,8 +2565,8 @@ export default function AdminDashboard() {
                       className={`p-4 border rounded-2xl shadow-sm cursor-pointer transition-all flex flex-col gap-3 ${selectedRequestIds.includes(req.id) ? 'bg-orange-50 border-orange-400 ring-2 ring-orange-200' : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'}`}
                       onClick={() => handleToggleOnePending(req.id)}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="pt-0.5">
+                      <div className="flex items-start gap-3 w-full">
+                        <div className="pt-0.5 shrink-0">
                           <input 
                             type="checkbox" 
                             checked={selectedRequestIds.includes(req.id)}
@@ -2574,7 +2574,7 @@ export default function AdminDashboard() {
                             className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500 cursor-pointer"
                           />
                         </div>
-                        <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0 flex flex-col">
                           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                             <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                               <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
@@ -2586,52 +2586,52 @@ export default function AdminDashboard() {
                               )}
                             </h3>
                           </div>
-                          <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                          <p className="text-sm text-gray-700 mt-1.5 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                          
+                          <div className="flex flex-wrap items-center gap-2 mt-3">
+                            <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">
+                              {req.estimatedVolume}
+                            </span>
+                            <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                            <div className="relative inline-block shrink-0">
+                              <input 
+                                type="date"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
+                                📅 날짜 변경
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end gap-2">
+                            {!req.customerId && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                                className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap flex-1 sm:flex-none"
+                              >
+                                ✏️ 정보 수정
+                              </button>
+                            )}
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                              className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap flex-1 sm:flex-none"
+                            >
+                              🗑️ 강제 삭제
+                            </button>
+                            {!selectedRequestIds.includes(req.id) && (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
+                                disabled={claimingId === req.id}
+                                className={`px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm justify-center flex items-center gap-1 whitespace-nowrap flex-1 sm:flex-none ${claimingId === req.id ? 'opacity-70 cursor-not-allowed bg-orange-300' : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'}`}
+                              >
+                                {claimingId === req.id ? <Spinner className="w-4 h-4 text-white" /> : '✋ 수락'}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      
-                      <div className="flex flex-wrap items-center gap-2 pl-8">
-                        <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                          {req.estimatedVolume}
-                        </span>
-                        <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                        <div className="relative inline-block">
-                          <input 
-                            type="date"
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                            onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                          <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
-                            📅 날짜 변경
-                          </button>
-                        </div>
-                      </div>
-                      
-                      <div className="mt-1 pl-8 flex flex-wrap justify-end gap-2">
-                        {!req.customerId && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                            className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap"
-                          >
-                            ✏️ 정보 수정
-                          </button>
-                        )}
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                          className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap"
-                        >
-                          🗑️ 강제 삭제
-                        </button>
-                        {!selectedRequestIds.includes(req.id) && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleClaim(req.id); }}
-                            disabled={claimingId === req.id}
-                            className={`px-4 py-2 text-sm font-bold rounded-xl transition-all shadow-sm justify-center flex items-center gap-1 whitespace-nowrap ${claimingId === req.id ? 'opacity-70 cursor-not-allowed bg-orange-300' : 'bg-orange-500 text-white hover:bg-orange-600 active:scale-95'}`}
-                          >
-                            {claimingId === req.id ? <Spinner className="w-4 h-4 text-white" /> : '✋ 수락'}
-                          </button>
-                        )}
                       </div>
                     </div>
                   ))}
@@ -2708,8 +2708,8 @@ export default function AdminDashboard() {
                       selectedUnassignedIds.includes(req.id) ? 'bg-gray-50 border-gray-400' : 'bg-white border-gray-200 hover:border-primary-400'
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="pt-0.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-start gap-3 w-full">
+                      <div className="pt-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
                         <input 
                           type="checkbox" 
                           checked={selectedUnassignedIds.includes(req.id)}
@@ -2717,7 +2717,7 @@ export default function AdminDashboard() {
                           className="w-5 h-5 rounded border-gray-300 text-gray-500 focus:ring-gray-500 cursor-pointer"
                         />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 flex flex-col">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-1">
                           <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                             <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
@@ -2732,53 +2732,53 @@ export default function AdminDashboard() {
                             <span className="text-[10px] bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg font-bold shadow-sm shrink-0 self-start">배정 대기중</span>
                           )}
                         </div>
-                        <p className="text-sm text-gray-700 mt-2 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                        <p className="text-sm text-gray-700 mt-1.5 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                        
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">
+                            {req.estimatedVolume}
+                          </span>
+                          <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
+                          <div className="relative inline-block shrink-0">
+                            <input 
+                              type="date"
+                              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                              onChange={(e) => handleUpdateDate(req.id, e.target.value)}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
+                              📅 날짜 변경
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end gap-2">
+                          {!req.customerId && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
+                              className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap flex-1 sm:flex-none"
+                            >
+                              ✏️ 정보 수정
+                            </button>
+                          )}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
+                            className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap flex-1 sm:flex-none"
+                          >
+                            🗑️ 강제 삭제
+                          </button>
+                          {!selectedUnassignedIds.includes(req.id) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
+                              disabled={unclaimingId === req.id}
+                              className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors justify-center flex items-center gap-1 border whitespace-nowrap flex-1 sm:flex-none ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600 active:scale-95'}`}
+                            >
+                              {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
+                              수락 취소
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                    
-                    <div className="flex flex-wrap items-center gap-2 pl-8">
-                      <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold">
-                        {req.estimatedVolume}
-                      </span>
-                      <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                      <div className="relative inline-block">
-                        <input 
-                          type="date"
-                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          onChange={(e) => handleUpdateDate(req.id, e.target.value)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                        <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
-                          📅 날짜 변경
-                        </button>
-                      </div>
-                    </div>
-                    
-                    <div className="mt-1 pl-8 flex flex-wrap justify-end gap-2">
-                      {!req.customerId && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                          className="px-3 py-2 text-xs font-bold rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors justify-center flex items-center gap-1 border border-blue-100 whitespace-nowrap"
-                        >
-                          ✏️ 정보 수정
-                        </button>
-                      )}
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleDeleteRequest(req.id); }}
-                        className="px-3 py-2 text-xs font-bold rounded-xl text-red-600 bg-red-50 hover:bg-red-100 transition-colors justify-center flex items-center gap-1 border border-red-100 whitespace-nowrap"
-                      >
-                        🗑️ 강제 삭제
-                      </button>
-                      {!selectedUnassignedIds.includes(req.id) && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleUnclaim(req.id); }}
-                          disabled={unclaimingId === req.id}
-                          className={`px-3 py-2 text-xs font-bold rounded-xl transition-colors justify-center flex items-center gap-1 border whitespace-nowrap ${unclaimingId === req.id ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : 'bg-white border-gray-200 hover:bg-gray-50 text-gray-600 active:scale-95'}`}
-                        >
-                          {unclaimingId === req.id && <Spinner className="w-3 h-3 text-current" />}
-                          수락 취소
-                        </button>
-                      )}
                     </div>
                   </div>
                 ))}
@@ -2970,7 +2970,7 @@ export default function AdminDashboard() {
                                       className={`p-4 bg-white border rounded-2xl shadow-sm transition-all flex flex-col gap-3 sm:gap-4 ${snapshot.isDragging ? 'shadow-xl scale-[1.02] border-primary-400' : 'hover:-translate-y-0.5 hover:shadow-md'} ${req.status === 'IN_PROGRESS' ? 'border-blue-400 ring-2 ring-blue-100' : 'border-gray-200 hover:border-gray-300'}`}
                                     >
                                       {/* Top Row: Checkbox, Index, Time Select */}
-                                      <div className="flex justify-between items-center w-full">
+                                      <div className="flex justify-between items-center w-full mb-3 pb-3 border-b border-gray-100">
                                         <div className="flex items-center gap-3">
                                           <input
                                             type="checkbox"
@@ -2994,76 +2994,86 @@ export default function AdminDashboard() {
                                             <span className="text-gray-400 text-[10px] sm:hidden ml-1">☰</span>
                                           </div>
                                         </div>
-                                        <select
-                                          value={req.estimatedPickupHour ?? ''}
-                                          onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
-                                          className="text-sm sm:text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500"
-                                        >
-                                          <option value="">수거 예상 시간</option>
-                                          {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
-                                            const h = Math.floor(hour);
-                                            const m = hour % 1 === 0 ? '00' : '30';
-                                            return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
-                                          })}
-                                        </select>
+                                        <div className="flex items-center gap-2">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
+                                            className="bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors whitespace-nowrap hidden sm:block"
+                                          >
+                                            📱 문자
+                                          </button>
+                                          <select
+                                            value={req.estimatedPickupHour ?? ''}
+                                            onChange={(e) => handleUpdateEstimatedTime(req.id, e.target.value)}
+                                            className="text-sm sm:text-xs font-bold bg-white border border-gray-200 rounded-lg px-2 py-1.5 shadow-sm outline-none focus:ring-2 focus:ring-primary-500"
+                                          >
+                                            <option value="">수거 예상 시간</option>
+                                            {Array.from({length: 22}, (_, i) => 8 + (i * 0.5)).map(hour => {
+                                              const h = Math.floor(hour);
+                                              const m = hour % 1 === 0 ? '00' : '30';
+                                              return <option key={hour} value={hour}>{h}시 {m === '30' ? '30분' : ''}</option>
+                                            })}
+                                          </select>
+                                        </div>
                                       </div>
 
-                                      {/* Middle Row: Name, Phone, Badges, SMS */}
-                                      <div className="flex justify-between items-center gap-2 flex-wrap">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                          <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-                                            {req.userName}
+                                      {/* Middle Row: Name, Phone, Badges */}
+                                      <div className="flex flex-col gap-1.5 mb-3">
+                                        <div className="flex items-center justify-between w-full">
+                                          <h3 className="font-bold text-gray-900 text-base flex items-center flex-wrap gap-x-2 gap-y-1">
+                                            <span>{req.userName}</span>
                                             {req.phone && (
-                                              <span className="text-sm font-medium text-gray-500 bg-gray-100 px-2 py-0.5 rounded-md whitespace-nowrap">
+                                              <span className="text-sm font-medium text-gray-500">
                                                 {req.phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3')}
                                               </span>
                                             )}
+                                            {req.isMustPickupDate && (
+                                              <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                                                🚨 필수 수거
+                                              </span>
+                                            )}
+                                            {req.status === 'IN_PROGRESS' && (
+                                              <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2 py-0.5 rounded-full animate-pulse whitespace-nowrap">
+                                                이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
+                                              </span>
+                                            )}
                                           </h3>
-                                          {req.isMustPickupDate && (
-                                            <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-1 rounded-md whitespace-nowrap">
-                                              🚨 필수 수거
-                                            </span>
-                                          )}
-                                          {req.status === 'IN_PROGRESS' && (
-                                            <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full animate-pulse whitespace-nowrap">
-                                              이동 중 {req.etaMinutes ? `(${req.etaMinutes}분)` : ''}
-                                            </span>
-                                          )}
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
+                                            className="bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 px-2.5 py-1.5 rounded-lg text-xs font-bold shadow-sm transition-colors whitespace-nowrap sm:hidden"
+                                          >
+                                            📱 문자
+                                          </button>
                                         </div>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handleSendAssignedSMS(req); }}
-                                          className="bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded-lg text-xs font-bold shadow-sm transition-colors whitespace-nowrap"
-                                        >
-                                          📱 문자
-                                        </button>
-                                      </div>
-                                      
-                                      {/* Address Row */}
-                                      <div className="text-sm text-gray-700 leading-relaxed">
-                                        <div>{req.address}</div>
-                                        {req.detailAddress && <div className="mt-1">{req.detailAddress}</div>}
+                                        <div className="text-sm text-gray-700 leading-relaxed mt-1">
+                                          <div>{req.address}</div>
+                                          {req.detailAddress && <div>{req.detailAddress}</div>}
+                                        </div>
                                       </div>
 
-                                      {/* Bottom Row: Date Badges, Unassign */}
-                                      <div className="flex justify-between items-center mt-1 pt-2 border-t border-gray-100 gap-2 flex-wrap">
-                                        <div className="flex items-center gap-2 flex-wrap">
+                                      {/* Bottom Row: Tags, Buttons */}
+                                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                          <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">
+                                            {req.estimatedVolume}
+                                          </span>
                                           <DesiredDateBadge desiredDate={req.desiredDate} confirmedDate={req.confirmedDate} />
-                                          <div className="relative inline-block">
+                                          <div className="relative inline-block shrink-0">
                                             <input 
                                               type="date"
                                               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                               onChange={(e) => handleUpdateDate(req.id, e.target.value)}
                                             />
-                                            <button className="bg-white hover:bg-gray-50 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 shadow-sm transition-colors">
+                                            <button className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 rounded-lg text-[11px] font-bold border border-gray-200 transition-colors">
                                               📅 날짜 변경
                                             </button>
                                           </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        
+                                        <div className="flex items-center gap-2 pt-3 sm:pt-0 border-t border-gray-100 sm:border-0 w-full sm:w-auto">
                                           {!req.customerId && (
                                             <button
                                               onClick={(e) => { e.stopPropagation(); openEditRequestModal(req); }}
-                                              className="px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 shadow-sm"
+                                              className="px-3 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 whitespace-nowrap text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-100 shadow-sm flex-1 sm:flex-none"
                                             >
                                               ✏️ 수정
                                             </button>
@@ -3085,7 +3095,7 @@ export default function AdminDashboard() {
                                                 setUnassigningReqId(null);
                                               }
                                             }}
-                                            className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
+                                            className={`px-3 py-2 sm:py-1.5 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-1 whitespace-nowrap flex-1 sm:flex-none ${unassigningReqId === req.id ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 shadow-sm'}`}
                                           >
                                             {unassigningReqId === req.id && <Spinner className="w-3 h-3" />}
                                             배정 취소
