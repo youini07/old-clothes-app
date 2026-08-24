@@ -442,7 +442,7 @@ export default function Landing() {
               </h1>
               
               {/* 한글 타이포그래피 추가 (올-클) */}
-              <h2 className="reveal reveal-delay-1 text-primary-600 font-black text-5xl tracking-tight mb-8">
+              <h2 className="reveal reveal-delay-1 text-primary-600 font-black text-5xl tracking-tight mb-8 text-center">
                 올 - 클
               </h2>
 
