@@ -423,23 +423,28 @@ export default function Landing() {
         </div>
 
         {/* === 모바일 전용 컨텐츠 (아이폰 글래스모피즘 스타일) === */}
-        <div className="sm:hidden relative z-10 w-full flex flex-col h-full pt-16 pb-8 px-5">
+        <div className="sm:hidden relative z-10 w-full flex flex-col h-full pt-4 pb-6 px-4">
           
           {/* 전체를 감싸는 유리 패널 */}
-          <div className="flex flex-col h-full bg-white/30 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(37,99,235,0.05)] rounded-[2.5rem] p-7">
+          <div className="flex flex-col h-full bg-white/30 backdrop-blur-2xl border border-white/60 shadow-[0_8px_32px_rgba(37,99,235,0.05)] rounded-[2.5rem] p-6 sm:p-7">
             
             <div className="flex-1 flex flex-col justify-center mt-2">
               {/* 상단 태그라인 */}
-              <div className="reveal flex items-center gap-2 mb-5">
-                <span className="h-[2px] w-6 bg-primary-500 rounded-full"></span>
-                <span className="text-primary-600 font-extrabold tracking-widest text-[11px] uppercase">Eco-friendly</span>
+              <div className="reveal flex items-center gap-2.5 mb-5">
+                <span className="h-[3px] w-8 bg-primary-500 rounded-full"></span>
+                <span className="text-primary-600 font-extrabold tracking-widest text-[15px] uppercase">Eco-friendly</span>
               </div>
 
               {/* 메인 타이포그래피 */}
-              <h1 className="reveal reveal-delay-1 font-black leading-[1.1] tracking-tighter text-[13vw] uppercase text-gray-900 break-words mb-5">
+              <h1 className="reveal reveal-delay-1 font-black leading-[1.05] tracking-tighter text-[14vw] uppercase text-gray-900 break-words mb-2">
                 Old <br/>Clothes,<br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-500">All Clear.</span>
               </h1>
+              
+              {/* 한글 타이포그래피 추가 (올-클) */}
+              <h2 className="reveal reveal-delay-1 text-primary-600 font-black text-5xl tracking-tight mb-8">
+                올 - 클
+              </h2>
 
               {/* 서브 타이포그래피 */}
               <h2 className="reveal reveal-delay-2 text-[15px] font-extrabold text-gray-800 leading-snug mb-3">
