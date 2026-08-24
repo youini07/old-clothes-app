@@ -133,7 +133,7 @@ export default function RequestForm() {
         </div>
       )}
 
-      <div className="min-h-screen bg-gray-50 p-4 pb-20">
+      <div className="min-h-screen app-bg p-4 pb-20">
         <div className="max-w-md mx-auto bg-white rounded-2xl shadow-sm p-6 space-y-8">
         <div>
           <button

@@ -647,7 +647,7 @@ export default function DriverDashboard() {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-50 pb-20 custom-scrollbar print:hidden">
+      <div className="min-h-screen app-bg pb-20 custom-scrollbar print:hidden">
       {isLargeText && (
         <style>{`
           html { font-size: 19px !important; }
@@ -655,7 +655,7 @@ export default function DriverDashboard() {
       )}
       
       {/* Header */}
-      <div className="bg-white px-4 md:px-6 py-4 shadow-sm sticky top-0 z-20 flex flex-wrap justify-between items-center gap-y-3 gap-x-2">
+      <div className="glass-header px-4 md:px-6 py-4 sticky top-0 z-20 flex flex-wrap justify-between items-center gap-y-3 gap-x-2">
         <div className="shrink-0 mr-2">
           <h1 className="text-xl font-extrabold text-gray-900">{'오늘의 수거 동선 🚚'}</h1>
           <p className="text-sm text-gray-500 mt-0.5">안전 운전하세요!</p>
@@ -705,7 +705,7 @@ export default function DriverDashboard() {
       {activeMainTab === 'route' ? (
         <>
           {/* 현위치 기반 최적화 버튼 */}
-          <div className="px-4 py-3 bg-white space-y-3">
+          <div className="px-4 py-3 bg-white/50 backdrop-blur-sm space-y-3">
             <div className={`p-4 rounded-2xl flex flex-col gap-3 transition-all ${returnToStart ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50 border border-gray-200'}`}>
               <label className="flex items-center gap-3 cursor-pointer">
                 <input type="checkbox" checked={returnToStart} onChange={e => setReturnToStart(e.target.checked)} className="w-5 h-5 text-blue-600 rounded focus:ring-blue-500 accent-blue-600 cursor-pointer" />

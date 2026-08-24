@@ -36,6 +36,39 @@
   .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
   .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
 
+  /* ===== iOS 스타일 글래스모피즘 (디자인 전용 — 레이아웃/기능 영향 없음) ===== */
+  /* 흰 반투명 카드: bg-white rounded-2xl shadow-sm 카드들을 대체 */
+  .glass-card {
+    @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgba(37,99,235,0.08)];
+  }
+  /* 상단 고정바: bg-white border-b 헤더를 대체 */
+  .glass-header {
+    @apply bg-white/75 backdrop-blur-xl border-b border-white/60 shadow-[0_4px_24px_rgba(37,99,235,0.06)];
+  }
+  /* 하단/사이드 탭바 */
+  .glass-tabbar {
+    @apply bg-white/80 backdrop-blur-xl border border-white/60 shadow-[0_8px_32px_rgba(37,99,235,0.10)];
+  }
+  /* 파랑 그라데이션 주요 버튼 */
+  .glass-btn-primary {
+    @apply bg-gradient-to-r from-primary-600 to-blue-500 text-white shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:brightness-105 active:scale-[0.98] transition-all;
+  }
+  /* 흰 유리 보조 버튼 */
+  .glass-btn {
+    @apply bg-white/60 backdrop-blur-md border border-white/70 text-gray-700 shadow-sm hover:bg-white/80 active:scale-[0.98] transition-all;
+  }
+  /* 입력창 */
+  .glass-input {
+    @apply bg-white/70 backdrop-blur-sm border border-white/80 focus:ring-2 focus:ring-primary-500/50 focus:bg-white transition-colors outline-none;
+  }
+  /* 페이지 전체 배경 (파란 은은한 그라데이션) */
+  .app-bg {
+    background:
+      radial-gradient(ellipse 80% 50% at 20% 0%, rgba(219, 234, 254, 0.8) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 50% at 90% 100%, rgba(224, 242, 254, 0.6) 0%, transparent 55%),
+      linear-gradient(180deg, #f8fafc 0%, #eff6ff 100%);
+  }
+
   /* ===== 랜딩 페이지 애니메이션 ===== */
   .reveal {
     opacity: 0;

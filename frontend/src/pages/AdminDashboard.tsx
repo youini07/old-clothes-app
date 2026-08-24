@@ -1477,7 +1477,7 @@ export default function AdminDashboard() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 md:p-8 pb-24">
+    <div className="min-h-screen app-bg p-4 md:p-8 pb-24">
       <div className="w-full max-w-[1800px] mx-auto space-y-8">
         
         {/* Header Section */}
@@ -1531,12 +1531,12 @@ export default function AdminDashboard() {
             placeholder="고객명, 전화번호, 주소로 수거 내역 글로벌 검색..."
             value={requestSearchTerm}
             onChange={(e) => setRequestSearchTerm(e.target.value)}
-            className="w-full px-5 py-4 bg-white border border-gray-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 shadow-sm text-gray-800 text-lg placeholder-gray-400 font-medium"
+            className="w-full px-5 py-4 glass-input border border-white/80 rounded-2xl shadow-sm text-gray-800 text-lg placeholder-gray-400 font-medium"
           />
         </div>
 
         {/* 탭 전환 */}
-        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6">
+        <div className="flex glass-tabbar rounded-2xl p-1 mb-6">
           <button onClick={() => setActiveView('calendar')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'calendar' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📅 캘린더</button>
           <button onClick={() => setActiveView('dispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'dispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📋 배차</button>
           <button onClick={() => setActiveView('mapDispatch')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'mapDispatch' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🗺️ 지도</button>
@@ -1902,19 +1902,19 @@ export default function AdminDashboard() {
               <div className="space-y-6">
                 {/* 전체 요약 카드 */}
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="glass-card rounded-2xl p-5">
                     <p className="text-sm text-gray-500 font-medium">총 수거 건수</p>
                     <p className="text-3xl font-extrabold text-gray-900 mt-1">{stats.summary.totalRequests}</p>
                   </div>
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="glass-card rounded-2xl p-5">
                     <p className="text-sm text-gray-500 font-medium">완료 건수</p>
                     <p className="text-3xl font-extrabold text-green-600 mt-1">{stats.summary.completedCount}</p>
                   </div>
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="glass-card rounded-2xl p-5">
                     <p className="text-sm text-gray-500 font-medium">총 수거 무게</p>
                     <p className="text-3xl font-extrabold text-blue-600 mt-1">{stats.summary.totalWeight}<span className="text-lg">kg</span></p>
                   </div>
-                  <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="glass-card rounded-2xl p-5">
                     <p className="text-sm text-gray-500 font-medium">완료율</p>
                     <p className="text-3xl font-extrabold text-purple-600 mt-1">{stats.summary.completionRate}<span className="text-lg">%</span></p>
                   </div>

@@ -437,7 +437,7 @@ export default function SuperAdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-12">
+    <div className="min-h-screen app-bg p-6 md:p-12">
       <div className="max-w-7xl 2xl:max-w-[1400px] mx-auto space-y-8">
         
         {/* Header Section */}
@@ -474,7 +474,7 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
         {/* 탭 전환 */}
-        <div className="flex bg-gray-100 rounded-2xl p-1 mb-6 flex-wrap md:flex-nowrap gap-1">
+        <div className="flex glass-tabbar rounded-2xl p-1 mb-6 flex-wrap md:flex-nowrap gap-1">
           <button onClick={() => setActiveView('partners')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'partners' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCB'} 파트너 관리</button>
           <button onClick={() => setActiveView('monitoring')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'monitoring' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>{'\uD83D\uDCCA'} 통합 모니터링</button>
           <button onClick={() => setActiveView('accounts')} className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'accounts' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>🚀 전체 계정 로그인</button>
@@ -502,19 +502,19 @@ export default function SuperAdminDashboard() {
 
             {/* 전국 요약 */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="glass-card rounded-2xl p-5">
                 <p className="text-sm text-gray-500 font-medium">전체 수거 건수</p>
                 <p className="text-3xl font-extrabold text-gray-900 mt-1">{monitoring.overview.totalRequests}</p>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="glass-card rounded-2xl p-5">
                 <p className="text-sm text-gray-500 font-medium">완료 건수</p>
                 <p className="text-3xl font-extrabold text-green-600 mt-1">{monitoring.overview.completedCount}</p>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="glass-card rounded-2xl p-5">
                 <p className="text-sm text-gray-500 font-medium">총 수거량</p>
                 <p className="text-3xl font-extrabold text-blue-600 mt-1">{monitoring.overview.totalWeight}<span className="text-lg">kg</span></p>
               </div>
-              <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div className="glass-card rounded-2xl p-5">
                 <p className="text-sm text-gray-500 font-medium">파트너 수</p>
                 <p className="text-3xl font-extrabold text-purple-600 mt-1">{monitoring.overview.partnerCount}<span className="text-lg">개</span></p>
               </div>
@@ -547,7 +547,7 @@ export default function SuperAdminDashboard() {
             )}
 
             {/* 파트너별 성과 테이블 */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="glass-card rounded-2xl overflow-hidden">
               <div className="p-5 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
                 <h3 className="text-lg font-bold text-gray-900">파트너별 성과 현황</h3>
                 <select 

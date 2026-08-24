@@ -314,8 +314,8 @@ export default function CustomerDashboard() {
   const latestPartnerId = latestRequestWithPartner?.partnerId;
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="bg-primary-600 text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-md">
+    <div className="min-h-screen app-bg pb-20">
+      <div className="bg-gradient-to-br from-primary-600 via-primary-600 to-blue-500 text-white p-6 pt-12 pb-8 rounded-b-3xl shadow-lg shadow-primary-500/20">
         <button
           onClick={() => {
             localStorage.removeItem('auth_token');
@@ -360,7 +360,7 @@ export default function CustomerDashboard() {
 
       <div className="p-4 max-w-lg mx-auto">
         {/* Tabs */}
-        <div className="flex bg-gray-200 p-1 rounded-2xl mb-6">
+        <div className="flex glass-tabbar p-1 rounded-2xl mb-6">
           <button
             onClick={() => setActiveTab('requests')}
             className={`flex-1 py-3 text-sm font-bold rounded-xl transition-all ${
@@ -416,7 +416,7 @@ export default function CustomerDashboard() {
               ) : (
                 <div className="space-y-4">
                   {requests.map(req => (
-                    <div key={req.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 relative overflow-hidden">
+                    <div key={req.id} className="glass-card rounded-2xl p-5 relative overflow-hidden">
                       <div className="flex justify-between items-start mb-3">
                         <span className={`px-3 py-1 rounded-full text-xs font-bold ${getStatusColor(req.status)}`}>
                           {getStatusText(req.status)}
