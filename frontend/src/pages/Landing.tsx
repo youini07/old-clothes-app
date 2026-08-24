@@ -368,12 +368,12 @@ export default function Landing() {
           </span>
         </div>
 
-        {/* === 모바일 배경 (미니멀 스타일) === */}
-        <div className="sm:hidden absolute inset-0 bg-[#eef1fd] overflow-hidden pointer-events-none">
-          {/* 배경 원형 데코레이션 */}
-          <div className="absolute top-[-5%] right-[-10%] w-[250px] h-[250px] bg-white rounded-full opacity-40"></div>
-          <div className="absolute top-[15%] right-[15%] w-[120px] h-[120px] bg-white rounded-full opacity-60"></div>
-          <div className="absolute bottom-[-10%] left-[-15%] w-[350px] h-[350px] bg-white rounded-full opacity-40"></div>
+        {/* === 모바일 배경 (모던 미니멀 메쉬 그라데이션) === */}
+        <div className="sm:hidden absolute inset-0 bg-white overflow-hidden pointer-events-none">
+          {/* 아주 미세한 모던 메쉬 그라데이션 포인트 (프리미엄 느낌) */}
+          <div className="absolute top-[-10%] right-[-10%] w-[400px] h-[400px] bg-primary-50 rounded-full blur-[80px] opacity-70"></div>
+          <div className="absolute bottom-[-10%] left-[-10%] w-[350px] h-[350px] bg-blue-50 rounded-full blur-[80px] opacity-70"></div>
+          <div className="absolute top-[30%] left-[20%] w-[200px] h-[200px] bg-sky-50 rounded-full blur-[60px] opacity-50"></div>
         </div>
 
         {/* === 데스크탑(웹) 전용 컨텐츠 === */}
@@ -419,41 +419,46 @@ export default function Landing() {
           </div>
         </div>
 
-        {/* === 모바일 전용 컨텐츠 (예전 미니멀 버전 참고) === */}
-        <div className="sm:hidden relative z-10 w-full flex flex-col h-full items-center pt-10 pb-8 px-6">
+        {/* === 모바일 전용 컨텐츠 (모던 타이포그래피 위주) === */}
+        <div className="sm:hidden relative z-10 w-full flex flex-col h-full pt-16 pb-8 px-6">
           
-          {/* 상단 텍스트 */}
-          <div className="text-center mt-2 mb-auto reveal">
-            <h2 className="text-[#203468] font-extrabold text-xl leading-snug break-keep">
+          <div className="flex-1 flex flex-col justify-center">
+            {/* 상단 태그라인 (에디토리얼 느낌) */}
+            <div className="reveal flex items-center gap-2 mb-6">
+              <span className="h-[2px] w-8 bg-primary-600"></span>
+              <span className="text-primary-600 font-extrabold tracking-widest text-[11px] uppercase">Eco-friendly Service</span>
+            </div>
+
+            {/* 메인 타이포그래피 (크고 임팩트 있게) */}
+            <h1 className="reveal reveal-delay-1 font-black leading-[1.05] tracking-tighter text-[15vw] uppercase text-gray-900 break-words mb-5">
+              Old <br/>Clothes,<br/>
+              <span className="text-primary-600">All Clear.</span>
+            </h1>
+
+            {/* 서브 타이포그래피 */}
+            <h2 className="reveal reveal-delay-2 text-[16px] font-extrabold text-gray-800 leading-snug mb-3">
               지구를 구하는 의류 수거,<br/>
               비우는 기쁨과 채워지는 환경 가치
             </h2>
-          </div>
-
-          {/* 중앙 로고 */}
-          <div className="flex flex-col items-center justify-center my-6 w-full max-w-[220px] reveal reveal-delay-1">
-            {/* 실제 로고 이미지가 있으면 띄우고, 없으면 텍스트(fallback)로 보이게 처리 */}
-            <img src="/new-logo.png" alt="올클 로고" className="w-full object-contain mb-4" onError={(e) => { e.currentTarget.style.display = 'none'; document.getElementById('fallback-logo')!.style.display = 'flex'; }} />
-            <div id="fallback-logo" className="text-center hidden flex-col items-center">
-              <h1 className="text-[#09359e] font-black text-5xl tracking-tighter">ALL<span className="text-[#09359e]">CLEAR</span></h1>
-              <h2 className="text-[#1a2d5c] font-black text-5xl mt-2">올클</h2>
-            </div>
-          </div>
-
-          {/* 하단 일러스트 및 버튼 영역 */}
-          <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-2">
-            {/* 생성한 일러스트 (mix-blend-multiply로 배경 투명화) */}
-            <img src="/minimal-recycle.jpg" alt="재활용 과정" className="w-full max-w-[280px] mix-blend-multiply opacity-90 mb-6" />
             
+            <p className="reveal reveal-delay-3 text-[13px] text-gray-500 font-semibold leading-relaxed">
+              문 앞에 헌옷을 담아두기만 하면 끝납니다.<br/>
+              투명하고 안전한 비대면 수거부터<br/>
+              기분 좋은 정산까지 완벽하게.
+            </p>
+          </div>
+
+          {/* 하단 버튼 영역 */}
+          <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-3 pt-6">
             <a
               href={KAKAO_LOGIN_URL}
-              className="bg-[#FEE500] text-[#391B1B] w-full flex items-center justify-center gap-2 px-6 py-4 rounded-full text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-md"
+              className="bg-[#FEE500] text-[#391B1B] w-full flex items-center justify-center gap-2 px-6 py-4 rounded-xl text-base font-extrabold hover:brightness-105 active:scale-95 transition-all mb-3 shadow-[0_4px_14px_0_rgba(254,229,0,0.39)]"
             >
               💬 카카오로 3초만에 시작
             </a>
             <a
               href="#how"
-              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-full text-[#4a5568] text-sm font-bold bg-white/60 hover:bg-white border border-white transition-all shadow-sm"
+              className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-gray-600 text-sm font-bold bg-gray-50 border border-gray-200 hover:bg-gray-100 active:scale-95 transition-all"
             >
               자세히 알아보기
             </a>
