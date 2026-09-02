@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Menu, X, Check, AlertCircle, MapPin } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -397,7 +398,7 @@ export default function Landing() {
 
         {/* === 데스크탑(웹) 전용 컨텐츠 === */}
         <div className="hidden sm:flex relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 pt-4 pb-10 flex-col">
-          <div className="flex-1 flex flex-col items-center text-center">
+          <div className="flex-1 flex flex-col items-center text-center relative w-full">
             <h1 className="font-black leading-[1.1] tracking-tighter text-[11vw] sm:text-7xl md:text-8xl lg:text-[7.5rem] uppercase w-full">
               <span className="block reveal text-gray-900 transition-colors hover:text-gray-700">
                 Old Clothes,
@@ -406,6 +407,16 @@ export default function Landing() {
                 All Clear.
               </span>
             </h1>
+
+            {/* 데스크탑 전용 QR 코드 */}
+            <div className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 flex-col items-center gap-2.5 bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-white/60 transition-transform duration-300 mt-4 xl:right-10 z-50">
+              <p className="text-[11px] font-extrabold text-[#371d1e] tracking-tight bg-[#FEE500] px-2.5 py-1 rounded-full shadow-sm">
+                QR 수거신청
+              </p>
+              <div className="p-2 bg-[#FEE500] rounded-xl shadow-sm border border-yellow-400">
+                <QRCodeSVG value={KAKAO_LOGIN_URL} size={86} bgColor="#FEE500" fgColor="#371d1e" level="M" />
+              </div>
+            </div>
           </div>
 
           <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
