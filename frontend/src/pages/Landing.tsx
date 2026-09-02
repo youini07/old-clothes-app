@@ -198,7 +198,7 @@ function useScrollBounce() {
   
   React.useEffect(() => {
     let lastScrollY = window.scrollY;
-    let timeoutId;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
     const onScroll = () => {
       const currentScrollY = window.scrollY;
