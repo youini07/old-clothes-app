@@ -935,10 +935,10 @@ export default function Landing() {
             <span className="inline-block py-1.5 px-4 rounded-full bg-blue-50 text-primary-700 text-sm font-extrabold mb-4 border border-blue-100">
               자주 묻는 질문
             </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">
+            <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-gray-900">
               헌옷 방문수거, 무엇이든 물어보세요
             </h2>
-            <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
+            <p className="mt-3 text-gray-600 font-medium text-xs sm:text-base">
               안 입는 옷 버리기부터 헌책 수거 비용까지, 올클에 대해 궁금한 점을 확인하세요.
             </p>
           </div>
@@ -946,49 +946,49 @@ export default function Landing() {
           <div className="space-y-4">
 
             <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+              <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
                 Q. 수거가능지역이 어떻게되나요?
                 <span className="transition group-open:rotate-180">
                   <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
                 </span>
               </summary>
-              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
                 A. 올클 본점 전담 수거 권역(화성시, 용인시, 성남시, 수원시, 오산시)은 당일 접수 및 빠른 방문 수거가 가능합니다. 그 외 인접 지역(평택, 안양, 광주 등)은 수거는 가능하나 물량에 따라 일정 조율이 필요할 수 있습니다. 자세한 내용은 수거 신청 후 안내해 드립니다.
               </p>
             </details>
 
             <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+              <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
                 Q. 헌옷 방문수거 최소 기준 무게가 어떻게 되나요?
                 <span className="transition group-open:rotate-180">
                   <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
                 </span>
               </summary>
-              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
                 A. 무상 수거가 아닌 유상 매입 방식이기 때문에, 아파트 헌옷 수거함에 버리는 것과 달리 기본적으로 <strong>20kg 이상</strong>부터 방문 수거가 가능합니다. 20kg은 보통 100리터 종량제 봉투 2개 정도를 꽉 채운 양입니다. 헌옷, 신발, 가방 등을 모두 합친 무게로 산정됩니다.
               </p>
             </details>
 
             <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+              <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
                 Q. 헌옷 수거 단가(비용)와 매입 가격은 얼마인가요?
                 <span className="transition group-open:rotate-180">
                   <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
                 </span>
               </summary>
-              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
                 A. 올클의 헌옷 매입 단가는 시세에 따라 변동될 수 있으나, 일반적으로 kg당 일정 금액을 현금으로 당일 즉시 정산해 드립니다. 헌책 방문 수거나 고철(후라이팬, 냄비류) 등의 재활용품 매입 단가는 품목별로 다르게 책정되오니 수거 전 카카오톡 채널이나 기사님을 통해 정확한 단가표를 확인하실 수 있습니다. 안 입는 옷 버리는 법으로 고민하지 마시고 돈 받고 처분하세요!
               </p>
             </details>
 
             <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
-              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+              <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
                 Q. 원하는 요일과 시간에 방문 수거가 가능한가요?
                 <span className="transition group-open:rotate-180">
                   <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
                 </span>
               </summary>
-              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
                 A. 수거 신청 시 희망하는 날짜를 선택하실 수 있습니다. 다만 기사님의 동선에 따라 시간이 조율될 수 있으므로, 이삿날처럼 특정 일자에 무조건 수거가 필요한 경우에는 신청 시 '필수 수거'에 체크해주시거나 카카오톡 채널로 미리 문의해 주시면 최대한 일정을 맞춰드립니다. 비대면 수거도 완벽하게 지원하므로 집에 계시지 않아도 문 앞에만 내놓으시면 수거가 가능합니다.
               </p>
             </details>
@@ -1178,22 +1178,7 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* 모바일 전용 플로팅 수거 신청 탭 */}
-      <div 
-        className="lg:hidden fixed right-0 top-[60%] z-50"
-        style={{ 
-          transform: `translateY(calc(-50% + ${scrollBounce}px))`,
-          transition: scrollBounce === 0 ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0.1s ease-out'
-        }}
-      >
-        <a
-          href={KAKAO_LOGIN_URL}
-          className="flex items-center justify-center gap-1.5 pl-4 pr-3 py-3 rounded-l-2xl bg-[#FEE500] text-[#371d1e] font-extrabold text-sm shadow-[-5px_5px_15px_rgba(0,0,0,0.1)] border border-yellow-400 border-r-0 active:scale-95 transition-transform origin-right hover:brightness-95"
-        >
-          <span className="text-base leading-none">💬</span>
-          <span>수거신청</span>
-        </a>
-      </div>
+      
     </div>
   );
 }
