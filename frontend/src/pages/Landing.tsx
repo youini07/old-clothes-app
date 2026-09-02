@@ -408,15 +408,7 @@ export default function Landing() {
               </span>
             </h1>
 
-            {/* 데스크탑 전용 QR 코드 */}
-            <div className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 flex-col items-center gap-2.5 bg-white/50 backdrop-blur-md p-4 rounded-[1.5rem] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-white/60 transition-transform duration-300 mt-4 xl:right-10 z-50">
-              <p className="text-[11px] font-extrabold text-[#371d1e] tracking-tight bg-[#FEE500] px-2.5 py-1 rounded-full shadow-sm">
-                QR 수거신청
-              </p>
-              <div className="p-2 bg-[#FEE500] rounded-xl shadow-sm border border-yellow-400">
-                <QRCodeSVG value={KAKAO_LOGIN_URL} size={86} bgColor="#FEE500" fgColor="#371d1e" level="M" />
-              </div>
-            </div>
+            
           </div>
 
           <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
@@ -1132,6 +1124,26 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+      {/* --- 글로벌 플로팅 요소 --- */}
+      {/* 데스크탑 전용 플로팅 QR 코드 */}
+      <div className="hidden lg:flex fixed right-8 top-1/2 -translate-y-1/2 flex-col items-center gap-2.5 bg-white/70 backdrop-blur-md p-4 rounded-[1.5rem] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-white/60 transition-transform duration-300 z-50">
+        <p className="text-[11px] font-extrabold text-[#371d1e] tracking-tight bg-[#FEE500] px-2.5 py-1 rounded-full shadow-sm">
+          QR 수거신청
+        </p>
+        <div className="p-2 bg-[#FEE500] rounded-xl shadow-sm border border-yellow-400">
+          <QRCodeSVG value={KAKAO_LOGIN_URL} size={86} bgColor="#FEE500" fgColor="#371d1e" level="M" />
+        </div>
+      </div>
+
+      {/* 모바일 전용 플로팅 수거 신청 버튼 */}
+      <div className="lg:hidden fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50 pointer-events-none">
+        <a
+          href={KAKAO_LOGIN_URL}
+          className="pointer-events-auto flex items-center justify-center gap-2 w-full max-w-md px-6 py-4 rounded-full bg-[#FEE500] text-[#371d1e] text-lg font-extrabold shadow-[0_8px_32px_rgba(254,229,0,0.4)] border border-yellow-400 hover:brightness-95 active:scale-95 transition-all"
+        >
+          💬 카카오로 수거신청
+        </a>
+      </div>
     </div>
   );
 }
