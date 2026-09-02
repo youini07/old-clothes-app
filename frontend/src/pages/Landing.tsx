@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Check, AlertCircle, MapPin } from 'lucide-react';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -197,6 +197,20 @@ export default function Landing() {
   const [reviews, setReviews] = useState(DUMMY_REVIEWS);
   const extendedReviews = [...reviews, ...reviews];
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  
+  const handleScrollLeft = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: -window.innerWidth, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollRight = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollBy({ left: window.innerWidth, behavior: 'smooth' });
+    }
+  };
+
   useRevealObserver();
 
   // 헤더 배경 활성화 감지
@@ -269,7 +283,8 @@ export default function Landing() {
             <nav className="hidden lg:flex items-center gap-8 text-base font-bold text-gray-600">
               <a href="#top" className="hover:text-primary-600 transition-colors">수거 신청</a>
               <a href="#how" className="hover:text-primary-600 transition-colors">서비스 소개</a>
-              <a href="#trust" className="hover:text-primary-600 transition-colors">안심 수거</a>
+              <a href="#areas" className="hover:text-primary-600 transition-colors">서비스 지역</a>
+              <a href="#faq" className="hover:text-primary-600 transition-colors">자주 묻는 질문</a>
               <a href="#reviews" className="hover:text-primary-600 transition-colors">고객 후기</a>
               <a href="#stats" className="hover:text-primary-600 transition-colors">올클 성과</a>
             </nav>
@@ -297,7 +312,8 @@ export default function Landing() {
             <nav className="flex flex-col gap-6 text-lg font-bold text-gray-800">
               <a href="#top" onClick={() => setIsMobileMenuOpen(false)}>수거 신청</a>
               <a href="#how" onClick={() => setIsMobileMenuOpen(false)}>서비스 소개</a>
-              <a href="#trust" onClick={() => setIsMobileMenuOpen(false)}>안심 수거</a>
+              <a href="#areas" onClick={() => setIsMobileMenuOpen(false)}>서비스 지역</a>
+              <a href="#faq" onClick={() => setIsMobileMenuOpen(false)}>자주 묻는 질문</a>
               <a href="#reviews" onClick={() => setIsMobileMenuOpen(false)}>고객 후기</a>
               <a href="#stats" onClick={() => setIsMobileMenuOpen(false)}>올클 성과</a>
             </nav>
@@ -478,12 +494,24 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= 이용 방법 ================= */}
-      <section 
-        id="how" 
-        className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
-        style={{ backgroundImage: "url('/how-bg.jpg')" }}
-      >
+      
+      {/* ================= 통합 서비스 소개 (이용 방법 + 안심 수거 스와이프) ================= */}
+      <section id="how" className="relative w-full overflow-hidden bg-gray-900 group">
+        
+        <button onClick={handleScrollLeft} className="absolute top-1/2 left-4 -translate-y-1/2 z-30 hidden lg:flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 active:scale-95 cursor-pointer">
+          <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white text-3xl font-black shadow-lg border border-white/20 pb-1">‹</div>
+        </button>
+        <button onClick={handleScrollRight} className="absolute top-1/2 right-4 -translate-y-1/2 z-30 hidden lg:flex flex-col items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity hover:scale-110 active:scale-95 cursor-pointer">
+          <div className="w-12 h-12 rounded-full bg-white/30 backdrop-blur-md flex items-center justify-center text-white text-3xl font-black shadow-lg border border-white/20 pb-1">›</div>
+        </button>
+
+        <div ref={scrollContainerRef} className="flex w-full overflow-x-auto snap-x snap-mandatory no-scrollbar hide-scrollbar" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          
+          <div 
+            className="w-full shrink-0 snap-center min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat relative"
+            style={{ backgroundImage: "url('/how-bg.jpg')" }}
+          >
+            
         <div className="absolute inset-0 bg-white/30"></div>
         <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 flex flex-row flex-wrap sm:grid sm:grid-cols-2 gap-4 sm:gap-14 items-center justify-between">
           
@@ -585,14 +613,14 @@ export default function Landing() {
           </div>
 
         </div>
-      </section>
+      
+          </div>
 
-      {/* ================= 안심 & 맞춤 수거 ================= */}
-      <section 
-        id="trust" 
-        className="relative min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat overflow-hidden"
-        style={{ backgroundImage: "url('/trust-bg.jpg')" }}
-      >
+          <div 
+            className="w-full shrink-0 snap-center min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 bg-cover bg-center bg-no-repeat relative"
+            style={{ backgroundImage: "url('/trust-bg.jpg')" }}
+          >
+            
         <div className="absolute inset-0 bg-white/30"></div>
         <div className="relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 grid grid-cols-[145px_1fr] sm:flex sm:flex-row gap-x-5 gap-y-6 sm:gap-14 items-center justify-between">
           <div className="reveal reveal-delay-2 shrink-0 col-span-1 row-start-1 w-full sm:w-auto sm:order-1">
@@ -735,6 +763,197 @@ export default function Landing() {
             </div>
           </div>
         </div>
+      
+          </div>
+
+        </div>
+
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30 bg-black/20 backdrop-blur-xl px-5 py-2.5 rounded-full shadow-lg">
+          <span className="text-white/80 text-[10px] font-black tracking-widest mr-1">SWIPE</span>
+          <div className="w-2 h-2 rounded-full bg-white shadow-sm"></div>
+          <div className="w-2 h-2 rounded-full bg-white/40"></div>
+        </div>
+      </section>
+
+      {/* ================= 서비스 지역 안내 ================= */}
+      <section id="areas" className="relative py-20 sm:py-32 bg-[#fafcff] overflow-hidden">
+        <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-primary-100/30 rounded-full blur-[120px] -z-10 translate-x-1/3 -translate-y-1/3"></div>
+        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-indigo-100/30 rounded-full blur-[100px] -z-10 -translate-x-1/3 translate-y-1/3"></div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          
+          <div className="text-center mb-12 sm:mb-16">
+            <h2 className="reveal text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 tracking-tight mb-4">
+              현재 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-indigo-600">서비스 지역</span> 안내
+            </h2>
+            <p className="reveal reveal-delay-1 text-gray-500 text-sm sm:text-lg">
+              올클헌옷수거는 빠르고 정확한 방문 수거를 위해 권역별 거점을 운영합니다.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-6">
+            
+            {/* 1. 메인 서비스 권역 */}
+            <div className="reveal reveal-delay-2 bg-white rounded-3xl p-6 sm:p-10 border border-primary-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden group hover:border-primary-300 transition-colors">
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gradient-to-br from-primary-50 to-primary-100/50 rounded-bl-full opacity-50 -z-0 transition-transform group-hover:scale-110"></div>
+              
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 relative z-10 gap-4">
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black text-gray-900 flex items-center gap-3 mb-2">
+                    <span className="w-4 h-4 rounded-full bg-primary-600 shadow-[0_0_10px_rgba(37,99,235,0.4)] animate-pulse"></span>
+                    올클 본점 전담 수거 권역
+                  </h3>
+                  <p className="text-gray-500 text-sm sm:text-base font-medium">당일 접수 및 빠른 방문 수거가 원활하게 지원됩니다.</p>
+                </div>
+                <a href={KAKAO_LOGIN_URL} className="bg-primary-600 text-white px-5 py-2.5 rounded-full font-black text-sm inline-flex items-center gap-2 self-start sm:self-auto shadow-[0_4px_14px_rgba(37,99,235,0.3)] hover:bg-primary-700 active:scale-95 transition-all">
+                  <Check className="w-4 h-4" /> 즉시 수거 신청하기
+                </a>
+              </div>
+
+              <div className="relative z-10">
+                <div className="flex flex-wrap gap-2.5">
+                  {['화성시', '용인시', '성남시', '수원시', '오산시'].map((region, i) => (
+                    <span key={i} className="px-5 py-2.5 bg-gray-50 text-gray-800 font-extrabold rounded-xl border border-gray-100 shadow-sm text-sm sm:text-base transition-colors group-hover:bg-primary-50 group-hover:text-primary-700 group-hover:border-primary-100">
+                      {region}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* 2. 인접 권역 */}
+              <div className="reveal reveal-delay-3 bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-sm relative overflow-hidden group hover:border-gray-300 transition-colors">
+                <div className="flex items-start justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2 mb-1">
+                      <MapPin className="w-5 h-5 text-gray-400" />
+                      인접 권역
+                    </h3>
+                    <p className="text-gray-500 text-xs sm:text-sm font-medium">메인 권역과 인접한 지역</p>
+                  </div>
+                  <div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full font-bold text-xs inline-flex items-center gap-1.5 border border-gray-200">
+                    <AlertCircle className="w-3.5 h-3.5" /> 문의 필요
+                  </div>
+                </div>
+                <p className="text-gray-600 font-medium text-sm leading-relaxed bg-gray-50 p-4 rounded-xl">
+                  평택, 안양, 광주 등 메인 5개 도시와 맞닿아 있는 지역은 수거가 가능합니다. 
+                  <br/><br/>
+                  <a href={KAKAO_LOGIN_URL} className="text-primary-600 hover:text-primary-700 underline underline-offset-4 decoration-primary-200 font-bold">수거 신청을 남겨주시면</a> 물량에 따라 일정을 조율해 드립니다.
+                </p>
+              </div>
+
+              {/* 3. 기타 권역 (사업소 모집중) */}
+              <div className="reveal reveal-delay-4 bg-gradient-to-br from-gray-900 to-gray-800 rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-bl-full"></div>
+                <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-tr-full"></div>
+                
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-white flex items-center gap-2 mb-2">
+                      <span className="text-xl">🚀</span> 그 외 타 지역
+                    </h3>
+                    <p className="text-gray-300 text-sm font-medium leading-relaxed mb-6">
+                      현재 위 안내된 권역 외 지역은 수거가 어렵습니다.<br/>
+                      더 많은 지역에서 찾아뵐 수 있도록 빠르게 거점을 늘려가겠습니다.
+                    </p>
+                  </div>
+                  
+                  <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                    <p className="text-white font-extrabold text-sm mb-1">올클과 함께할 파트너를 찾습니다!</p>
+                    <p className="text-gray-400 text-xs">각 지역별 사업소(지점) 모집 중</p>
+                    <a href="tel:010-5232-3215" className="mt-3 inline-block px-4 py-2 bg-white text-gray-900 rounded-lg text-xs font-bold hover:bg-gray-100 transition-colors border border-gray-200">
+                      📞 010-5232-3215 (가맹 문의)
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* SEO 최적화 태그 영역 (페널티를 피하기 위해 숨기지 않고 연한 텍스트로 자연스럽게 노출) */}
+          <div className="mt-16 pt-8 border-t border-gray-200/60 opacity-60 hover:opacity-100 transition-opacity duration-300">
+            <h5 className="text-center text-[10px] sm:text-xs font-black text-gray-400 tracking-widest mb-3">SERVICE KEYWORDS</h5>
+            <p className="text-[11px] sm:text-xs leading-relaxed text-gray-400 text-center max-w-4xl mx-auto break-keep">
+              <strong>화성시</strong> (동탄 헌옷수거, 병점 헌옷수거함, 향남 헌옷방문수거, 봉담 헌옷팔기, 남양 안입는옷 버리기) · 
+              <strong>용인시</strong> (수지 헌옷수거, 기흥 헌옷매입, 죽전 헌책 수거, 처인구 헌옷 방문 매입) · 
+              <strong>성남시</strong> (분당 헌옷수거, 판교 헌옷방문수거, 위례 헌옷 팔기, 헌옷매입 업체) · 
+              <strong>수원시</strong> (영통 헌옷수거, 광교 헌옷수거함, 권선구 헌옷 방문수거, 장안구 헌옷 팔기) · 
+              <strong>오산시</strong> (오산 헌옷수거, 세교 헌옷매입) · 
+              <strong>인접 권역</strong> (평택 헌옷방문수거, 안양 헌옷수거, 광명, 광주 헌옷팔기) · 
+              <strong>수거 품목</strong> (헌옷, 신발, 가방, 헌책, 냄비, 후라이팬, 고철 방문 수거 및 당일 현금 최고가 지급)
+            </p>
+          </div>
+
+        </div>
+      </section>
+{/* ================= SEO 최적화 FAQ ================= */}
+      <section id="faq" className="relative py-16 sm:py-24 bg-gray-50 border-t border-gray-100">
+        <div className="max-w-4xl mx-auto px-5 md:px-8">
+          <div className="text-center mb-12">
+            <span className="inline-block py-1.5 px-4 rounded-full bg-blue-50 text-primary-700 text-sm font-extrabold mb-4 border border-blue-100">
+              자주 묻는 질문
+            </span>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-gray-900">
+              헌옷 방문수거, 무엇이든 물어보세요
+            </h2>
+            <p className="mt-4 text-gray-600 font-medium text-sm sm:text-base">
+              안 입는 옷 버리기부터 헌책 수거 비용까지, 올클에 대해 궁금한 점을 확인하세요.
+            </p>
+          </div>
+
+          <div className="space-y-4">
+
+            <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+                Q. 수거가능지역이 어떻게되나요?
+                <span className="transition group-open:rotate-180">
+                  <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+              </summary>
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+                A. 올클 본점 전담 수거 권역(화성시, 용인시, 성남시, 수원시, 오산시)은 당일 접수 및 빠른 방문 수거가 가능합니다. 그 외 인접 지역(평택, 안양, 광주 등)은 수거는 가능하나 물량에 따라 일정 조율이 필요할 수 있습니다. 자세한 내용은 수거 신청 후 안내해 드립니다.
+              </p>
+            </details>
+
+            <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+                Q. 헌옷 방문수거 최소 기준 무게가 어떻게 되나요?
+                <span className="transition group-open:rotate-180">
+                  <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+              </summary>
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+                A. 무상 수거가 아닌 유상 매입 방식이기 때문에, 아파트 헌옷 수거함에 버리는 것과 달리 기본적으로 <strong>20kg 이상</strong>부터 방문 수거가 가능합니다. 20kg은 보통 100리터 종량제 봉투 2개 정도를 꽉 채운 양입니다. 헌옷, 신발, 가방 등을 모두 합친 무게로 산정됩니다.
+              </p>
+            </details>
+
+            <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+                Q. 헌옷 수거 단가(비용)와 매입 가격은 얼마인가요?
+                <span className="transition group-open:rotate-180">
+                  <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+              </summary>
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+                A. 올클의 헌옷 매입 단가는 시세에 따라 변동될 수 있으나, 일반적으로 kg당 일정 금액을 현금으로 당일 즉시 정산해 드립니다. 헌책 방문 수거나 고철(후라이팬, 냄비류) 등의 재활용품 매입 단가는 품목별로 다르게 책정되오니 수거 전 카카오톡 채널이나 기사님을 통해 정확한 단가표를 확인하실 수 있습니다. 안 입는 옷 버리는 법으로 고민하지 마시고 돈 받고 처분하세요!
+              </p>
+            </details>
+
+            <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+              <summary className="flex items-center justify-between font-extrabold text-lg text-gray-900 outline-none">
+                Q. 원하는 요일과 시간에 방문 수거가 가능한가요?
+                <span className="transition group-open:rotate-180">
+                  <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                </span>
+              </summary>
+              <p className="text-gray-600 mt-4 leading-relaxed font-medium">
+                A. 수거 신청 시 희망하는 날짜를 선택하실 수 있습니다. 다만 기사님의 동선에 따라 시간이 조율될 수 있으므로, 이삿날처럼 특정 일자에 무조건 수거가 필요한 경우에는 신청 시 '필수 수거'에 체크해주시거나 카카오톡 채널로 미리 문의해 주시면 최대한 일정을 맞춰드립니다. 비대면 수거도 완벽하게 지원하므로 집에 계시지 않아도 문 앞에만 내놓으시면 수거가 가능합니다.
+              </p>
+            </details>
+          </div>
+        </div>
       </section>
 
       {/* ================= 고객 후기 (Marquee) ================= */}
@@ -770,7 +989,7 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= 리클 성과 (통계) ================= */}
+{/* ================= 리클 성과 (통계) ================= */}
       <section id="stats" className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 overflow-hidden bg-white">
         <div
           className="absolute inset-0 opacity-40"
@@ -811,7 +1030,10 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= 환경 가치 & 최종 CTA + 푸터 ================= */}
+                        
+      
+
+{/* ================= 환경 가치 & 최종 CTA + 푸터 ================= */}
       <footer 
         id="eco"
         className="relative pt-16 sm:pt-32 pb-12 text-center border-t border-gray-200 bg-cover bg-center bg-no-repeat overflow-hidden"

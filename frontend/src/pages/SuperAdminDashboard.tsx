@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import MapRegionSelector from '../components/MapRegionSelector';
 import Spinner from '../components/Spinner';
 
@@ -127,6 +128,28 @@ export default function SuperAdminDashboard() {
       setLoadingCustomers(false);
     }
   }
+
+  const handleExportExcel = () => {
+    if (filteredCustomers.length === 0) return alert('다운로드할 데이터가 없습니다.');
+    
+    // 엑셀에 들어갈 데이터 형태로 변환
+    const excelData = filteredCustomers.map(c => ({
+      '구분': c.isAppUser ? '앱 신청' : '직접 입력',
+      '고객명': c.name || '-',
+      '전화번호': c.phone || '-',
+      '주소': `${c.address || ''} ${c.detailAddress || ''}`.trim(),
+      '가입/최초신청': c.firstRequestDate ? new Date(c.firstRequestDate).toLocaleDateString() : '-',
+      '최근 수거일': c.recentCompletedDate ? new Date(c.recentCompletedDate).toLocaleDateString() : '-',
+      '수거 횟수': `${c.requestCount || 0}회`
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, '고객DB');
+    
+    const dateStr = new Date().toISOString().slice(0, 10);
+    XLSX.writeFile(workbook, `고객DB_${dateStr}.xlsx`);
+  };
 
   async function handleViewCustomerRequests(phone: string) {
     if (!phone) return alert('전화번호 정보가 없어 조회할 수 없습니다.');
@@ -907,6 +930,7 @@ export default function SuperAdminDashboard() {
                 onChange={(e) => setCustomerSearchTerm(e.target.value)}
                 className="w-full md:w-64 px-4 py-2 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm shadow-sm"
               />
+              <button onClick={handleExportExcel} className="text-sm px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-semibold shadow-sm whitespace-nowrap">엑셀 다운로드</button>
               <button onClick={fetchCustomers} className="text-sm px-4 py-2 bg-gray-200 rounded-xl hover:bg-gray-300 transition-colors font-semibold shadow-sm whitespace-nowrap">새로고침</button>
             </div>
           </div>
