@@ -191,7 +191,44 @@ function ReviewCard({ review }: { review: typeof DUMMY_REVIEWS[0] }) {
   );
 }
 
+
+// 스크롤 관성 바운스 훅
+function useScrollBounce() {
+  const [bounce, setBounce] = React.useState(0);
+  
+  React.useEffect(() => {
+    let lastScrollY = window.scrollY;
+    let timeoutId;
+    
+    const onScroll = () => {
+      const currentScrollY = window.scrollY;
+      const delta = currentScrollY - lastScrollY;
+      lastScrollY = currentScrollY;
+      
+      // 스크롤 속도에 비례하여 반대 방향으로 밀림 (관성)
+      const offset = Math.max(-40, Math.min(40, -delta * 0.4));
+      setBounce(offset);
+      
+      clearTimeout(timeoutId);
+      // 스크롤이 멈추면 제자리로 탄력있게 복귀
+      timeoutId = setTimeout(() => {
+        setBounce(0);
+      }, 50);
+    };
+    
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(timeoutId);
+    };
+  }, []);
+  
+  return bounce;
+}
+
 export default function Landing() {
+  const scrollBounce = useScrollBounce();
+
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTrustTab, setActiveTrustTab] = useState<'date' | 'proof'>('proof');
@@ -1126,7 +1163,13 @@ export default function Landing() {
       </footer>
       {/* --- 글로벌 플로팅 요소 --- */}
       {/* 데스크탑 전용 플로팅 QR 코드 */}
-      <div className="hidden lg:flex fixed right-8 top-1/2 -translate-y-1/2 flex-col items-center gap-2.5 bg-white/70 backdrop-blur-md p-4 rounded-[1.5rem] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-white/60 transition-transform duration-300 z-50">
+      <div 
+        className="hidden lg:flex fixed right-8 top-1/2 flex-col items-center gap-2.5 bg-white/70 backdrop-blur-md p-4 rounded-[1.5rem] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.3)] border border-white/60 z-50 hover:brightness-95 cursor-pointer"
+        style={{ 
+          transform: `translateY(calc(-50% + ${scrollBounce}px))`,
+          transition: scrollBounce === 0 ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0.1s ease-out'
+        }}
+      >
         <p className="text-[11px] font-extrabold text-[#371d1e] tracking-tight bg-[#FEE500] px-2.5 py-1 rounded-full shadow-sm">
           QR 수거신청
         </p>
@@ -1135,13 +1178,20 @@ export default function Landing() {
         </div>
       </div>
 
-      {/* 모바일 전용 플로팅 수거 신청 버튼 */}
-      <div className="lg:hidden fixed bottom-6 left-0 right-0 px-4 flex justify-center z-50 pointer-events-none">
+      {/* 모바일 전용 플로팅 수거 신청 탭 */}
+      <div 
+        className="lg:hidden fixed right-0 top-[60%] z-50"
+        style={{ 
+          transform: `translateY(calc(-50% + ${scrollBounce}px))`,
+          transition: scrollBounce === 0 ? 'transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' : 'transform 0.1s ease-out'
+        }}
+      >
         <a
           href={KAKAO_LOGIN_URL}
-          className="pointer-events-auto flex items-center justify-center gap-2 w-full max-w-md px-6 py-4 rounded-full bg-[#FEE500] text-[#371d1e] text-lg font-extrabold shadow-[0_8px_32px_rgba(254,229,0,0.4)] border border-yellow-400 hover:brightness-95 active:scale-95 transition-all"
+          className="flex items-center justify-center gap-1.5 pl-4 pr-3 py-3 rounded-l-2xl bg-[#FEE500] text-[#371d1e] font-extrabold text-sm shadow-[-5px_5px_15px_rgba(0,0,0,0.1)] border border-yellow-400 border-r-0 active:scale-95 transition-transform origin-right hover:brightness-95"
         >
-          💬 카카오로 수거신청
+          <span className="text-base leading-none">💬</span>
+          <span>수거신청</span>
         </a>
       </div>
     </div>
