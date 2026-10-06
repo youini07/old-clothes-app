@@ -279,9 +279,9 @@ router.post('/login', async (req, res) => {
     );
 
     res.json({ token: jwtToken, user: { id: user.id, name: user.name, role: user.role, isCoBoss, partnerId } });
-  } catch (error) {
+  } catch (error: any) {
     console.error('로그인 에러:', error);
-    res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.' });
+    res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.', details: error.message || String(error) });
   }
 });
 
