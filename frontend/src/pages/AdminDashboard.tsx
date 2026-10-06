@@ -137,7 +137,7 @@ export default function AdminDashboard() {
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean; eventText?: string; eventIsActive?: boolean; } | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -458,7 +458,9 @@ export default function AdminDashboard() {
         await axios.patch(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
           globalNotice: globalSettings.globalNotice,
           noticeIsActive: globalSettings.noticeIsActive,
-          globalNoticeDetail: globalSettings.globalNoticeDetail || ''
+          globalNoticeDetail: globalSettings.globalNoticeDetail || '',
+          popupImageUrl: globalSettings.popupImageUrl || null,
+          popupIsActive: globalSettings.popupIsActive || false
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
@@ -1609,6 +1611,40 @@ export default function AdminDashboard() {
                           rows={3}
                           className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none"
                         />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {globalSettings && (
+                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                    <div className="flex justify-between items-center mb-4">
+                      <label className="block text-lg font-bold text-gray-900">🖼️ 홈페이지 팝업 배너</label>
+                      <button 
+                        type="button"
+                        onClick={() => setGlobalSettings({...globalSettings, popupIsActive: !globalSettings.popupIsActive})}
+                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${globalSettings.popupIsActive ? 'bg-indigo-600' : 'bg-gray-300'}`}
+                      >
+                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${globalSettings.popupIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
+                      </button>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">고객이 홈페이지에 접속했을 때 나타나는 팝업 배너 이미지의 URL을 입력하세요. 팝업은 메인 페이지에만 노출됩니다.</p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">팝업 이미지 URL</label>
+                        <input
+                          type="text"
+                          value={globalSettings.popupImageUrl || ''}
+                          onChange={(e) => setGlobalSettings({...globalSettings, popupImageUrl: e.target.value})}
+                          placeholder="https://example.com/popup.png"
+                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800"
+                        />
+                        {globalSettings.popupImageUrl && (
+                          <div className="mt-3">
+                            <p className="text-xs text-gray-500 mb-1">미리보기:</p>
+                            <img src={globalSettings.popupImageUrl} alt="Popup Preview" className="max-w-full h-auto rounded-lg border border-gray-200 max-h-48 object-contain" />
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>

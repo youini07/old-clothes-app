@@ -187,6 +187,8 @@ model GlobalSettings {
   globalNotice    String?
   noticeIsActive  Boolean  @default(false)
   globalNoticeDetail String?
+  popupImageUrl   String?
+  popupIsActive   Boolean  @default(false)
   deletePassword  String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
   updatedAt       DateTime @updatedAt
 }

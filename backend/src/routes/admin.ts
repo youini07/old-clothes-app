@@ -2352,13 +2352,17 @@ router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_AD
       update: { 
         globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
         noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined,
-        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined
+        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined,
+        popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : undefined,
+        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : undefined
       },
       create: {
         id: 'global',
         globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
         noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false,
-        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : ''
+        globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : '',
+        popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : null,
+        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : false
       }
     });
     

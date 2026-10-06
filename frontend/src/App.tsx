@@ -13,12 +13,14 @@ import Landing from './pages/Landing';
 
 
 import GlobalNoticeBanner from './components/GlobalNoticeBanner';
+import GlobalPopupBanner from './components/GlobalPopupBanner';
 
 function App() {
   return (
     <Router>
       <div className="min-h-screen app-bg text-gray-900 font-sans selection:bg-primary-100">
         <GlobalNoticeBanner />
+        <GlobalPopupBanner />
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/staff-login" element={<Login />} />
