@@ -157,6 +157,7 @@ export default function AdminDashboard() {
     { category: 'AC_WALL',  label: '벽걸이 에어컨 (실외기 포함)', unitPrice: 10000, unitType: 'UNIT', icon: '🌀' },
   ]);
   const [isSavingPriceTable, setIsSavingPriceTable] = useState(false);
+  const [isShowPriceTableModal, setIsShowPriceTableModal] = useState(false);
 
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', newPasswordConfirm: '' });
@@ -1556,20 +1557,29 @@ export default function AdminDashboard() {
 
         {/* 환경 설정 뷰 */}
         {activeView === 'settings' && settings && (
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">⚙️ 환경 설정</h2>
-              <p className="text-gray-500 mb-8">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
+          <div className="max-w-6xl mx-auto">
+            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900 mb-2">⚙️ 환경 설정</h2>
+                <p className="text-gray-500">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={handleSaveSettings}
+                disabled={isSavingSettings}
+                className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
+              >
+                {isSavingSettings ? '저장 중...' : '변경사항 저장하기'}
+              </button>
+            </div>
 
-              <form onSubmit={handleSaveSettings}>
-                {/* 전역 공지사항 설정 */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+              {/* 왼쪽 단: 기본 설정 항목들 */}
+              <div className="space-y-6">
                 {globalSettings && (
-                  <div className="py-6 border-b border-gray-100">
-                    
+                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-4">
                       <label className="block text-lg font-bold text-gray-900">📢 전역 공지사항 (앱 전체 띠 배너)</label>
-                      
-                      {/* Toggle Button */}
                       <button 
                         type="button"
                         onClick={() => setGlobalSettings({...globalSettings, noticeIsActive: !globalSettings.noticeIsActive})}
@@ -1578,121 +1588,44 @@ export default function AdminDashboard() {
                         <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${globalSettings.noticeIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
                       </button>
                     </div>
-                    
-                    <p className="text-sm text-gray-500 mb-4">
-                      명절 휴무, 긴급 안내 등 <strong>고객과 기사님을 포함한 앱 전체 화면 최상단</strong>에 띄울 공지를 작성합니다.
-                    </p>
-
-                    <div className="relative mb-4">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">배너 텍스트 (간략히)</label>
-                      <textarea
-                        value={globalSettings.globalNotice}
-                        onChange={(e) => setGlobalSettings({...globalSettings, globalNotice: e.target.value})}
-                        placeholder="공지사항 내용을 입력하세요... (예: 설 연휴 2/9~2/12 수거 휴무 안내)"
-                        rows={2}
-                        className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none z-10 relative"
-                      />
-                    </div>
-                    <div className="relative">
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">상세 내용 (클릭 시 팝업, 선택사항)</label>
-                      <textarea
-                        value={globalSettings.globalNoticeDetail || ''}
-                        onChange={(e) => setGlobalSettings({...globalSettings, globalNoticeDetail: e.target.value})}
-                        placeholder="상세 내용을 입력하세요. (입력 시 배너를 클릭하면 상세 내용 팝업이 뜹니다)"
-                        rows={4}
-                        className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none z-10 relative"
-                      />
+                    <p className="text-sm text-gray-500 mb-4">명절 휴무, 긴급 안내 등 고객과 기사님을 포함한 앱 전체 화면 최상단에 띄울 공지를 작성합니다.</p>
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">배너 텍스트 (간략히)</label>
+                        <textarea
+                          value={globalSettings.globalNotice}
+                          onChange={(e) => setGlobalSettings({...globalSettings, globalNotice: e.target.value})}
+                          placeholder="예: 설 연휴 2/9~2/12 수거 휴무 안내"
+                          rows={2}
+                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-1">상세 내용 (클릭 시 팝업, 선택사항)</label>
+                        <textarea
+                          value={globalSettings.globalNoticeDetail || ''}
+                          onChange={(e) => setGlobalSettings({...globalSettings, globalNoticeDetail: e.target.value})}
+                          placeholder="배너를 클릭하면 상세 내용 팝업이 뜹니다."
+                          rows={3}
+                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none"
+                        />
+                      </div>
                     </div>
                   </div>
                 )}
 
-                {/* 항목별 단가 설정 */}
-                <div className="py-6 border-b border-gray-100">
-                  <div className="flex justify-between items-start mb-2">
-                    <label className="block text-lg font-bold text-gray-900">💰 항목별 수거 단가 설정</label>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다. 단가를 수정하고 저장하면 기사님 앱에 즉시 반영됩니다.</p>
-                  
-                  <div className="space-y-2">
-                    {priceTableItems.map((item, idx) => (
-                      <div key={item.category} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-                        <span className="text-xl w-8 text-center flex-shrink-0">{item.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm font-bold text-gray-800 block">{item.label}</span>
-                          <span className="text-xs text-gray-500">
-                            {item.unitType === 'KG' ? '1kg당' : '1대당'}
-                          </span>
-                        </div>
-                        <div className="relative w-28 flex-shrink-0">
-                          <input 
-                            type="number" 
-                            min="0"
-                            step="10"
-                            value={item.unitPrice} 
-                            onChange={(e) => {
-                              const newItems = [...priceTableItems];
-                              newItems[idx] = { ...newItems[idx], unitPrice: Number(e.target.value) };
-                              setPriceTableItems(newItems);
-                            }}
-                            className="w-full text-right pl-2 pr-8 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-bold text-primary-700 text-sm"
-                          />
-                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-bold">원</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  
-                  <button
-                    type="button"
-                    disabled={isSavingPriceTable}
-                    onClick={async () => {
-                      setIsSavingPriceTable(true);
-                      try {
-                        const res = await axios.put(`${import.meta.env.VITE_API_URL}/admin/price-table`, {
-                          items: priceTableItems
-                        }, { headers: { Authorization: `Bearer ${authToken}` } });
-                        if (res.data.priceItems) {
-                          setPriceTableItems(res.data.priceItems.map((item: any) => ({
-                            category: item.category, label: item.label, unitPrice: item.unitPrice,
-                            unitType: item.unitType, icon: item.icon || ''
-                          })));
-                        }
-                        alert('단가표가 저장되었습니다.');
-                      } catch (error: any) {
-                        alert(error.response?.data?.error || '단가표 저장 중 오류가 발생했습니다.');
-                      } finally {
-                        setIsSavingPriceTable(false);
-                      }
-                    }}
-                    className={`mt-4 w-full py-3 font-bold rounded-xl flex items-center justify-center gap-2 transition-all ${
-                      isSavingPriceTable 
-                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                        : 'bg-primary-600 text-white hover:bg-primary-700 active:scale-95 shadow-md'
-                    }`}
-                  >
-                    {isSavingPriceTable && <Spinner className="w-4 h-4 text-current" />}
-                    {isSavingPriceTable ? '저장 중...' : '💾 단가표 저장하기'}
-                  </button>
-                </div>
-
-                {/* 프리미엄 유료 서비스 그룹 */}
-                <div className="py-6 border-b border-gray-100 relative">
-                  
-                  <div className="flex items-center gap-2 mb-6">
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-2 mb-4">
                     <span className="text-2xl">✨</span>
                     <h3 className="text-xl font-bold text-gray-900">프리미엄 알림톡 서비스</h3>
                     <span className="px-2.5 py-1 bg-gradient-to-r from-orange-600 to-red-500 text-white text-xs font-black rounded-full shadow-sm ml-2 tracking-wide">유료 서비스</span>
                   </div>
-                  <p className="text-sm text-gray-500 mb-6">
-                    파트너님의 수거 단가를 높이고, 재이용률을 극대화하는 카카오 알림톡 기반의 프리미엄 자동화 기능입니다.
-                  </p>
-
-                  <div className="space-y-0 divide-y divide-gray-100 border-y border-gray-100">
-                    {/* 1. 카카오 알림톡 자동 발송 */}
-                    <div className="py-5">
+                  <p className="text-sm text-gray-500 mb-6">파트너님의 수거 단가를 높이고, 재이용률을 극대화하는 카카오 알림톡 기반의 프리미엄 자동화 기능입니다.</p>
+                  
+                  <div className="space-y-6 divide-y divide-gray-100 border-t border-gray-100 pt-4">
+                    <div>
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-lg font-bold text-gray-900">💬 기본 알림톡 자동 발송</label>
-                        
                         <button 
                           type="button"
                           onClick={() => setSettings({...settings, useBizMessage: !settings.useBizMessage})}
@@ -1701,23 +1634,12 @@ export default function AdminDashboard() {
                           <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useBizMessage ? 'translate-x-8' : 'translate-x-1'}`} />
                         </button>
                       </div>
-                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                        배정, 일정 확정, 수거 완료(영수증) 단계마다 고객의 <strong>개인 카카오톡</strong>으로 공식 알림톡이 발송되어 브랜드 신뢰도를 높입니다.
-                      </p>
-                      
-                      {settings.useBizMessage && (
-                        <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs font-bold flex gap-2 items-center">
-                          <span className="text-base">✅</span>
-                          <span>기본 알림톡 기능이 활성화되었습니다.</span>
-                        </div>
-                      )}
+                      <p className="text-sm text-gray-500 leading-relaxed">수거 단계마다 고객의 개인 카카오톡으로 공식 알림톡이 발송됩니다.</p>
                     </div>
 
-                    {/* 2. CRM 자동화 */}
-                    <div className="py-5">
+                    <div className="pt-4">
                       <div className="flex justify-between items-center mb-2">
                         <label className="block text-lg font-bold text-gray-900">🎯 CRM 리텐션 자동화</label>
-                        
                         <button 
                           type="button"
                           onClick={() => setSettings({...settings, useCrmAutomation: !settings.useCrmAutomation})}
@@ -1726,167 +1648,111 @@ export default function AdminDashboard() {
                           <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useCrmAutomation ? 'translate-x-8' : 'translate-x-1'}`} />
                         </button>
                       </div>
-                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                        수거 완료 후 <strong>정확히 3개월(90일)이 지난 고객</strong>에게 자동으로 옷장 정리 안내 및 재수거 유도 알림톡을 발송하여 단골 고객을 확보합니다.
-                      </p>
-                      
-                      {settings.useCrmAutomation && (
-                        <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs font-bold flex gap-2 items-center">
-                          <span className="text-base">✅</span>
-                          <span>과거 90일 전 수거 완료 고객에게 매일 아침 안내가 발송됩니다.</span>
-                        </div>
-                      )}
+                      <p className="text-sm text-gray-500 leading-relaxed">수거 완료 3개월 뒤 자동으로 재수거 유도 알림톡을 발송합니다.</p>
                     </div>
                   </div>
                 </div>
 
-                <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
-                  <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-                    <span>🎉</span> 이벤트 및 리뷰 관리
-                  </h2>
-                  <div className="divide-y divide-gray-100">
-                    <div className="py-5">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-lg font-bold text-gray-900">영수증 문자 이벤트 첨부</label>
-                        <button 
-                          type="button"
-                          onClick={() => setSettings({...settings, eventIsActive: !settings.eventIsActive})}
-                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.eventIsActive ? 'bg-orange-500' : 'bg-gray-300'}`}
-                        >
-                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.eventIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
-                        기사님이 수거 완료 후 발송하는 문자(커스텀 메시지 3번) 하단에 이벤트 문구가 자동으로 추가됩니다. 간편 리뷰 참여를 유도하여 당첨 이벤트를 진행해 보세요.
-                      </p>
-                      
-                      {settings.eventIsActive && (
-                        <div className="mt-4">
-                          <label className="block text-sm font-bold text-gray-700 mb-2">이벤트 노출 문구</label>
-                          <textarea
-                            value={settings.eventText || ''}
-                            onChange={(e) => setSettings({...settings, eventText: e.target.value})}
-                            placeholder="예: 간편 리뷰 작성 시 추첨을 통해 치킨 쿠폰 5장을 드립니다! 하단 영수증 링크에서 바로 참여하세요."
-                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
-                            rows={3}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 flex justify-end">
-                  <button 
-                    type="submit" 
-                    disabled={isSavingSettings}
-                    className="px-8 py-4 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg active:scale-95 flex items-center gap-2"
-                  >
-                    {isSavingSettings ? '저장 중...' : '변경사항 저장하기'}
-                  </button>
-                </div>
-              </form>
-            </div>
-
-            {/* 권역 관리 추가 */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">🗺️ 사용자 정의 권역 관리</h2>
-              <p className="text-gray-500 mb-6 border-b border-gray-100 pb-6">기사님들에게 배정할 권역(A권역, B권역 등)과 해당 권역에 포함될 지역을 자유롭게 설정하세요.</p>
-              <div className="space-y-4">
-                {customRegions.map(cr => (
-                  <div key={cr.id} className="flex justify-between items-center p-4 bg-gray-50 border border-gray-100 rounded-xl">
-                    <div>
-                      <span className="font-bold text-gray-900 text-lg mr-3">{cr.name}</span>
-                      <span className="text-sm text-gray-600">{cr.areas.join(', ')}</span>
-                    </div>
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <div className="flex justify-between items-center mb-2">
+                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><span>🎉</span> 이벤트 및 리뷰 관리</h2>
                     <button 
-                      disabled={deletingRegionId === cr.id}
-                      onClick={() => handleDeleteRegion(cr.id)} 
-                      className={`text-sm font-bold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 ${deletingRegionId === cr.id ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'bg-red-50 text-red-500 hover:bg-red-100'}`}
+                      type="button"
+                      onClick={() => setSettings({...settings, eventIsActive: !settings.eventIsActive})}
+                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.eventIsActive ? 'bg-orange-500' : 'bg-gray-300'}`}
                     >
-                      {deletingRegionId === cr.id && <Spinner className="w-3 h-3 text-current" />}
-                      삭제
+                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.eventIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
                     </button>
                   </div>
-                ))}
-                {isAddingRegion ? (
-                  <div className="p-4 bg-primary-50 border border-primary-100 rounded-xl space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold text-primary-900 mb-1">권역 이름</label>
-                      <input type="text" value={newRegionForm.name} onChange={e => setNewRegionForm({...newRegionForm, name: e.target.value})} placeholder="예: A권역" className="w-full p-2 border border-primary-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-primary-900 mb-2">포함 지역 선택 (경기도)</label>
-                      <div className="max-h-60 overflow-y-auto border border-primary-200 rounded-xl bg-white p-3 space-y-2">
-                        {GYEONGGI_AREAS.map(area => {
-                          const isSelected = newRegionForm.selectedAreas.includes(area);
-                          return (
-                            <div key={area} className={`flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded-lg transition-colors ${isSelected ? 'bg-primary-50 border border-primary-200' : 'hover:bg-gray-50'}`}>
-                              <label className="flex items-center gap-3 cursor-pointer">
-                                <input 
-                                  type="checkbox" 
-                                  checked={isSelected}
-                                  onChange={() => handleToggleArea(area)}
-                                  className="w-5 h-5 rounded border-gray-300 text-primary-600 focus:ring-primary-500 cursor-pointer"
-                                />
-                                <span className={`font-bold ${isSelected ? 'text-primary-900' : 'text-gray-700'}`}>{area}</span>
-                              </label>
-                              {isSelected && (
-                                <input 
-                                  type="text" 
-                                  value={newRegionForm.exceptions[area] || ''}
-                                  onChange={(e) => handleExceptionChange(area, e.target.value)}
-                                  placeholder="예외 동 (예: -정자동)" 
-                                  className="mt-2 sm:mt-0 text-sm p-1.5 border border-primary-200 rounded outline-none focus:ring-1 focus:ring-primary-500 w-full sm:w-48 bg-white"
-                                />
-                              )}
-                            </div>
-                          );
-                        })}
+                  <p className="text-sm text-gray-500 leading-relaxed mb-4">문자 정산서 하단에 이벤트 문구를 노출하여 리뷰를 유도합니다.</p>
+                  {settings.eventIsActive && (
+                    <textarea
+                      value={settings.eventText || ''}
+                      onChange={(e) => setSettings({...settings, eventText: e.target.value})}
+                      placeholder="간편 리뷰 작성 시 추첨을 통해 치킨 쿠폰 5장을 드립니다!"
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                      rows={3}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* 오른쪽 단: 단가표, 권역, 계정 관리 */}
+              <div className="space-y-6">
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <label className="block text-lg font-bold text-gray-900 mb-2">💰 항목별 수거 단가 설정</label>
+                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsShowPriceTableModal(true)}
+                    className="w-full py-3 font-bold rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 active:scale-95 transition-all shadow-sm"
+                  >
+                    단가표 설정하기
+                  </button>
+                </div>
+
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <h2 className="text-xl font-bold text-gray-900 mb-2">🗺️ 사용자 정의 권역 관리</h2>
+                  <p className="text-sm text-gray-500 mb-4">기사님들에게 배정할 권역과 포함 지역을 설정하세요.</p>
+                  <div className="space-y-3">
+                    {customRegions.map(cr => (
+                      <div key={cr.id} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                        <div>
+                          <span className="font-bold text-gray-900 mr-2">{cr.name}</span>
+                          <span className="text-xs text-gray-600">{cr.areas.join(', ')}</span>
+                        </div>
+                        <button 
+                          disabled={deletingRegionId === cr.id}
+                          onClick={() => handleDeleteRegion(cr.id)} 
+                          className="text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
+                        >
+                          삭제
+                        </button>
                       </div>
-                      <p className="text-xs text-gray-500 mt-2">※ 체크한 시/군/구의 모든 동이 포함됩니다. 특정 동을 제외하려면 우측 칸에 <strong>-뫄뫄동</strong> 형식으로 적어주세요.</p>
-                    </div>
-                    <div className="flex gap-2 justify-end pt-2">
-                      <button onClick={() => setIsAddingRegion(false)} className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg text-sm hover:bg-gray-300 transition-colors">취소</button>
-                      <button 
-                        disabled={isSubmittingRegion}
-                        onClick={handleAddRegion} 
-                        className={`px-4 py-2 text-white font-bold rounded-lg text-sm shadow-sm transition-colors flex items-center gap-2 ${isSubmittingRegion ? 'bg-primary-400 cursor-not-allowed' : 'bg-primary-600 hover:bg-primary-700'}`}
-                      >
-                        {isSubmittingRegion && <Spinner className="w-4 h-4" />}
-                        {isSubmittingRegion ? '저장 중...' : '저장하기'}
-                      </button>
-                    </div>
+                    ))}
+                    {isAddingRegion ? (
+                      <div className="p-3 bg-primary-50 border border-primary-100 rounded-xl space-y-3">
+                        <input type="text" value={newRegionForm.name} onChange={e => setNewRegionForm({...newRegionForm, name: e.target.value})} placeholder="예: A권역" className="w-full p-2 border border-primary-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white text-sm" />
+                        <div className="max-h-40 overflow-y-auto border border-primary-200 rounded-lg bg-white p-2 space-y-1">
+                          {GYEONGGI_AREAS.map(area => {
+                            const isSelected = newRegionForm.selectedAreas.includes(area);
+                            return (
+                              <div key={area} className={`flex flex-col sm:flex-row sm:items-center justify-between p-1.5 rounded-lg ${isSelected ? 'bg-primary-50' : ''}`}>
+                                <label className="flex items-center gap-2 cursor-pointer">
+                                  <input type="checkbox" checked={isSelected} onChange={() => handleToggleArea(area)} className="w-4 h-4 text-primary-600" />
+                                  <span className={`text-sm ${isSelected ? 'font-bold text-primary-900' : 'text-gray-700'}`}>{area}</span>
+                                </label>
+                                {isSelected && (
+                                  <input type="text" value={newRegionForm.exceptions[area] || ''} onChange={(e) => handleExceptionChange(area, e.target.value)} placeholder="-뫄뫄동" className="text-xs p-1 border border-primary-200 rounded w-24" />
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                        <div className="flex gap-2 justify-end pt-1">
+                          <button onClick={() => setIsAddingRegion(false)} className="px-3 py-1.5 bg-gray-200 text-gray-700 font-bold rounded-lg text-xs hover:bg-gray-300">취소</button>
+                          <button onClick={handleAddRegion} disabled={isSubmittingRegion} className="px-3 py-1.5 bg-primary-600 text-white font-bold rounded-lg text-xs hover:bg-primary-700">{isSubmittingRegion ? '저장 중' : '저장'}</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button onClick={() => setIsAddingRegion(true)} className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all text-sm">+ 새 권역 추가하기</button>
+                    )}
                   </div>
-                ) : (
-                  <button onClick={() => setIsAddingRegion(true)} className="w-full py-4 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all">+ 새 권역 추가하기</button>
-                )}
+                </div>
+
+                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                  <h2 className="text-xl font-bold text-gray-900 mb-4">🛠️ 계정 및 관리자 메뉴</h2>
+                  <div className="flex gap-3">
+                    <button onClick={() => setIsDriverModalOpen(true)} className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-sm hover:bg-primary-700 text-sm active:scale-95">기사님 추가</button>
+                    <button onClick={() => setIsPasswordModalOpen(true)} className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 text-sm active:scale-95">비밀번호 변경</button>
+                  </div>
+                </div>
               </div>
             </div>
-
-            {/* 관리자 메뉴 (비밀번호 변경, 로그아웃, 기사님 추가) */}
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">🛠️ 계정 및 관리자 메뉴</h2>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <button 
-                  onClick={() => setIsDriverModalOpen(true)}
-                  className="flex-1 py-4 bg-primary-600 text-white font-bold rounded-xl shadow-sm hover:bg-primary-700 transition-all active:scale-95"
-                >
-                  기사님 추가
-                </button>
-                <button 
-                  onClick={() => setIsPasswordModalOpen(true)}
-                  className="flex-1 py-4 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 transition-all active:scale-95"
-                >
-                  비밀번호 변경
-                </button>
-              </div>
-            </div>
-
           </div>
         )}
-
-        {/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}
+        
+{/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}
         {activeView === 'calendar' && (
           <CalendarView
             requests={calendarRequests}
@@ -3708,6 +3574,75 @@ export default function AdminDashboard() {
         onClose={() => setIsAddressModalOpen(false)} 
         onComplete={handleAddressComplete} 
       />
+
+      {isShowPriceTableModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[9999]">
+          <div className="bg-white rounded-2xl w-full max-w-lg p-6 shadow-2xl relative max-h-[90vh] flex flex-col">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">항목별 수거 단가 설정</h3>
+            <p className="text-sm text-gray-500 mb-6">단가를 수정하고 저장하면 기사님 앱에 즉시 반영됩니다.</p>
+            
+            <div className="flex-1 overflow-y-auto space-y-2 pr-2 mb-6">
+              {priceTableItems.map((item, idx) => (
+                <div key={item.category} className="flex items-center gap-3 bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+                  <span className="text-xl w-8 text-center flex-shrink-0">{item.icon}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-bold text-gray-800 block">{item.label}</span>
+                    <span className="text-xs text-gray-500">
+                      {item.unitType === 'KG' ? '1kg당' : '1대당'}
+                    </span>
+                  </div>
+                  <div className="relative w-28 flex-shrink-0">
+                    <input 
+                      type="number" 
+                      min="0"
+                      step="10"
+                      value={item.unitPrice} 
+                      onChange={(e) => {
+                        const newItems = [...priceTableItems];
+                        newItems[idx] = { ...newItems[idx], unitPrice: Number(e.target.value) };
+                        setPriceTableItems(newItems);
+                      }}
+                      className="w-full text-right pl-2 pr-8 py-2 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 font-bold text-primary-700 text-sm"
+                    />
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-bold">원</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex gap-3 mt-auto">
+              <button onClick={() => setIsShowPriceTableModal(false)} className="flex-1 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl hover:bg-gray-200">닫기</button>
+              <button 
+                disabled={isSavingPriceTable}
+                onClick={async () => {
+                  setIsSavingPriceTable(true);
+                  try {
+                    const res = await axios.put(`${import.meta.env.VITE_API_URL}/admin/price-table`, {
+                      items: priceTableItems
+                    }, { headers: { Authorization: `Bearer ${authToken}` } });
+                    if (res.data.priceItems) {
+                      setPriceTableItems(res.data.priceItems.map((item: any) => ({
+                        category: item.category, label: item.label, unitPrice: item.unitPrice,
+                        unitType: item.unitType, icon: item.icon || ''
+                      })));
+                    }
+                    setIsShowPriceTableModal(false);
+                    alert('단가표가 저장되었습니다.');
+                  } catch (error: any) {
+                    alert(error.response?.data?.error || '단가표 저장 중 오류가 발생했습니다.');
+                  } finally {
+                    setIsSavingPriceTable(false);
+                  }
+                }}
+                className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl hover:bg-primary-700 active:scale-95 flex items-center justify-center gap-2"
+              >
+                {isSavingPriceTable ? '저장 중...' : '저장하기'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
