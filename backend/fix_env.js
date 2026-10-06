@@ -1,0 +1,11 @@
+const fs = require('fs');
+let content = fs.readFileSync('.env', 'utf8');
+content = content.replace(/A\0 \0L\0 \0L\0 \0O\0 \0W\0 \0_\0 \0D\0 \0E\0 \0M\0 \0O\0 \0=\0 \0t\0 \0r\0 \0u\0 \0e\0 \0\r\0\n\0 \0\r\0\n\0/g, '');
+content = content.replace(/A L L O W _ D E M O = t r u e/g, '');
+content = content.replace(/\r/g, '');
+let lines = content.split('\n');
+lines = lines.map(l => l.replace(/\0/g, '').trim());
+lines = lines.filter(l => l.length > 0 && !l.startsWith('ALLOW_DEMO='));
+lines.push('ALLOW_DEMO="true"');
+fs.writeFileSync('.env', lines.join('\n') + '\n', 'utf8');
+console.log('Fixed .env');

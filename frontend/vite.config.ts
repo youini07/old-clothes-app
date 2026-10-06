@@ -8,7 +8,4 @@ export default defineConfig({
       port: 5199,
       strictPort: true,
     },
-    define: {
-          'import.meta.env.VITE_API_URL': JSON.stringify('https://old-clothes-app-production.up.railway.app/api')
-    }
 })
