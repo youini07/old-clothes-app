@@ -11,9 +11,9 @@ start "Frontend Server" cmd /k "cd frontend && npm run dev"
 
 echo.
 echo Both servers have been started in new windows!
-echo Opening browser to http://localhost:5173 in 3 seconds...
+echo Opening browser to http://localhost:5199 in 3 seconds...
 timeout /t 3 /nobreak > nul
-start http://localhost:5173
+start http://localhost:5199
 
 echo.
 echo (To stop the servers, just close the new command windows)
