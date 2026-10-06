@@ -136,7 +136,7 @@ export default function AdminDashboard() {
   const [selectedInquiry, setSelectedInquiry] = useState<any>(null);
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
-  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean } | null>(null);
+  const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean; eventText?: string; eventIsActive?: boolean; } | null>(null);
   const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
@@ -445,7 +445,9 @@ export default function AdminDashboard() {
         pricePerKg: settings.pricePerKg,
         useBizMessage: settings.useBizMessage,
         useCrmAutomation: settings.useCrmAutomation,
-        useChat: settings.useChat
+        useChat: settings.useChat,
+        eventText: settings.eventText,
+        eventIsActive: settings.eventIsActive
       }, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
@@ -1732,6 +1734,42 @@ export default function AdminDashboard() {
                         <div className="bg-orange-50 text-orange-800 p-3 rounded-xl text-xs font-bold flex gap-2 items-center">
                           <span className="text-base">✅</span>
                           <span>과거 90일 전 수거 완료 고객에게 매일 아침 안내가 발송됩니다.</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 mt-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <span>🎉</span> 이벤트 및 리뷰 관리
+                  </h2>
+                  <div className="divide-y divide-gray-100">
+                    <div className="py-5">
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="block text-lg font-bold text-gray-900">영수증 문자 이벤트 첨부</label>
+                        <button 
+                          type="button"
+                          onClick={() => setSettings({...settings, eventIsActive: !settings.eventIsActive})}
+                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.eventIsActive ? 'bg-orange-500' : 'bg-gray-300'}`}
+                        >
+                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.eventIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
+                        </button>
+                      </div>
+                      <p className="text-sm text-gray-500 leading-relaxed mb-4">
+                        기사님이 수거 완료 후 발송하는 문자(커스텀 메시지 3번) 하단에 이벤트 문구가 자동으로 추가됩니다. 간편 리뷰 참여를 유도하여 당첨 이벤트를 진행해 보세요.
+                      </p>
+                      
+                      {settings.eventIsActive && (
+                        <div className="mt-4">
+                          <label className="block text-sm font-bold text-gray-700 mb-2">이벤트 노출 문구</label>
+                          <textarea
+                            value={settings.eventText || ''}
+                            onChange={(e) => setSettings({...settings, eventText: e.target.value})}
+                            placeholder="예: 간편 리뷰 작성 시 추첨을 통해 치킨 쿠폰 5장을 드립니다! 하단 영수증 링크에서 바로 참여하세요."
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                            rows={3}
+                          />
                         </div>
                       )}
                     </div>

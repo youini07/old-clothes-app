@@ -34,6 +34,9 @@ model User {
   pricePerKg      Int      @default(300) // 1kg당 수거 단가 (레거시, 사장님이 설정 가능)
   priceItems      PartnerPriceItem[] // 파트너별 커스텀 단가표 (카테고리별)
   
+  eventText       String?  // [파트너] 문자 정산서 하단 진행이벤트 내용
+  eventIsActive   Boolean  @default(false) // [파트너] 이벤트 텍스트 활성화 여부
+  
   // 고객일 경우
   customerRequests Request[] @relation("CustomerRequests")
   

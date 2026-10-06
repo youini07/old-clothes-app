@@ -2231,7 +2231,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
     const partnerId = req.user!.partnerId || req.user!.userId;
     const partner = await prisma.user.findUnique({
       where: { id: partnerId },
-      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true, eventText: true, eventIsActive: true }
     });
     
     if (!partner) {
@@ -2254,7 +2254,7 @@ router.get('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), async (req: any, res: any) => {
   const partnerId = req.user!.partnerId || req.user!.userId;
-  const { pricePerKg, useBizMessage, useCrmAutomation, useChat } = req.body;
+  const { pricePerKg, useBizMessage, useCrmAutomation, useChat, eventText, eventIsActive } = req.body;
   
   try {
     const updatedPartner = await prisma.user.update({
@@ -2263,9 +2263,11 @@ router.patch('/settings', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']),
         pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
         useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
         useChat: useChat !== undefined ? Boolean(useChat) : undefined,
-        useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
+        useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined,
+        eventText: eventText !== undefined ? eventText : undefined,
+        eventIsActive: eventIsActive !== undefined ? Boolean(eventIsActive) : undefined
       },
-      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
+      select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true, eventText: true, eventIsActive: true }
     });
     
     res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
