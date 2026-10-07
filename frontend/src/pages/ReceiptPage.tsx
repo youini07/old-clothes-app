@@ -27,6 +27,14 @@ interface ReceiptData {
   completedDate: string | null;
   collectionItems: CollectionItem[];
   status: string;
+  hasReview?: boolean;
+  review?: {
+    cafeUrl1?: string | null;
+    cafeUrl2?: string | null;
+    snsUrl1?: string | null;
+    snsUrl2?: string | null;
+    snsUrl3?: string | null;
+  } | null;
 }
 
 // ──────────────────────────────────────────
@@ -96,7 +104,18 @@ export default function ReceiptPage() {
     const fetchReceipt = async () => {
       try {
         const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/${id}/receipt`);
-        setReceipt(res.data);
+        const data = res.data;
+        setReceipt(data);
+        if (data.hasReview) {
+          setReviewSubmitted(true);
+          if (data.review) {
+            setCafeUrl1(data.review.cafeUrl1 || '');
+            setCafeUrl2(data.review.cafeUrl2 || '');
+            setSnsUrl1(data.review.snsUrl1 || '');
+            setSnsUrl2(data.review.snsUrl2 || '');
+            setSnsUrl3(data.review.snsUrl3 || '');
+          }
+        }
       } catch (err: any) {
         console.error(err);
         setError(err.response?.data?.error || '영수증을 불러오는 데 실패했습니다.');
@@ -150,8 +169,15 @@ export default function ReceiptPage() {
         ratingKindness,
         ratingSpeed,
         content: finalContent,
+        cafeUrl1,
+        cafeUrl2,
+        snsUrl1,
+        snsUrl2,
+        snsUrl3
       });
       setReviewSubmitted(true);
+      const hasLinks = cafeUrl1 || cafeUrl2 || snsUrl1 || snsUrl2 || snsUrl3;
+      setSnsSubmitMessage(hasLinks ? '리뷰와 링크가 성공적으로 등록되었습니다!' : '리뷰가 성공적으로 등록되었습니다!');
     } catch (err: any) {
       const msg = err.response?.data?.error || '리뷰 등록에 실패했습니다.';
       setReviewError(msg);
@@ -478,6 +504,34 @@ export default function ReceiptPage() {
                   )}
                 </div>
 
+                {/* 리뷰 이벤트 참여 링크 등록 (선택) */}
+                <div className="mt-6 border-t border-dashed border-gray-200 pt-5">
+                  <div className="mb-3">
+                    <h4 className="font-extrabold text-blue-600 text-sm flex items-center gap-1.5">
+                      🎁 리뷰 이벤트 참여 (선택)
+                    </h4>
+                    <p className="text-[11px] text-gray-500 mt-1 break-keep">
+                      맘카페나 블로그, SNS에 작성하신 리뷰 링크를 함께 등록해 주세요!<br/>
+                      등록된 링크는 사장님이 확인 후 이벤트 혜택을 지급해 드립니다.
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">지역 맘카페 링크 (최대 2개)</label>
+                      <input type="text" placeholder="카페 링크 1 입력..." value={cafeUrl1} onChange={e => setCafeUrl1(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="카페 링크 2 입력 (선택)..." value={cafeUrl2} onChange={e => setCafeUrl2(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs focus:border-amber-400 focus:outline-none" />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">SNS/블로그 링크 (최대 3개)</label>
+                      <input type="text" placeholder="SNS/블로그 링크 1 입력..." value={snsUrl1} onChange={e => setSnsUrl1(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 2 입력 (선택)..." value={snsUrl2} onChange={e => setSnsUrl2(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 3 입력 (선택)..." value={snsUrl3} onChange={e => setSnsUrl3(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs focus:border-amber-400 focus:outline-none" />
+                    </div>
+                  </div>
+                </div>
+
                 {/* 안내 문구 */}
                 <div className="mt-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
                   <p className="text-[11px] text-blue-600 font-medium leading-relaxed break-keep">
@@ -509,7 +563,7 @@ export default function ReceiptPage() {
                       등록 중...
                     </span>
                   ) : (
-                    '⭐ 간편리뷰 등록하기'
+                    (cafeUrl1 || cafeUrl2 || snsUrl1 || snsUrl2 || snsUrl3) ? '⭐ 간편리뷰 및 링크 등록하기' : '⭐ 간편리뷰 등록하기'
                   )}
                 </button>
               </div>

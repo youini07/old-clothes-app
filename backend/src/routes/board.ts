@@ -441,6 +441,11 @@ router.post('/reviews', async (req, res) => {
       ratingKindness,
       ratingSpeed,
       content,         // 한줄평
+      cafeUrl1,
+      cafeUrl2,
+      snsUrl1,
+      snsUrl2,
+      snsUrl3
     } = req.body;
 
     // 필수 값 검증
@@ -534,6 +539,11 @@ router.post('/reviews', async (req, res) => {
         maskedPhone: maskPhone(request.phone),
         maskedAddress: maskAddress(request.address),
         receiptSnapshot,
+        cafeUrl1,
+        cafeUrl2,
+        snsUrl1,
+        snsUrl2,
+        snsUrl3,
       },
     });
 
