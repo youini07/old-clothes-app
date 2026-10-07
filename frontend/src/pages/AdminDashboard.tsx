@@ -130,6 +130,39 @@ export default function AdminDashboard() {
   const [boardPage, setBoardPage] = useState(1);
   const [, setBoardTotalPages] = useState(1);
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' });
+  const [reviewExtractStartDate, setReviewExtractStartDate] = useState('');
+  const [reviewExtractEndDate, setReviewExtractEndDate] = useState('');
+  const handleExtractReviews = async () => {
+    if (!reviewExtractStartDate || !reviewExtractEndDate) {
+      alert('시작일과 종료일을 모두 선택해주세요.');
+      return;
+    }
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/board/reviews/${userInfo.id}/export?startDate=${reviewExtractStartDate}&endDate=${reviewExtractEndDate}`, {
+        headers: { Authorization: `Bearer ${authToken}` }
+      });
+      const list = res.data.list;
+      if (!list || list.length === 0) {
+        alert('해당 기간에 등록된 리뷰가 없습니다.');
+        return;
+      }
+      const text = list.map((item: any) => {
+        const suffix = item.maskedPhone ? item.maskedPhone.split('-').pop() : '없음';
+        return `${item.authorName}(${suffix})`;
+      }).join(', ');
+      
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        alert(`총 ${list.length}명의 명단이 복사되었습니다!\n\n${text}`);
+      } else {
+        alert(`총 ${list.length}명의 명단:\n\n${text}`);
+      }
+    } catch(e) {
+      alert('명단 추출에 실패했습니다.');
+    }
+  };
+
   const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
   const [editingNoticeId, setEditingNoticeId] = useState<string | null>(null);
   const [isSubmittingNotice, setIsSubmittingNotice] = useState(false);
@@ -2327,14 +2360,25 @@ export default function AdminDashboard() {
             {/* 후기 관리 */}
             {boardTab === 'reviews' && (
               <div>
+                <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center gap-3 justify-between">
+                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <span className="text-sm font-bold text-blue-900 whitespace-nowrap">명단 추출</span>
+                    <input type="date" value={reviewExtractStartDate} onChange={e => setReviewExtractStartDate(e.target.value)} className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+                    <span className="text-gray-400">~</span>
+                    <input type="date" value={reviewExtractEndDate} onChange={e => setReviewExtractEndDate(e.target.value)} className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+                  </div>
+                  <button onClick={handleExtractReviews} className="w-full sm:w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-sm transition-colors whitespace-nowrap">
+                    추출 후 복사하기
+                  </button>
+                </div>
                 {boardLoading ? (
                   <div className="text-center py-12"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>
                 ) : boardPosts.length === 0 ? (
                   <div className="text-center py-12 text-gray-400"><div className="text-4xl mb-3">⭐</div><p className="font-medium">등록된 후기가 없습니다.</p></div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {boardPosts.map((post: any) => (
-                      <div key={post.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <div key={post.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 h-full flex flex-col">
                         <div className="flex items-center justify-between mb-3">
                           <div className="flex items-center gap-0.5">
                             {[1,2,3,4,5].map(s => {
