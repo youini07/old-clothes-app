@@ -2395,6 +2395,41 @@ export default function AdminDashboard() {
                           <span>·</span>
                           <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
                         </div>
+                        
+                        {/* SNS 링크 목록 */}
+                        {(post.cafeUrl1 || post.cafeUrl2 || post.snsUrl1 || post.snsUrl2 || post.snsUrl3) && (
+                          <div className="mt-3 p-3 bg-rose-50 rounded-xl border border-rose-100">
+                            <p className="text-xs font-bold text-rose-600 mb-2">🎁 이벤트 참여 링크 목록</p>
+                            <div className="flex flex-col gap-1.5">
+                              {post.cafeUrl1 && (
+                                <a href={post.cafeUrl1} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
+                                  🔗 카페 1: {post.cafeUrl1}
+                                </a>
+                              )}
+                              {post.cafeUrl2 && (
+                                <a href={post.cafeUrl2} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
+                                  🔗 카페 2: {post.cafeUrl2}
+                                </a>
+                              )}
+                              {post.snsUrl1 && (
+                                <a href={post.snsUrl1} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
+                                  🔗 SNS 1: {post.snsUrl1}
+                                </a>
+                              )}
+                              {post.snsUrl2 && (
+                                <a href={post.snsUrl2} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
+                                  🔗 SNS 2: {post.snsUrl2}
+                                </a>
+                              )}
+                              {post.snsUrl3 && (
+                                <a href={post.snsUrl3} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
+                                  🔗 SNS 3: {post.snsUrl3}
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {post.receiptSnapshot && (
                           <div className="mt-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                             <p className="text-xs text-gray-500 font-bold mb-1">📋 수거 영수증</p>

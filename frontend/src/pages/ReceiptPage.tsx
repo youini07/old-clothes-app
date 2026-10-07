@@ -73,6 +73,15 @@ export default function ReceiptPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
+  
+  // SNS/카페 링크 상태
+  const [cafeUrl1, setCafeUrl1] = useState('');
+  const [cafeUrl2, setCafeUrl2] = useState('');
+  const [snsUrl1, setSnsUrl1] = useState('');
+  const [snsUrl2, setSnsUrl2] = useState('');
+  const [snsUrl3, setSnsUrl3] = useState('');
+  const [isSnsSubmitting, setIsSnsSubmitting] = useState(false);
+  const [snsSubmitMessage, setSnsSubmitMessage] = useState('');
 
   const reviewOptions = [
     "기사님이 정말 친절하시고 믿음이 가요.",
@@ -102,6 +111,23 @@ export default function ReceiptPage() {
   }, [id]);
 
   // 간편리뷰 등록 핸들러
+  
+  const handleSnsSubmit = async () => {
+    setIsSnsSubmitting(true);
+    setSnsSubmitMessage('');
+    try {
+      await axios.patch(`${import.meta.env.VITE_API_URL}/board/reviews/by-request/${id}/sns-links`, {
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
+      });
+      setSnsSubmitMessage('링크가 성공적으로 등록/수정되었습니다! 사장님 확인 후 처리됩니다.');
+    } catch (err) {
+      console.error(err);
+      setSnsSubmitMessage('링크 등록 중 오류가 발생했습니다.');
+    } finally {
+      setIsSnsSubmitting(false);
+    }
+  };
+
   const handleSubmitReview = async () => {
     if (!ratingConvenience || !ratingKindness || !ratingSpeed) {
       setReviewError('모든 별점 항목을 선택해주세요.');
@@ -343,12 +369,50 @@ export default function ReceiptPage() {
                   <span className="text-4xl">🎉</span>
                 </div>
                 <h3 className="text-xl font-extrabold text-gray-900 mb-2">리뷰가 등록되었습니다!</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">
+                <p className="text-sm text-gray-500 leading-relaxed mb-6">
                   소중한 후기 감사합니다.<br/>
                   개인정보가 보호된 상태로 후기 게시판에 자동 등록되었습니다.
                 </p>
-                <div className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 bg-amber-100 rounded-full">
-                  <span className="text-amber-600 font-bold text-sm">⭐ {((ratingConvenience + ratingKindness + ratingSpeed) / 3).toFixed(1)}점</span>
+
+                <div className="border-t border-gray-200 pt-6 mt-4 text-left">
+                  <div className="mb-4">
+                    <h4 className="font-extrabold text-blue-600 text-lg flex items-center gap-2">
+                      🎁 리뷰 이벤트 참여 링크 등록
+                    </h4>
+                    <p className="text-xs text-gray-500 mt-1 break-keep">
+                      맘카페나 블로그, SNS에 작성하신 리뷰 링크를 등록해 주세요!<br/>
+                      사장님이 확인 후 혜택을 지급해 드립니다. (언제든 다시 들어와서 수정 가능합니다)
+                    </p>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">지역 맘카페 링크 (최대 2개)</label>
+                      <input type="text" placeholder="카페 링크 1 입력..." value={cafeUrl1} onChange={e => setCafeUrl1(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="카페 링크 2 입력 (선택)..." value={cafeUrl2} onChange={e => setCafeUrl2(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:outline-none" />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">SNS/블로그 링크 (최대 3개)</label>
+                      <input type="text" placeholder="SNS/블로그 링크 1 입력..." value={snsUrl1} onChange={e => setSnsUrl1(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 2 입력 (선택)..." value={snsUrl2} onChange={e => setSnsUrl2(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 3 입력 (선택)..." value={snsUrl3} onChange={e => setSnsUrl3(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:outline-none" />
+                    </div>
+                  </div>
+
+                  {snsSubmitMessage && (
+                    <div className="mt-4 p-3 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg text-center">
+                      {snsSubmitMessage}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleSnsSubmit}
+                    disabled={isSnsSubmitting}
+                    className="w-full mt-5 py-4 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition-colors"
+                  >
+                    {isSnsSubmitting ? '등록 중...' : '이벤트 참여 링크 등록/수정하기'}
+                  </button>
                 </div>
               </div>
             ) : (
@@ -386,20 +450,17 @@ export default function ReceiptPage() {
                 {/* 한줄평 */}
                 <div className="mt-5">
                   <label className="text-sm font-bold text-gray-700 mb-2 block">✏️ 한줄평 (필수)</label>
-                  <div className="flex flex-col gap-2 mb-3">
-                    {reviewOptions.map((option, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setSelectedReviewOption(option)}
-                        className={`text-left px-4 py-3 rounded-xl text-sm transition-all duration-200 border-2 ${
-                          selectedReviewOption === option
-                            ? 'border-amber-400 bg-amber-50 text-amber-700 font-bold'
-                            : 'border-gray-200 bg-white text-gray-600 hover:border-amber-200'
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
+                  <div className="mb-3">
+                    <select
+                      value={selectedReviewOption || ''}
+                      onChange={(e) => setSelectedReviewOption(e.target.value)}
+                      className="w-full px-4 py-3 rounded-xl text-sm border-2 border-gray-200 bg-white text-gray-700 focus:border-amber-400 focus:outline-none transition-colors"
+                    >
+                      <option value="" disabled>한줄평을 선택해주세요</option>
+                      {reviewOptions.map((option, idx) => (
+                        <option key={idx} value={option}>{option}</option>
+                      ))}
+                    </select>
                   </div>
 
                   {selectedReviewOption === '직접 입력' && (

@@ -472,7 +472,7 @@ export default function Landing() {
             
           </div>
 
-          <div className="mt-12 md:mt-16 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
+          <div className="mt-12 md:mt-4 flex flex-col md:flex-row md:items-end md:justify-between w-full gap-8">
             <p className="reveal reveal-delay-2 text-base sm:text-xl md:text-2xl text-gray-600 font-medium max-w-2xl leading-relaxed break-keep">
               문 앞에 헌옷을 담아두기만 하면 모든 것이 <br className="block sm:hidden" />
               <strong className="text-primary-600 font-black tracking-tight text-3xl sm:text-inherit block sm:inline mt-2 sm:mt-0">ALL CLEAR!</strong>
@@ -1029,7 +1029,38 @@ export default function Landing() {
           </h2>
         </div>
 
-        <div className="relative mt-16 max-w-[100vw]">
+        
+        {/* 베스트 후기 하이라이트 */}
+        <div className="max-w-4xl mx-auto px-5 md:px-8 mb-16 reveal reveal-delay-2">
+          <div className="bg-white rounded-3xl p-6 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-50 relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-[100px] -z-0 transition-transform group-hover:scale-110"></div>
+            <div className="relative z-10">
+              <div className="flex items-center gap-3 mb-6">
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">👑 베스트 리뷰</span>
+                <div className="flex text-amber-400 text-lg">
+                  ★★★★★
+                </div>
+              </div>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 leading-relaxed break-keep">
+                "이사가면서 헌옷이 산더미처럼 나왔는데, 올클 덕분에 10분만에 해결했어요! 너무 친절하시고 정산도 바로 들어와서 진짜 최고입니다. 맘카페에도 추천글 올렸어요!"
+              </h3>
+              <div className="flex items-center justify-between mt-8 border-t border-gray-100 pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">김</div>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm md:text-base">김** 고객님</p>
+                    <p className="text-xs md:text-sm text-gray-500">서울 강남구 · 정산금액 28,400원</p>
+                  </div>
+                </div>
+                <div className="hidden md:block bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 text-blue-700 text-sm font-bold">
+                  헌옷 35kg | 신발 12켤레 수거
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="relative mt-4 max-w-[100vw]">
           {/* 흐린 그라데이션 오버레이 (좌우) - 스크롤 페이드 효과 */}
           <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-sky-50 to-transparent z-10 pointer-events-none"></div>
           <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-sky-50 to-transparent z-10 pointer-events-none"></div>

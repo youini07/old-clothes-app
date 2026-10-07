@@ -8,158 +8,158 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String?  @unique // 카카오 로그인 이메일 또는 자체 로그인 이메일(ID)
-  password  String?  // 자체 로그인을 위한 비밀번호 (암호화되어 저장)
-  kakaoId   String?  @unique // 카카오 고유 ID
-  name      String
-  phone     String?
-  businessName String? // 상호명
-  role      String   @default("CUSTOMER")
-  address   String?  // 고객 주소
+  id            String    @id @default(uuid())
+  email         String?   @unique // 카카오 로그인 이메일 또는 자체 로그인 이메일(ID)
+  password      String? // 자체 로그인을 위한 비밀번호 (암호화되어 저장)
+  kakaoId       String?   @unique // 카카오 고유 ID
+  name          String
+  phone         String?
+  businessName  String? // 상호명
+  role          String    @default("CUSTOMER")
+  address       String? // 고객 주소
   detailAddress String? // 고객 상세 주소
-  zipCode   String?  // 우편번호
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  deletedAt DateTime? // 30일 보관 휴지통 기능 (Soft Delete)
-  
+  zipCode       String? // 우편번호
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime? // 30일 보관 휴지통 기능 (Soft Delete)
+
   // 파트너(업체 사장님)일 경우
-  isApproved      Boolean  @default(false) // 파트너 승인 여부
-  coverageRegions Coverage[]
-  customRegions   CustomRegion[] @relation("PartnerCustomRegions")
-  drivers         DriverProfile[] // 사장님이 고용한 기사들
-  useBizMessage   Boolean  @default(false) // 파트너의 알림톡 사용 여부
-  useCrmAutomation Boolean @default(false) // 파트너의 3개월 리텐션 CRM 자동화 사용 여부 (유료 서비스)
-  useChat         Boolean  @default(true) // 실시간 고객문의 사용 여부
-  pricePerKg      Int      @default(300) // 1kg당 수거 단가 (레거시, 사장님이 설정 가능)
-  priceItems      PartnerPriceItem[] // 파트너별 커스텀 단가표 (카테고리별)
-  
-  eventText       String?  // [파트너] 문자 정산서 하단 진행이벤트 내용
-  eventIsActive   Boolean  @default(false) // [파트너] 이벤트 텍스트 활성화 여부
-  
+  isApproved       Boolean            @default(false) // 파트너 승인 여부
+  coverageRegions  Coverage[]
+  customRegions    CustomRegion[]     @relation("PartnerCustomRegions")
+  drivers          DriverProfile[] // 사장님이 고용한 기사들
+  useBizMessage    Boolean            @default(false) // 파트너의 알림톡 사용 여부
+  useCrmAutomation Boolean            @default(false) // 파트너의 3개월 리텐션 CRM 자동화 사용 여부 (유료 서비스)
+  useChat          Boolean            @default(true) // 실시간 고객문의 사용 여부
+  pricePerKg       Int                @default(300) // 1kg당 수거 단가 (레거시, 사장님이 설정 가능)
+  priceItems       PartnerPriceItem[] // 파트너별 커스텀 단가표 (카테고리별)
+
+  eventText     String? // [파트너] 문자 정산서 하단 진행이벤트 내용
+  eventIsActive Boolean @default(false) // [파트너] 이벤트 텍스트 활성화 여부
+
   // 고객일 경우
   customerRequests Request[] @relation("CustomerRequests")
-  
+
   // 파트너가 배정받은 수거 신청건
-  partnerRequests  Request[] @relation("PartnerRequests")
-  
+  partnerRequests Request[] @relation("PartnerRequests")
+
   // 기사일 경우
-  driverProfile   DriverProfile? @relation("UserToDriver")
-  
+  driverProfile DriverProfile? @relation("UserToDriver")
+
   // 채팅방 관련
-  customerChatRooms ChatRoom[] @relation("CustomerChat")
-  partnerChatRooms  ChatRoom[] @relation("PartnerChat")
+  customerChatRooms ChatRoom[]    @relation("CustomerChat")
+  partnerChatRooms  ChatRoom[]    @relation("PartnerChat")
   sentMessages      ChatMessage[] @relation("SentMessages")
-  
+
   // 게시판 관련
-  boardPosts       BoardPost[]    @relation("BoardPostAuthor")   // 내가 작성한 게시글
-  partnerPosts     BoardPost[]    @relation("BoardPostPartner")  // 내 업체 게시판에 등록된 글
-  boardComments    BoardComment[] @relation("BoardCommentAuthor") // 내가 작성한 댓글
+  boardPosts    BoardPost[]    @relation("BoardPostAuthor") // 내가 작성한 게시글
+  partnerPosts  BoardPost[]    @relation("BoardPostPartner") // 내 업체 게시판에 등록된 글
+  boardComments BoardComment[] @relation("BoardCommentAuthor") // 내가 작성한 댓글
 }
 
 // 기사 전용 프로필 (사장이 기사를 등록/관리)
 model DriverProfile {
-  id        String   @id @default(uuid())
-  userId    String   @unique
-  user      User     @relation("UserToDriver", fields: [userId], references: [id])
-  
-  partnerId String
-  partner   User     @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
-  isCoBoss  Boolean  @default(false) // 공동 사장 여부
-  vehicleInfo String? // 차량 정보
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation("UserToDriver", fields: [userId], references: [id])
+
+  partnerId       String
+  partner         User    @relation(fields: [partnerId], references: [id]) // 소속 파트너 사장님
+  isCoBoss        Boolean @default(false) // 공동 사장 여부
+  vehicleInfo     String? // 차량 정보
   todayDistanceKm Float? // 누적 주행 거리 (km 단위)
-  smsTemplates    Json?    // 기사용 문자 템플릿 커스텀 저장
-  
+  smsTemplates    Json? // 기사용 문자 템플릿 커스텀 저장
+
   customRegionId String?
   customRegion   CustomRegion? @relation(fields: [customRegionId], references: [id], onDelete: SetNull)
-  
+
   assignedRequests Request[] @relation("AssignedDriver")
 }
 
 // 권역 (시/도 - 시/군/구 - 읍/면/동)
 model Region {
-  id       String   @id @default(uuid())
-  province String   // 예: 경기도
-  city     String   // 예: 평택시
-  town     String?  // 예: 비전동 (선택사항)
-  
+  id       String  @id @default(uuid())
+  province String // 예: 경기도
+  city     String // 예: 평택시
+  town     String? // 예: 비전동 (선택사항)
+
   coverages Coverage[]
   requests  Request[]
 }
 
 // 파트너별 권역 할당
 model Coverage {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   partnerId String
-  partner   User     @relation(fields: [partnerId], references: [id])
-  
-  regionId  String
-  region    Region   @relation(fields: [regionId], references: [id])
-  
+  partner   User   @relation(fields: [partnerId], references: [id])
+
+  regionId String
+  region   Region @relation(fields: [regionId], references: [id])
+
   @@unique([partnerId, regionId])
 }
 
 model Request {
-  id             String        @id @default(uuid())
-  
+  id String @id @default(uuid())
+
   // 고객 정보
-  customerId     String?
-  customer       User?         @relation("CustomerRequests", fields: [customerId], references: [id])
-  userName       String        // 비회원 신청 대응
-  phone          String        // 비회원 신청 대응
-  
+  customerId String?
+  customer   User?   @relation("CustomerRequests", fields: [customerId], references: [id])
+  userName   String // 비회원 신청 대응
+  phone      String // 비회원 신청 대응
+
   // 담당 지역 및 파트너/기사 할당
-  regionId       String?
-  region         Region?       @relation(fields: [regionId], references: [id])
-  partnerId      String?       // 배정된 업체 사장님 ID
-  partner        User?         @relation("PartnerRequests", fields: [partnerId], references: [id])
-  
-  driverId       String?
-  driver         DriverProfile? @relation("AssignedDriver", fields: [driverId], references: [id])
-  
+  regionId  String?
+  region    Region? @relation(fields: [regionId], references: [id])
+  partnerId String? // 배정된 업체 사장님 ID
+  partner   User?   @relation("PartnerRequests", fields: [partnerId], references: [id])
+
+  driverId String?
+  driver   DriverProfile? @relation("AssignedDriver", fields: [driverId], references: [id])
+
   // 수거지 정보
-  address        String
-  detailAddress  String
-  zipCode        String
-  sigungu        String?       // 카카오 기준 시/군/구 (예: "수원시 영통구")
-  bname          String?       // 카카오 기준 법정동 (예: "이의동")
-  
+  address       String
+  detailAddress String
+  zipCode       String
+  sigungu       String? // 카카오 기준 시/군/구 (예: "수원시 영통구")
+  bname         String? // 카카오 기준 법정동 (예: "이의동")
+
   // 수거 관련 시간
-  desiredDate    DateTime      // 고객 희망 날짜
-  isMustPickupDate Boolean     @default(false) // 지정일 필수 수거 여부
-  confirmedDate  DateTime?     // 기사 확정 시간 (방문 예정)
-  completedDate  DateTime?     // 수거 완료 시간
-  
+  desiredDate      DateTime // 고객 희망 날짜
+  isMustPickupDate Boolean   @default(false) // 지정일 필수 수거 여부
+  confirmedDate    DateTime? // 기사 확정 시간 (방문 예정)
+  completedDate    DateTime? // 수거 완료 시간
+
   // 동선 순서
-  orderIndex     Int           @default(0) // 기사가 수동 조작 가능한 방문 순서
-  
+  orderIndex Int @default(0) // 기사가 수동 조작 가능한 방문 순서
+
   // 수거 물품 데이터
-  estimatedVolume String       // 고객이 적은 예상 수거량
-  actualWeight    Float?       // 기사가 입력한 실제 수거 무게 (kg)
-  totalPrice      Float?       // 최종 정산 금액 (단가 * 무게)
-  
+  estimatedVolume String // 고객이 적은 예상 수거량
+  actualWeight    Float? // 기사가 입력한 실제 수거 무게 (kg)
+  totalPrice      Float? // 최종 정산 금액 (단가 * 무게)
+
   // 상태 추적 및 예상 소요 시간
-  etaMinutes      Int?         // 기사가 출발 시 계산된 예상 도착 시간 (분)
-  estimatedPickupHour Float?     // 사장님이 입력한 예상 수거 시간 (예: 13, 13.5)
+  etaMinutes          Int? // 기사가 출발 시 계산된 예상 도착 시간 (분)
+  estimatedPickupHour Float? // 사장님이 입력한 예상 수거 시간 (예: 13, 13.5)
 
   // 3단계 증빙 사진 (R2 저장용 URL)
-  itemPhotoUrl    String?      // 1단계: 수거 전 물품 사진
-  scalePhotoUrl   String?      // 2단계: 저울에 올린 무게 사진
-  extraPhotoUrl   String?      // 3단계: 특이사항 사진
-  
+  itemPhotoUrl  String? // 1단계: 수거 전 물품 사진
+  scalePhotoUrl String? // 2단계: 저울에 올린 무게 사진
+  extraPhotoUrl String? // 3단계: 특이사항 사진
+
   // 고객 업로드 포장 사진
   customerPackedPhotoUrl String? // 고객이 내놓은 후 직접 업로드한 사진
-  
-  driverNote      String?      // 기사가 남기는 특이사항 메모
-  
+
+  driverNote String? // 기사가 남기는 특이사항 메모
+
   // 항목별 수거 정산 내역 (카테고리별 무게/수량 + 단가 계산)
   collectionItems CollectionItem[]
-  
-  status         String        @default("PENDING")
-  crmSent        Boolean       @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
-  
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+
+  status  String  @default("PENDING")
+  crmSent Boolean @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([partnerId, status])
   @@index([driverId, status])
@@ -172,92 +172,92 @@ model Request {
 
 // 사장님이 직접 커스터마이징하는 권역 (예: A권역 = 수원, 화성)
 model CustomRegion {
-  id        String   @id @default(uuid())
+  id        String @id @default(uuid())
   partnerId String
-  partner   User     @relation("PartnerCustomRegions", fields: [partnerId], references: [id], onDelete: Cascade)
-  
-  name      String   // 예: "A권역"
-  areas     String[] // 예: ["수원시", "화성시"]
-  
-  drivers   DriverProfile[]
+  partner   User   @relation("PartnerCustomRegions", fields: [partnerId], references: [id], onDelete: Cascade)
+
+  name  String // 예: "A권역"
+  areas String[] // 예: ["수원시", "화성시"]
+
+  drivers DriverProfile[]
 }
 
 model GlobalSettings {
-  id              String   @id @default("global")
-  globalNotice    String?
-  noticeIsActive  Boolean  @default(false)
+  id                 String   @id @default("global")
+  globalNotice       String?
+  noticeIsActive     Boolean  @default(false)
   globalNoticeDetail String?
-  popupImageUrl   String?
-  popupIsActive   Boolean  @default(false)
-  deletePassword  String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
-  eventYoutubeUrl String?  // 이벤트 당첨자 발표 유튜브 링크
-  updatedAt       DateTime @updatedAt
+  popupImageUrl      String?
+  popupIsActive      Boolean  @default(false)
+  deletePassword     String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
+  eventYoutubeUrl    String? // 이벤트 당첨자 발표 유튜브 링크
+  updatedAt          DateTime @updatedAt
 }
 
 // 1:1 채팅방 (고객 - 파트너)
 model ChatRoom {
-  id         String        @id @default(uuid())
+  id         String @id @default(uuid())
   customerId String
-  customer   User          @relation("CustomerChat", fields: [customerId], references: [id])
+  customer   User   @relation("CustomerChat", fields: [customerId], references: [id])
   partnerId  String
-  partner    User          @relation("PartnerChat", fields: [partnerId], references: [id])
-  
-  messages   ChatMessage[]
-  
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  
+  partner    User   @relation("PartnerChat", fields: [partnerId], references: [id])
+
+  messages ChatMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([customerId, partnerId])
 }
 
 // 채팅 메시지
 model ChatMessage {
-  id         String   @id @default(uuid())
-  roomId     String
-  room       ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  
-  senderId   String
-  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
-  
-  content    String
-  isRead     Boolean  @default(false)
-  
-  createdAt  DateTime @default(now())
+  id     String   @id @default(uuid())
+  roomId String
+  room   ChatRoom @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  senderId String
+  sender   User   @relation("SentMessages", fields: [senderId], references: [id])
+
+  content String
+  isRead  Boolean @default(false)
+
+  createdAt DateTime @default(now())
 }
 
 // 항목별 수거 정산 내역 (기사가 카테고리별로 무게/수량을 입력하면 자동으로 단가 계산)
 model CollectionItem {
-  id          String   @id @default(uuid())
-  requestId   String
-  request     Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  
-  category    String   // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
+  id        String  @id @default(uuid())
+  requestId String
+  request   Request @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  category      String // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
   categoryLabel String // 한국어 라벨 (예: '헌옷 (신발, 가방 포함)')
-  quantity    Float    // kg 또는 대 수
-  unitType    String   // 'KG' 또는 'UNIT' (대)
-  unitPrice   Int      // 단가 (원)
-  subtotal    Int      // 소계 = quantity * unitPrice
-  photoUrl    String?  // 해당 항목 촬영 사진 (base64 or URL)
-  
-  createdAt   DateTime @default(now())
+  quantity      Float // kg 또는 대 수
+  unitType      String // 'KG' 또는 'UNIT' (대)
+  unitPrice     Int // 단가 (원)
+  subtotal      Int // 소계 = quantity * unitPrice
+  photoUrl      String? // 해당 항목 촬영 사진 (base64 or URL)
+
+  createdAt DateTime @default(now())
 }
 
 // 파트너(사장님)별 커스텀 단가표 (카테고리별 단가 설정)
 // 만약 단가표가 없으면 기본 단가표(PRICE_TABLE)가 사용됨
 model PartnerPriceItem {
-  id          String   @id @default(uuid())
-  partnerId   String
-  partner     User     @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  
-  category    String   // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
-  label       String   // 한국어 라벨 (예: '헌옷 (신발, 가방 포함)')
-  unitPrice   Int      // 단가 (원)
-  unitType    String   // 'KG' 또는 'UNIT'
-  icon        String   @default("") // 이모지 아이콘
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id        String @id @default(uuid())
+  partnerId String
+  partner   User   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+
+  category  String // 'CLOTHES', 'BOOKS', 'COOKWARE', 'PHONE', 'COMPUTER', 'CD_TAPE', 'LP', 'AC_STAND', 'AC_WALL'
+  label     String // 한국어 라벨 (예: '헌옷 (신발, 가방 포함)')
+  unitPrice Int // 단가 (원)
+  unitType  String // 'KG' 또는 'UNIT'
+  icon      String @default("") // 이모지 아이콘
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@unique([partnerId, category]) // 파트너당 카테고리는 고유해야 함
 }
 
@@ -267,51 +267,58 @@ model PartnerPriceItem {
 
 // 게시판 게시글 (공지사항, 고객문의, 후기 통합 모델)
 model BoardPost {
-  id          String   @id @default(uuid())
-  type        String   // 'NOTICE' | 'INQUIRY' | 'REVIEW'
-  
+  id   String @id @default(uuid())
+  type String // 'NOTICE' | 'INQUIRY' | 'REVIEW'
+
   // 작성자 정보
-  authorId    String?  // 로그인 사용자 ID (리뷰 자동등록 시 null 가능)
-  author      User?    @relation("BoardPostAuthor", fields: [authorId], references: [id])
-  authorName  String   // 마스킹된 이름 또는 원본 이름
-  
+  authorId   String? // 로그인 사용자 ID (리뷰 자동등록 시 null 가능)
+  author     User?   @relation("BoardPostAuthor", fields: [authorId], references: [id])
+  authorName String // 마스킹된 이름 또는 원본 이름
+
   // 대상 파트너(사장님) — 이 사장님의 게시판에 노출
-  partnerId   String
-  partner     User     @relation("BoardPostPartner", fields: [partnerId], references: [id])
-  
+  partnerId String
+  partner   User   @relation("BoardPostPartner", fields: [partnerId], references: [id])
+
   // 게시글 내용
-  title       String
-  content     String   // 본문 (공지/문의) 또는 한줄평 (리뷰)
-  isSecret    Boolean  @default(false) // 비밀글 여부 (고객문의용)
-  
+  title    String
+  content  String // 본문 (공지/문의) 또는 한줄평 (리뷰)
+  isSecret Boolean @default(false) // 비밀글 여부 (고객문의용)
+
   // 리뷰 전용 필드
-  requestId         String?  // 연결된 수거 신청 ID (리뷰 중복 방지용)
-  ratingConvenience Int?     // 수거신청 편리성 (1~5)
-  ratingKindness    Int?     // 기사님 친절도 (1~5)
-  ratingSpeed       Int?     // 수거/정산 신속정확 (1~5)
-  maskedPhone       String?  // 마스킹된 전화번호 (010-xxxx-1234)
-  maskedAddress     String?  // 마스킹된 주소 (동 까지만)
-  receiptSnapshot   Json?    // 영수증 스냅샷 데이터 (정산금액, 항목 등)
-  
+  requestId         String? // 연결된 수거 신청 ID (리뷰 중복 방지용)
+  ratingConvenience Int? // 수거신청 편리성 (1~5)
+  ratingKindness    Int? // 기사님 친절도 (1~5)
+  ratingSpeed       Int? // 수거/정산 신속정확 (1~5)
+  maskedPhone       String? // 마스킹된 전화번호 (010-xxxx-1234)
+  maskedAddress     String? // 마스킹된 주소 (동 까지만)
+  receiptSnapshot   Json? // 영수증 스냅샷 데이터 (금액, 수거량 등)
+
+  // 홍보 링크 (이벤트 참여용)
+  cafeUrl1 String?
+  cafeUrl2 String?
+  snsUrl1  String?
+  snsUrl2  String?
+  snsUrl3  String?
+
   // 문의 전용 필드
-  isAnswered  Boolean  @default(false) // 사장님/슈퍼관리자 답변 여부
-  
+  isAnswered Boolean @default(false) // 사장님/슈퍼관리자 답변 여부
+
   // 댓글
-  comments    BoardComment[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  comments BoardComment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // 게시글 댓글 (고객문의 답변용)
 model BoardComment {
-  id        String    @id @default(uuid())
-  postId    String
-  post      BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
-  
-  authorId  String
-  author    User      @relation("BoardCommentAuthor", fields: [authorId], references: [id])
-  content   String
-  
-  createdAt DateTime  @default(now())
+  id     String    @id @default(uuid())
+  postId String
+  post   BoardPost @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  authorId String
+  author   User   @relation("BoardCommentAuthor", fields: [authorId], references: [id])
+  content  String
+
+  createdAt DateTime @default(now())
 }

@@ -564,4 +564,33 @@ router.delete('/reviews/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
   }
 });
 
+
+// 리뷰 SNS 링크 수정 (고객용 - requestId 기반)
+router.patch('/reviews/by-request/:requestId/sns-links', async (req, res) => {
+  try {
+    const { requestId } = req.params;
+    const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3 } = req.body;
+
+    const review = await prisma.boardPost.findFirst({
+      where: { type: 'REVIEW', requestId }
+    });
+
+    if (!review) {
+      return res.status(404).json({ error: '해당 수거 내역에 대한 리뷰를 찾을 수 없습니다.' });
+    }
+
+    const updated = await prisma.boardPost.update({
+      where: { id: review.id },
+      data: {
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
+      }
+    });
+
+    res.json(updated);
+  } catch (error) {
+    console.error('리뷰 SNS 링크 수정 실패:', error);
+    res.status(500).json({ error: '링크 수정 중 오류가 발생했습니다.' });
+  }
+});
+
 export default router;
