@@ -623,7 +623,7 @@ export default function DriverDashboard() {
   const getSmsTemplate3 = (req: RequestItem) => {
     const price = req.totalPrice || 0;
     const items = req.collectionItems || [];
-    const eventString = partnerEvent?.isActive && partnerEvent?.text ? `\n\n🎉 [진행중인 이벤트]\n${partnerEvent.text}` : '';
+    const eventString = partnerEvent?.isActive && partnerEvent?.text ? `\n\n⭐━━━━ 이벤트 안내 ━━━━⭐\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent.text}\n━━━━━━━━━━━━━━━━━━` : '';
     const receiptLink = `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${req.id}${eventString}`;
     
     if (items.length > 0) {
@@ -1170,7 +1170,7 @@ export default function DriverDashboard() {
               )}
               {smsTemplates?.template3 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')) + `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${selectedSmsReq.req.id}` + (partnerEvent?.isActive && partnerEvent?.text ? `\n\n🎉 [진행중인 이벤트]\n${partnerEvent.text}` : ''))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')) + `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${selectedSmsReq.req.id}` + (partnerEvent?.isActive && partnerEvent?.text ? `\n\n⭐━━━━ 이벤트 안내 ━━━━⭐\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent.text}\n━━━━━━━━━━━━━━━━━━` : ''))}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
                 >
