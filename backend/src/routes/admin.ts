@@ -2354,7 +2354,8 @@ router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_AD
         noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined,
         globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined,
         popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : undefined,
-        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : undefined
+        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : undefined,
+        eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : undefined
       },
       create: {
         id: 'global',
@@ -2362,7 +2363,8 @@ router.patch('/global-settings', authenticate, requireRole(['PARTNER', 'SUPER_AD
         noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false,
         globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : '',
         popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : null,
-        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : false
+        popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : false,
+        eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : null
       }
     });
     

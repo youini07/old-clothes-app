@@ -137,7 +137,7 @@ export default function AdminDashboard() {
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean; eventText?: string; eventIsActive?: boolean; } | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean; eventYoutubeUrl?: string | null } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -460,6 +460,7 @@ export default function AdminDashboard() {
           noticeIsActive: globalSettings.noticeIsActive,
           globalNoticeDetail: globalSettings.globalNoticeDetail || '',
           popupImageUrl: globalSettings.popupImageUrl || null,
+          eventYoutubeUrl: globalSettings.eventYoutubeUrl || null,
           popupIsActive: globalSettings.popupIsActive || false
         }, {
           headers: { Authorization: `Bearer ${authToken}` }

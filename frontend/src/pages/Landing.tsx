@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import axios from 'axios';
 import { Menu, X, Check, AlertCircle, MapPin } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -11,10 +12,12 @@ import { QRCodeSVG } from 'qrcode.react';
 const KAKAO_LOGIN_URL = `${import.meta.env.VITE_API_URL}/auth/kakao`;
 
 // ===== 서비스 통계 수치 (실제 데이터로 업데이트하려면 여기만 수정) =====
+/*
 const STATS = [
   { label: '올클 월간 평균 수거 무게', end: 50000, suffix: 'kg+' },
   { label: '월 평균 수거 완료', end: 800, suffix: '건+' },
 ];
+*/
 
 const DUMMY_REVIEWS = [
   {
@@ -83,7 +86,7 @@ function useRevealObserver() {
 }
 
 // 화면에 보일 때 0부터 end까지 카운트업되는 숫자
-function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
+export function CountUp({ end, suffix = '' }: { end: number; suffix?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const [value, setValue] = useState(0);
   const startedRef = useRef(false);
@@ -226,8 +229,25 @@ function useScrollBounce() {
   return bounce;
 }
 
+
+const getYoutubeEmbedUrl = (url: string) => {
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+  return match ? `https://www.youtube.com/embed/${match[1]}` : url;
+};
+
 export default function Landing() {
   const scrollBounce = useScrollBounce();
+
+  
+  const [eventYoutubeUrl, setEventYoutubeUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
+      .then(res => {
+        if (res.data?.eventYoutubeUrl) setEventYoutubeUrl(res.data.eventYoutubeUrl);
+      })
+      .catch(err => console.error('이벤트 설정 로드 실패:', err));
+  }, []);
 
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -1033,44 +1053,64 @@ export default function Landing() {
         </div>
       </section>
 
-{/* ================= 리클 성과 (통계) ================= */}
-      <section id="stats" className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 overflow-hidden bg-white">
-        <div
-          className="absolute inset-0 opacity-40"
-          style={{
-            background:
-              'radial-gradient(ellipse 80% 60% at 50% 40%, #eff6ff 0%, #ffffff 70%)',
-          }}
-        />
-        <div className="absolute inset-0 pointer-events-none select-none flex items-center justify-center overflow-hidden">
-          <span className="text-[26vw] font-black text-[rgba(37,99,235,0.06)] whitespace-nowrap">
-            ALLCLEAR
-          </span>
-        </div>
-
+{/* ================= 진행중인 이벤트 ================= */}
+      <section id="event" className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 overflow-hidden bg-sky-50">
         <div className="relative z-10 max-w-5xl mx-auto w-full px-5 text-center">
-          <p className="reveal text-primary-700 font-bold text-lg md:text-2xl">{STATS[0].label}</p>
-          <div className="reveal reveal-delay-1 mt-4 font-black tracking-tight leading-none text-5xl sm:text-7xl md:text-8xl text-gray-900">
-            <CountUp end={STATS[0].end} suffix={STATS[0].suffix} />
-          </div>
-
-          <div className="reveal reveal-delay-2 mt-16 flex justify-center max-w-xs mx-auto">
-            {STATS.slice(1).map((s, i) => (
-              <div key={i} className="w-full rounded-2xl bg-white border border-primary-100 shadow-sm p-6">
-                <p className="text-3xl md:text-4xl font-black text-gray-900">
-                  <CountUp end={s.end} suffix={s.suffix} />
-                </p>
-                <p className="mt-2 text-sm text-gray-500 font-bold">{s.label}</p>
+          <span className="reveal inline-block py-1.5 px-4 rounded-full bg-red-100 text-red-600 text-sm font-extrabold mb-6 border border-red-200 shadow-sm animate-bounce">
+            EVENT
+          </span>
+          <h2 className="reveal reveal-delay-1 text-4xl sm:text-6xl md:text-7xl font-black tracking-tight leading-tight text-gray-900 mb-10">
+            진행중인 <span className="text-primary-600">이벤트</span>
+          </h2>
+          
+          <div className={`reveal reveal-delay-2 mx-auto grid gap-8 ${eventYoutubeUrl ? 'max-w-6xl grid-cols-1 lg:grid-cols-2 items-start' : 'max-w-lg grid-cols-1'}`}>
+            
+            {/* 왼쪽: 기존 이벤트 포스터 */}
+            <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 h-full flex flex-col">
+              <div className="w-full aspect-[3/4] sm:aspect-auto sm:flex-1 bg-sky-100 relative overflow-hidden group">
+                 <img src="/event_poster.jpg" alt="리뷰 이벤트 배너" className="absolute inset-0 w-full h-full object-cover" />
               </div>
-            ))}
-          </div>
+              <div className="p-8 text-left bg-gradient-to-br from-white to-sky-50 mt-auto">
+                <h3 className="text-2xl font-black text-gray-900 mb-3">🍗 헌옷수거 리뷰 달고 치킨 받자!</h3>
+                <p className="text-gray-600 font-medium leading-relaxed mb-6 text-sm">
+                  수거 완료 후 모바일 영수증에 첨부된 링크를 통해 <strong>홈페이지 리뷰를 작성</strong>해 주시면, 매월 추첨을 통해 5분께 치킨 기프티콘을 쏩니다! (리뷰 작성 시 자동 응모)
+                </p>
+                <a
+                  href={KAKAO_LOGIN_URL}
+                  className="w-full glass-btn-primary block text-center py-4 rounded-xl text-white font-extrabold hover:brightness-110 active:scale-95 transition-all shadow-md"
+                >
+                  로그인하고 헌옷수거 리뷰 작성하기
+                </a>
+              </div>
+            </div>
 
-          <a
-            href="#eco"
-            className="reveal reveal-delay-3 glass-btn-primary inline-block mt-14 px-10 py-4 rounded-full text-white font-extrabold hover:brightness-110 active:scale-95 transition-all"
-          >
-            지금 바로 수거 신청하기
-          </a>
+            {/* 오른쪽: 당첨자 발표 영상 */}
+            {eventYoutubeUrl && (
+              <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 h-full flex flex-col items-center justify-center relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-red-400"></div>
+                <div className="mb-8 text-center w-full">
+                  <span className="inline-block py-1.5 px-4 rounded-full bg-red-100 text-red-600 text-sm font-extrabold mb-4 shadow-sm animate-pulse">
+                    🚨 당첨자 발표
+                  </span>
+                  <h3 className="text-2xl sm:text-3xl font-black text-gray-900">이달의 치킨 당첨자는?</h3>
+                  <p className="text-gray-500 mt-2 font-medium">영상을 통해 지금 바로 확인하세요!</p>
+                </div>
+                <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-inner border border-gray-100 bg-gray-50 flex items-center justify-center">
+                  <iframe 
+                    width="100%" 
+                    height="100%" 
+                    src={getYoutubeEmbedUrl(eventYoutubeUrl)} 
+                    title="YouTube video player" 
+                    frameBorder="0" 
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                    allowFullScreen
+                    className="w-full h-full"
+                  ></iframe>
+                </div>
+              </div>
+            )}
+            
+          </div>
         </div>
       </section>
 
