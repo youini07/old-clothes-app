@@ -56,9 +56,10 @@ export default function GlobalPopupBanner() {
       <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 m-4 sm:m-8 w-full max-w-sm sm:max-w-md">
         
         {/* Popup Image */}
-        <div className="relative w-full h-auto">
-          <img src={popupImageUrl} alt="팝업 배너" className="w-full h-auto block object-cover" />
-        </div>
+        <a href="#event" onClick={handleClose} className="relative w-full h-auto cursor-pointer block group">
+          <img src={popupImageUrl} alt="팝업 배너" className="w-full h-auto block object-cover group-hover:opacity-95 transition-opacity" />
+        </a>
+
 
         {/* Action Buttons */}
         <div className="bg-gray-50 flex items-center justify-between px-4 py-3 border-t border-gray-100">

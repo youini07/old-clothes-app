@@ -324,7 +324,9 @@ export default function Landing() {
               <a href="#areas" className="hover:text-primary-600 transition-colors">서비스 지역</a>
               <a href="#faq" className="hover:text-primary-600 transition-colors">자주 묻는 질문</a>
               <a href="#reviews" className="hover:text-primary-600 transition-colors">고객 후기</a>
-              <a href="#stats" className="hover:text-primary-600 transition-colors">올클 성과</a>
+              <a href="#event" className="hover:text-primary-600 transition-colors flex items-center gap-1.5">
+                진행중인 이벤트 <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>
+              </a>
             </nav>
 
             <a
@@ -353,7 +355,9 @@ export default function Landing() {
               <a href="#areas" onClick={() => setIsMobileMenuOpen(false)}>서비스 지역</a>
               <a href="#faq" onClick={() => setIsMobileMenuOpen(false)}>자주 묻는 질문</a>
               <a href="#reviews" onClick={() => setIsMobileMenuOpen(false)}>고객 후기</a>
-              <a href="#stats" onClick={() => setIsMobileMenuOpen(false)}>올클 성과</a>
+              <a href="#event" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2">
+                진행중인 이벤트 <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-600 text-xs font-bold animate-pulse">NEW</span>
+              </a>
             </nav>
             <a
               href="#eco"
