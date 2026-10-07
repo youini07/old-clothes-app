@@ -50,10 +50,8 @@ export default function GlobalPopupBanner() {
   if (!isVisible || !popupImageUrl) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <div className="fixed inset-0 bg-gray-900/60 backdrop-blur-sm transition-opacity" onClick={handleClose}></div>
-      
-      <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col z-10 m-4 sm:m-8 w-full max-w-sm sm:max-w-md">
+    <div className="fixed top-[100px] left-4 sm:left-8 z-[9999] flex pointer-events-none">
+      <div className="relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto w-[270px] sm:w-[310px]">
         
         {/* Popup Image */}
         <a href="#event" onClick={handleClose} className="relative w-full h-auto cursor-pointer block group">
