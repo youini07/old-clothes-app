@@ -293,12 +293,17 @@ model BoardPost {
   maskedAddress     String? // 마스킹된 주소 (동 까지만)
   receiptSnapshot   Json? // 영수증 스냅샷 데이터 (금액, 수거량 등)
 
-  // 홍보 링크 (이벤트 참여용)
+  // 홍보 링크 (이벤트 참여용) - 레거시
   cafeUrl1 String?
   cafeUrl2 String?
   snsUrl1  String?
   snsUrl2  String?
   snsUrl3  String?
+
+  // 인증 스샷 이미지 (이벤트 참여용)
+  eventImage1 String?
+  eventImage2 String?
+  eventImage3 String?
 
   // 문의 전용 필드
   isAnswered Boolean @default(false) // 사장님/슈퍼관리자 답변 여부

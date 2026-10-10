@@ -2396,34 +2396,24 @@ export default function AdminDashboard() {
                           <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
                         </div>
                         
-                        {/* SNS 링크 목록 */}
-                        {(post.cafeUrl1 || post.cafeUrl2 || post.snsUrl1 || post.snsUrl2 || post.snsUrl3) && (
+                        {/* 이벤트 참여 스크린샷 목록 */}
+                        {(post.eventImage1 || post.eventImage2 || post.eventImage3) && (
                           <div className="mt-3 p-3 bg-rose-50 rounded-xl border border-rose-100">
-                            <p className="text-xs font-bold text-rose-600 mb-2">🎁 이벤트 참여 링크 목록</p>
-                            <div className="flex flex-col gap-1.5">
-                              {post.cafeUrl1 && (
-                                <a href={post.cafeUrl1} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
-                                  🔗 카페 1: {post.cafeUrl1}
+                            <p className="text-xs font-bold text-rose-600 mb-2">🎁 이벤트 참여 스크린샷</p>
+                            <div className="flex gap-2 overflow-x-auto pb-1">
+                              {post.eventImage1 && (
+                                <a href={post.eventImage1} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                                  <img src={post.eventImage1} alt="이벤트 스크린샷 1" className="h-24 w-auto object-cover rounded-md border border-rose-100 hover:opacity-80 transition-opacity" />
                                 </a>
                               )}
-                              {post.cafeUrl2 && (
-                                <a href={post.cafeUrl2} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
-                                  🔗 카페 2: {post.cafeUrl2}
+                              {post.eventImage2 && (
+                                <a href={post.eventImage2} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                                  <img src={post.eventImage2} alt="이벤트 스크린샷 2" className="h-24 w-auto object-cover rounded-md border border-rose-100 hover:opacity-80 transition-opacity" />
                                 </a>
                               )}
-                              {post.snsUrl1 && (
-                                <a href={post.snsUrl1} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
-                                  🔗 SNS 1: {post.snsUrl1}
-                                </a>
-                              )}
-                              {post.snsUrl2 && (
-                                <a href={post.snsUrl2} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
-                                  🔗 SNS 2: {post.snsUrl2}
-                                </a>
-                              )}
-                              {post.snsUrl3 && (
-                                <a href={post.snsUrl3} target="_blank" rel="noopener noreferrer" className="text-[11px] text-blue-600 hover:underline truncate bg-white px-2 py-1.5 rounded border border-rose-50">
-                                  🔗 SNS 3: {post.snsUrl3}
+                              {post.eventImage3 && (
+                                <a href={post.eventImage3} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                                  <img src={post.eventImage3} alt="이벤트 스크린샷 3" className="h-24 w-auto object-cover rounded-md border border-rose-100 hover:opacity-80 transition-opacity" />
                                 </a>
                               )}
                             </div>

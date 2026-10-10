@@ -401,6 +401,7 @@ router.get('/reviews/:partnerId', async (req, res) => {
           ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
           maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
           cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
+          eventImage1: true, eventImage2: true, eventImage3: true,
           createdAt: true,
         },
       }),
@@ -446,7 +447,10 @@ router.post('/reviews', async (req, res) => {
       cafeUrl2,
       snsUrl1,
       snsUrl2,
-      snsUrl3
+      snsUrl3,
+      eventImage1,
+      eventImage2,
+      eventImage3
     } = req.body;
 
     // 필수 값 검증
@@ -545,6 +549,9 @@ router.post('/reviews', async (req, res) => {
         snsUrl1,
         snsUrl2,
         snsUrl3,
+        eventImage1,
+        eventImage2,
+        eventImage3,
       },
     });
 
@@ -580,7 +587,7 @@ router.delete('/reviews/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
 router.patch('/reviews/by-request/:requestId/sns-links', async (req, res) => {
   try {
     const { requestId } = req.params;
-    const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3 } = req.body;
+    const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3, eventImage1, eventImage2, eventImage3 } = req.body;
 
     const review = await prisma.boardPost.findFirst({
       where: { type: 'REVIEW', requestId }
@@ -593,7 +600,8 @@ router.patch('/reviews/by-request/:requestId/sns-links', async (req, res) => {
     const updated = await prisma.boardPost.update({
       where: { id: review.id },
       data: {
-        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3,
+        eventImage1, eventImage2, eventImage3
       }
     });
 
