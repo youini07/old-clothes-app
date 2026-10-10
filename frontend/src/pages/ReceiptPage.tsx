@@ -29,9 +29,11 @@ interface ReceiptData {
   status: string;
   hasReview?: boolean;
   review?: {
-    eventImage1?: string | null;
-    eventImage2?: string | null;
-    eventImage3?: string | null;
+    cafeUrl1?: string | null;
+    cafeUrl2?: string | null;
+    snsUrl1?: string | null;
+    snsUrl2?: string | null;
+    snsUrl3?: string | null;
   } | null;
 }
 
@@ -80,23 +82,14 @@ export default function ReceiptPage() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
   
-  // 이벤트 참여 인증 이미지 상태
-  const [eventImage1, setEventImage1] = useState('');
-  const [eventImage2, setEventImage2] = useState('');
-  const [eventImage3, setEventImage3] = useState('');
-  const [isEventSubmitting, setIsEventSubmitting] = useState(false);
-  const [eventSubmitMessage, setEventSubmitMessage] = useState('');
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, setEventImage: (url: string) => void) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setEventImage(event.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
+  // SNS/카페 링크 상태
+  const [cafeUrl1, setCafeUrl1] = useState('');
+  const [cafeUrl2, setCafeUrl2] = useState('');
+  const [snsUrl1, setSnsUrl1] = useState('');
+  const [snsUrl2, setSnsUrl2] = useState('');
+  const [snsUrl3, setSnsUrl3] = useState('');
+  const [isSnsSubmitting, setIsSnsSubmitting] = useState(false);
+  const [snsSubmitMessage, setSnsSubmitMessage] = useState('');
 
   const reviewOptions = [
     "기사님이 정말 친절하시고 믿음이 가요.",
@@ -116,9 +109,11 @@ export default function ReceiptPage() {
         if (data.hasReview) {
           setReviewSubmitted(true);
           if (data.review) {
-            setEventImage1(data.review.eventImage1 || '');
-            setEventImage2(data.review.eventImage2 || '');
-            setEventImage3(data.review.eventImage3 || '');
+            setCafeUrl1(data.review.cafeUrl1 || '');
+            setCafeUrl2(data.review.cafeUrl2 || '');
+            setSnsUrl1(data.review.snsUrl1 || '');
+            setSnsUrl2(data.review.snsUrl2 || '');
+            setSnsUrl3(data.review.snsUrl3 || '');
           }
         }
       } catch (err: any) {
@@ -136,19 +131,19 @@ export default function ReceiptPage() {
 
   // 간편리뷰 등록 핸들러
   
-  const handleEventImageSubmit = async () => {
-    setIsEventSubmitting(true);
-    setEventSubmitMessage('');
+  const handleSnsSubmit = async () => {
+    setIsSnsSubmitting(true);
+    setSnsSubmitMessage('');
     try {
       await axios.patch(`${import.meta.env.VITE_API_URL}/board/reviews/by-request/${id}/sns-links`, {
-        eventImage1, eventImage2, eventImage3
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
       });
-      setEventSubmitMessage('스크린샷이 성공적으로 등록/수정되었습니다! 사장님 확인 후 처리됩니다.');
+      setSnsSubmitMessage('링크가 성공적으로 등록/수정되었습니다! 사장님 확인 후 처리됩니다.');
     } catch (err) {
       console.error(err);
-      setEventSubmitMessage('스크린샷 등록 중 오류가 발생했습니다.');
+      setSnsSubmitMessage('링크 등록 중 오류가 발생했습니다.');
     } finally {
-      setIsEventSubmitting(false);
+      setIsSnsSubmitting(false);
     }
   };
 
@@ -174,13 +169,15 @@ export default function ReceiptPage() {
         ratingKindness,
         ratingSpeed,
         content: finalContent,
-        eventImage1,
-        eventImage2,
-        eventImage3
+        cafeUrl1,
+        cafeUrl2,
+        snsUrl1,
+        snsUrl2,
+        snsUrl3
       });
       setReviewSubmitted(true);
-      const hasLinks = eventImage1 || eventImage2 || eventImage3;
-      setEventSubmitMessage(hasLinks ? '리뷰와 인증 스샷이 성공적으로 등록되었습니다!' : '리뷰가 성공적으로 등록되었습니다!');
+      const hasLinks = cafeUrl1 || cafeUrl2 || snsUrl1 || snsUrl2 || snsUrl3;
+      setSnsSubmitMessage(hasLinks ? '리뷰와 링크가 성공적으로 등록되었습니다!' : '리뷰가 성공적으로 등록되었습니다!');
     } catch (err: any) {
       const msg = err.response?.data?.error || '리뷰 등록에 실패했습니다.';
       setReviewError(msg);
@@ -406,48 +403,41 @@ export default function ReceiptPage() {
                 <div className="border-t border-gray-200 pt-6 mt-4 text-left">
                   <div className="mb-4">
                     <h4 className="font-extrabold text-blue-600 text-lg flex items-center gap-2">
-                      🎁 리뷰 이벤트 참여 스크린샷 등록
+                      🎁 리뷰 이벤트 참여 링크 등록
                     </h4>
                     <p className="text-xs text-gray-500 mt-1 break-keep">
-                      맘카페나 블로그, SNS에 작성하신 리뷰 캡처 화면을 등록해 주세요!<br/>
+                      맘카페나 블로그, SNS에 작성하신 리뷰 링크를 등록해 주세요!<br/>
                       사장님이 확인 후 혜택을 지급해 드립니다. (언제든 다시 들어와서 수정 가능합니다)
                     </p>
                   </div>
 
                   <div className="space-y-4">
-                    {[1, 2, 3].map((num) => {
-                      const image = num === 1 ? eventImage1 : num === 2 ? eventImage2 : eventImage3;
-                      const setImage = num === 1 ? setEventImage1 : num === 2 ? setEventImage2 : setEventImage3;
-                      return (
-                        <div key={num} className="border border-gray-200 p-3 rounded-lg bg-white">
-                          <label className="text-xs font-bold text-gray-700 block mb-2">인증 스크린샷 {num} {num > 1 && "(선택)"}</label>
-                          {image ? (
-                            <div className="relative">
-                              <img src={image} alt={`스크린샷 ${num}`} className="w-full h-32 object-cover rounded-md border border-gray-100" />
-                              <button onClick={() => setImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full text-xs hover:bg-red-600 shadow-sm">
-                                ✕ 삭제
-                              </button>
-                            </div>
-                          ) : (
-                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImage)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                          )}
-                        </div>
-                      );
-                    })}
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">지역 맘카페 링크 (최대 2개)</label>
+                      <input type="text" placeholder="카페 링크 1 입력..." value={cafeUrl1} onChange={e => setCafeUrl1(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="카페 링크 2 입력 (선택)..." value={cafeUrl2} onChange={e => setCafeUrl2(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:outline-none" />
+                    </div>
+                    
+                    <div>
+                      <label className="text-xs font-bold text-gray-700 block mb-1">SNS/블로그 링크 (최대 3개)</label>
+                      <input type="text" placeholder="SNS/블로그 링크 1 입력..." value={snsUrl1} onChange={e => setSnsUrl1(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 2 입력 (선택)..." value={snsUrl2} onChange={e => setSnsUrl2(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm mb-2 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 3 입력 (선택)..." value={snsUrl3} onChange={e => setSnsUrl3(e.target.value)} className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:outline-none" />
+                    </div>
                   </div>
 
-                  {eventSubmitMessage && (
+                  {snsSubmitMessage && (
                     <div className="mt-4 p-3 bg-blue-50 text-blue-700 text-xs font-bold rounded-lg text-center">
-                      {eventSubmitMessage}
+                      {snsSubmitMessage}
                     </div>
                   )}
 
                   <button
-                    onClick={handleEventImageSubmit}
-                    disabled={isEventSubmitting}
+                    onClick={handleSnsSubmit}
+                    disabled={isSnsSubmitting}
                     className="w-full mt-5 py-4 bg-gray-900 text-white font-bold rounded-xl shadow-md hover:bg-black transition-colors"
                   >
-                    {isEventSubmitting ? '등록 중...' : '이벤트 참여 스크린샷 등록/수정하기'}
+                    {isSnsSubmitting ? '등록 중...' : '이벤트 참여 링크 등록/수정하기'}
                   </button>
                 </div>
               </div>
@@ -514,38 +504,31 @@ export default function ReceiptPage() {
                   )}
                 </div>
 
-                {/* 리뷰 이벤트 참여 스크린샷 등록 (선택) */}
+                {/* 리뷰 이벤트 참여 링크 등록 (선택) */}
                 <div className="mt-6 border-t border-dashed border-gray-200 pt-5">
                   <div className="mb-3">
                     <h4 className="font-extrabold text-blue-600 text-sm flex items-center gap-1.5">
                       🎁 리뷰 이벤트 참여 (선택)
                     </h4>
                     <p className="text-[11px] text-gray-500 mt-1 break-keep">
-                      맘카페나 블로그, SNS에 작성하신 리뷰 캡처 화면을 함께 등록해 주세요!<br/>
-                      등록된 스크린샷은 사장님이 확인 후 이벤트 혜택을 지급해 드립니다.
+                      맘카페나 블로그, SNS에 작성하신 리뷰 링크를 함께 등록해 주세요!<br/>
+                      등록된 링크는 사장님이 확인 후 이벤트 혜택을 지급해 드립니다.
                     </p>
                   </div>
 
                   <div className="space-y-3">
-                    {[1, 2, 3].map((num) => {
-                      const image = num === 1 ? eventImage1 : num === 2 ? eventImage2 : eventImage3;
-                      const setImage = num === 1 ? setEventImage1 : num === 2 ? setEventImage2 : setEventImage3;
-                      return (
-                        <div key={num} className="border border-gray-200 p-3 rounded-lg bg-white">
-                          <label className="text-[11px] font-bold text-gray-700 block mb-2">인증 스크린샷 {num} {num > 1 && "(선택)"}</label>
-                          {image ? (
-                            <div className="relative">
-                              <img src={image} alt={`스크린샷 ${num}`} className="w-full h-32 object-cover rounded-md border border-gray-100" />
-                              <button onClick={() => setImage('')} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full text-xs hover:bg-red-600 shadow-sm">
-                                ✕ 삭제
-                              </button>
-                            </div>
-                          ) : (
-                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, setImage)} className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[11px] file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100" />
-                          )}
-                        </div>
-                      );
-                    })}
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">지역 맘카페 링크 (최대 2개)</label>
+                      <input type="text" placeholder="카페 링크 1 입력..." value={cafeUrl1} onChange={e => setCafeUrl1(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="카페 링크 2 입력 (선택)..." value={cafeUrl2} onChange={e => setCafeUrl2(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs focus:border-amber-400 focus:outline-none" />
+                    </div>
+                    
+                    <div>
+                      <label className="text-[11px] font-bold text-gray-700 block mb-1">SNS/블로그 링크 (최대 3개)</label>
+                      <input type="text" placeholder="SNS/블로그 링크 1 입력..." value={snsUrl1} onChange={e => setSnsUrl1(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 2 입력 (선택)..." value={snsUrl2} onChange={e => setSnsUrl2(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs mb-1.5 focus:border-amber-400 focus:outline-none" />
+                      <input type="text" placeholder="SNS/블로그 링크 3 입력 (선택)..." value={snsUrl3} onChange={e => setSnsUrl3(e.target.value)} className="w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-xs focus:border-amber-400 focus:outline-none" />
+                    </div>
                   </div>
                 </div>
 
@@ -580,7 +563,7 @@ export default function ReceiptPage() {
                       등록 중...
                     </span>
                   ) : (
-                    (eventImage1 || eventImage2 || eventImage3) ? '⭐ 간편리뷰 및 인증 스샷 등록하기' : '⭐ 간편리뷰 등록하기'
+                    (cafeUrl1 || cafeUrl2 || snsUrl1 || snsUrl2 || snsUrl3) ? '⭐ 간편리뷰 및 링크 등록하기' : '⭐ 간편리뷰 등록하기'
                   )}
                 </button>
               </div>

@@ -381,7 +381,6 @@ router.get('/reviews/:partnerId', (req, res) => __awaiter(void 0, void 0, void 0
                     ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
                     maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
                     cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
-                    eventImage1: true, eventImage2: true, eventImage3: true,
                     createdAt: true,
                 },
             }),
@@ -417,7 +416,7 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
     try {
         const { requestId, // 수거 신청 ID (영수증에서 전달)
         ratingConvenience, ratingKindness, ratingSpeed, content, // 한줄평
-        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3, eventImage1, eventImage2, eventImage3 } = req.body;
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3 } = req.body;
         // 필수 값 검증
         if (!requestId)
             return res.status(400).json({ error: '수거 신청 ID가 필요합니다.' });
@@ -510,9 +509,6 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
                 snsUrl1,
                 snsUrl2,
                 snsUrl3,
-                eventImage1,
-                eventImage2,
-                eventImage3,
             },
         });
         res.status(201).json({ message: '리뷰가 등록되었습니다!', post });
@@ -545,7 +541,7 @@ router.delete('/reviews/:id', authMiddleware_1.authenticate, (0, authMiddleware_
 router.patch('/reviews/by-request/:requestId/sns-links', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { requestId } = req.params;
-        const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3, eventImage1, eventImage2, eventImage3 } = req.body;
+        const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3 } = req.body;
         const review = yield prisma_1.prisma.boardPost.findFirst({
             where: { type: 'REVIEW', requestId }
         });
@@ -555,8 +551,7 @@ router.patch('/reviews/by-request/:requestId/sns-links', (req, res) => __awaiter
         const updated = yield prisma_1.prisma.boardPost.update({
             where: { id: review.id },
             data: {
-                cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3,
-                eventImage1, eventImage2, eventImage3
+                cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
             }
         });
         res.json(updated);

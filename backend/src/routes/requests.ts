@@ -46,9 +46,11 @@ router.get('/:id/receipt', async (req, res) => {
       status: request.status,
       hasReview: !!existingReview,
       review: existingReview ? {
-        eventImage1: existingReview.eventImage1,
-        eventImage2: existingReview.eventImage2,
-        eventImage3: existingReview.eventImage3
+        cafeUrl1: existingReview.cafeUrl1,
+        cafeUrl2: existingReview.cafeUrl2,
+        snsUrl1: existingReview.snsUrl1,
+        snsUrl2: existingReview.snsUrl2,
+        snsUrl3: existingReview.snsUrl3
       } : null
     };
 
