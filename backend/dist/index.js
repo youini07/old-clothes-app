@@ -72,7 +72,7 @@ app.use('/api/board', board_1.default);
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
-        res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null });
+        res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null, popupImageUrl: null, popupIsActive: false, eventYoutubeUrl: null });
     }
     catch (error) {
         res.status(500).json({ message: '서버 오류' });

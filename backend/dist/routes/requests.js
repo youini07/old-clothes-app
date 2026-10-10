@@ -32,6 +32,9 @@ router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, funct
         if (!request) {
             return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
         }
+        const existingReview = yield prisma_1.prisma.boardPost.findFirst({
+            where: { type: 'REVIEW', requestId: id }
+        });
         // 개인정보 보호를 위해 상세 주소와 전화번호는 제외하고 전송 (마스킹 등)
         // 보안을 위해 프론트엔드 영수증 페이지에서 사용할 데이터만 내려줍니다.
         const receiptData = {
@@ -48,7 +51,13 @@ router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, funct
             extraPhotoUrl: request.extraPhotoUrl,
             completedDate: request.completedDate,
             collectionItems: request.collectionItems,
-            status: request.status
+            status: request.status,
+            hasReview: !!existingReview,
+            review: existingReview ? {
+                eventImage1: existingReview.eventImage1,
+                eventImage2: existingReview.eventImage2,
+                eventImage3: existingReview.eventImage3
+            } : null
         };
         res.json(receiptData);
     }

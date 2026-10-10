@@ -587,11 +587,22 @@ router.get('/sms-template', authMiddleware_1.authenticate, (0, authMiddleware_1.
     try {
         const userId = req.user.userId;
         const driver = yield prisma_1.prisma.driverProfile.findUnique({
-            where: { userId }
+            where: { userId },
+            include: {
+                partner: {
+                    select: { eventText: true, eventIsActive: true }
+                }
+            }
         });
         if (!driver)
             return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
-        res.json({ smsTemplates: driver.smsTemplates || null });
+        res.json({
+            smsTemplates: driver.smsTemplates || null,
+            partnerEvent: driver.partner ? {
+                text: driver.partner.eventText,
+                isActive: driver.partner.eventIsActive
+            } : null
+        });
     }
     catch (error) {
         res.status(500).json({ error: '템플릿 조회 실패' });

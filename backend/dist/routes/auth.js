@@ -251,7 +251,7 @@ router.post('/login', (req, res) => __awaiter(void 0, void 0, void 0, function* 
     }
     catch (error) {
         console.error('로그인 에러:', error);
-        res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.' });
+        res.status(500).json({ error: '로그인 처리 중 서버 오류가 발생했습니다.', details: error.message || String(error) });
     }
 }));
 // 초기 슈퍼 관리자 생성 API는 보안상 삭제되었습니다.

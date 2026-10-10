@@ -309,7 +309,62 @@ router.post('/inquiries/:id/comments', authMiddleware_1.authenticate, (req, res)
 // ──────────────────────────────────────────
 // 3. 후기/리뷰 (REVIEW) API
 // ──────────────────────────────────────────
+// 랜딩페이지용 모든 리뷰 목록 전체 조회 (공개 API)
+router.get('/public/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const limit = parseInt(req.query.limit) || 20;
+        const posts = yield prisma_1.prisma.boardPost.findMany({
+            where: { type: 'REVIEW' },
+            orderBy: { createdAt: 'desc' },
+            take: limit,
+            select: {
+                id: true, content: true, authorName: true,
+                ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
+                maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
+                createdAt: true,
+            },
+        });
+        res.json({ posts });
+    }
+    catch (error) {
+        console.error('랜딩페이지 리뷰 목록 조회 실패:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
 // 리뷰 목록 조회 (공개) — 특정 파트너의 리뷰
+// 리뷰 작성자 명단 추출 (기간 필터)
+router.get('/reviews/:partnerId/export', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { partnerId } = req.params;
+        const { startDate, endDate } = req.query;
+        if (!startDate || !endDate)
+            return res.status(400).json({ error: 'startDate, endDate required' });
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        const posts = yield prisma_1.prisma.boardPost.findMany({
+            where: {
+                type: 'REVIEW',
+                partnerId,
+                createdAt: {
+                    gte: start,
+                    lte: end
+                }
+            },
+            orderBy: { createdAt: 'desc' },
+            select: {
+                authorName: true,
+                maskedPhone: true,
+            },
+        });
+        res.json({ list: posts });
+    }
+    catch (error) {
+        console.error('리뷰 추출 실패:', error);
+        res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
 router.get('/reviews/:partnerId', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { partnerId } = req.params;
@@ -325,6 +380,8 @@ router.get('/reviews/:partnerId', (req, res) => __awaiter(void 0, void 0, void 0
                     id: true, title: true, content: true, authorName: true,
                     ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
                     maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
+                    cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
+                    eventImage1: true, eventImage2: true, eventImage3: true,
                     createdAt: true,
                 },
             }),
@@ -360,7 +417,7 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
     try {
         const { requestId, // 수거 신청 ID (영수증에서 전달)
         ratingConvenience, ratingKindness, ratingSpeed, content, // 한줄평
-         } = req.body;
+        cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3, eventImage1, eventImage2, eventImage3 } = req.body;
         // 필수 값 검증
         if (!requestId)
             return res.status(400).json({ error: '수거 신청 ID가 필요합니다.' });
@@ -448,6 +505,14 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
                 maskedPhone: maskPhone(request.phone),
                 maskedAddress: maskAddress(request.address),
                 receiptSnapshot,
+                cafeUrl1,
+                cafeUrl2,
+                snsUrl1,
+                snsUrl2,
+                snsUrl3,
+                eventImage1,
+                eventImage2,
+                eventImage3,
             },
         });
         res.status(201).json({ message: '리뷰가 등록되었습니다!', post });
@@ -474,6 +539,31 @@ router.delete('/reviews/:id', authMiddleware_1.authenticate, (0, authMiddleware_
     catch (error) {
         console.error('리뷰 삭제 실패:', error);
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
+    }
+}));
+// 리뷰 SNS 링크 수정 (고객용 - requestId 기반)
+router.patch('/reviews/by-request/:requestId/sns-links', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const { requestId } = req.params;
+        const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3, eventImage1, eventImage2, eventImage3 } = req.body;
+        const review = yield prisma_1.prisma.boardPost.findFirst({
+            where: { type: 'REVIEW', requestId }
+        });
+        if (!review) {
+            return res.status(404).json({ error: '해당 수거 내역에 대한 리뷰를 찾을 수 없습니다.' });
+        }
+        const updated = yield prisma_1.prisma.boardPost.update({
+            where: { id: review.id },
+            data: {
+                cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3,
+                eventImage1, eventImage2, eventImage3
+            }
+        });
+        res.json(updated);
+    }
+    catch (error) {
+        console.error('리뷰 SNS 링크 수정 실패:', error);
+        res.status(500).json({ error: '링크 수정 중 오류가 발생했습니다.' });
     }
 }));
 exports.default = router;

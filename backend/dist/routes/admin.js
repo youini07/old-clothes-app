@@ -1981,7 +1981,7 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         const partnerId = req.user.partnerId || req.user.userId;
         const partner = yield prisma_1.prisma.user.findUnique({
             where: { id: partnerId },
-            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true, eventText: true, eventIsActive: true }
         });
         if (!partner) {
             return res.status(404).json({ error: '파트너 정보를 찾을 수 없습니다.' });
@@ -2001,7 +2001,7 @@ router.get('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
 // 파트너 본인의 설정 정보 업데이트
 router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const partnerId = req.user.partnerId || req.user.userId;
-    const { pricePerKg, useBizMessage, useCrmAutomation, useChat } = req.body;
+    const { pricePerKg, useBizMessage, useCrmAutomation, useChat, eventText, eventIsActive } = req.body;
     try {
         const updatedPartner = yield prisma_1.prisma.user.update({
             where: { id: partnerId },
@@ -2009,9 +2009,11 @@ router.patch('/settings', authMiddleware_1.authenticate, (0, authMiddleware_1.re
                 pricePerKg: pricePerKg !== undefined ? Number(pricePerKg) : undefined,
                 useBizMessage: useBizMessage !== undefined ? Boolean(useBizMessage) : undefined,
                 useChat: useChat !== undefined ? Boolean(useChat) : undefined,
-                useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined
+                useCrmAutomation: useCrmAutomation !== undefined ? Boolean(useCrmAutomation) : undefined,
+                eventText: eventText !== undefined ? eventText : undefined,
+                eventIsActive: eventIsActive !== undefined ? Boolean(eventIsActive) : undefined
             },
-            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true }
+            select: { pricePerKg: true, useBizMessage: true, useCrmAutomation: true, useChat: true, eventText: true, eventIsActive: true }
         });
         res.json({ message: '환경 설정이 저장되었습니다.', settings: updatedPartner });
     }
@@ -2084,13 +2086,19 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
             update: {
                 globalNotice: globalNotice !== undefined ? String(globalNotice) : undefined,
                 noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : undefined,
-                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined
+                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined,
+                popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : undefined,
+                popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : undefined,
+                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : undefined
             },
             create: {
                 id: 'global',
                 globalNotice: globalNotice !== undefined ? String(globalNotice) : '',
                 noticeIsActive: noticeIsActive !== undefined ? Boolean(noticeIsActive) : false,
-                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : ''
+                globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : '',
+                popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : null,
+                popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : false,
+                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : null
             }
         });
         res.json({ message: '공지사항이 저장되었습니다.', settings: updatedSettings });
