@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
 import { Menu, X, Check, AlertCircle, MapPin } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import SeoReviewSection, {
+  DEFAULT_SEO_REVIEWS,
+  normalizePublicReviews,
+  type SeoReviewItem,
+} from '../components/SeoReviewSection';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -19,48 +24,7 @@ const STATS = [
 ];
 */
 
-const DUMMY_REVIEWS = [
-  {
-    stars: 5,
-    text: "연락드리니 신속하게 방문해서 꼼꼼하게 수거해가시네요.",
-    meta: "동탄* · 경기 화성시 동탄구 · 2026. 8. 21.",
-    receiptTotal: "10,550원",
-    receiptDetails: "헌옷 9kg | 헌옷 (신발, 가방 포함) 20kg",
-    tags: ["👔 편리성 5점", "🤝 친절도 5점", "⚡ 신속정확 5점"]
-  },
-  {
-    stars: 5,
-    text: "처리 과정이 깔끔하고 완벽해서 다음에도 또 이용할게요.",
-    meta: "수지* · 용인시 수지구 · 2026. 8. 21.",
-    receiptTotal: "15,490원",
-    receiptDetails: "헌옷 28kg | 후라이팬, 냄비류 3kg",
-    tags: ["👔 편리성 5점", "🤝 친절도 5점", "⚡ 신속정확 5점"]
-  },
-  {
-    stars: 5,
-    text: "무겁게 들고 나갈 필요 없이 비대면으로 싹 수거해주셔서 너무 편했어요!",
-    meta: "강남* · 서울 강남구 · 2026. 8. 20.",
-    receiptTotal: "8,400원",
-    receiptDetails: "헌옷 21kg",
-    tags: ["👔 편리성 5점", "🤝 친절도 5점", "⚡ 신속정확 5점"]
-  },
-  {
-    stars: 5,
-    text: "신청 당일에 바로 와주셨어요. 정산금도 쏠쏠하네요 ㅎㅎ",
-    meta: "분당* · 성남시 분당구 · 2026. 8. 19.",
-    receiptTotal: "12,200원",
-    receiptDetails: "헌옷 15kg | 헌책 10kg",
-    tags: ["👔 편리성 5점", "🤝 친절도 5점", "⚡ 신속정확 5점"]
-  },
-  {
-    stars: 5,
-    text: "앱으로 간편하게 신청하고 문 앞에 두기만 하면 되니 최고입니다.",
-    meta: "마포* · 서울 마포구 · 2026. 8. 18.",
-    receiptTotal: "9,800원",
-    receiptDetails: "헌옷 18kg | 가방 2kg",
-    tags: ["👔 편리성 5점", "🤝 친절도 5점", "⚡ 신속정확 5점"]
-  }
-];
+// 기본 리뷰 데이터 및 정규화 로직은 SeoReviewSection.tsx 모듈에서 통합 관리합니다.
 
 
 
@@ -164,37 +128,6 @@ function PhoneMockup({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ReviewCard({ review }: { review: typeof DUMMY_REVIEWS[0] }) {
-  return (
-    <div className="w-[320px] md:w-[400px] shrink-0 bg-white rounded-2xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] p-6 md:p-8 flex flex-col mx-3 md:mx-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
-      <div className="flex gap-1 text-yellow-400 text-lg mb-4">
-        {Array(review.stars).fill('★').map((s, i) => <span key={i}>{s}</span>)}
-      </div>
-      <p className="text-gray-800 font-extrabold text-base md:text-lg mb-3 leading-snug">
-        "{review.text}"
-      </p>
-      <p className="text-xs text-gray-400 font-medium mb-6">{review.meta}</p>
-      
-      <div className="bg-gray-50 rounded-xl p-4 border border-gray-100 mb-5">
-        <div className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500 mb-2">
-          <span>🧾</span> 수거 정산서
-        </div>
-        <div className="font-black text-primary-600 text-xl md:text-2xl mb-1">{review.receiptTotal}</div>
-        <div className="text-[10px] md:text-xs text-gray-400 font-medium truncate">{review.receiptDetails}</div>
-      </div>
-      
-      <div className="flex flex-wrap gap-1.5 mt-auto">
-        {review.tags.map((tag, i) => (
-          <span key={i} className="px-2.5 py-1 rounded-full bg-orange-50/50 border border-orange-100 text-orange-600 text-[10px] font-bold whitespace-nowrap">
-            {tag}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-
 // 스크롤 관성 바운스 훅
 function useScrollBounce() {
   const [bounce, setBounce] = React.useState(0);
@@ -241,19 +174,35 @@ export default function Landing() {
   
   const [eventYoutubeUrl, setEventYoutubeUrl] = useState<string | null>(null);
 
+  // 왜 폴백(PROD_API_FALLBACK)을 두는가:
+  // 로컬 개발 환경(localhost:5000)의 DB에는 실서버 슈퍼관리자에서 등록한 유튜브 링크나 실제 리뷰가 비어 있을 수 있으므로,
+  // 로컬 DB 응답이 비어 있을 때 실서버 공개 API(읽기 전용 GET)에서 데이터를 가져와 로컬에서도 실서버와 동일한 화면을 확인할 수 있게 합니다.
+  const PROD_PUBLIC_API = 'https://old-clothes-app-production.up.railway.app/api';
+
   useEffect(() => {
     axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
-      .then(res => {
-        if (res.data?.eventYoutubeUrl) setEventYoutubeUrl(res.data.eventYoutubeUrl);
+      .then(async (res) => {
+        if (res.data?.eventYoutubeUrl) {
+          setEventYoutubeUrl(res.data.eventYoutubeUrl);
+        } else if (import.meta.env.VITE_API_URL !== PROD_PUBLIC_API) {
+          const prodRes = await axios.get(`${PROD_PUBLIC_API}/public/global-settings`);
+          if (prodRes.data?.eventYoutubeUrl) setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+        }
       })
-      .catch(err => console.error('이벤트 설정 로드 실패:', err));
+      .catch(async () => {
+        try {
+          const prodRes = await axios.get(`${PROD_PUBLIC_API}/public/global-settings`);
+          if (prodRes.data?.eventYoutubeUrl) setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+        } catch (err) {
+          console.error('이벤트 설정 로드 실패:', err);
+        }
+      });
   }, []);
 
   const [scrolled, setScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTrustTab, setActiveTrustTab] = useState<'date' | 'proof'>('proof');
-  const [reviews, setReviews] = useState(DUMMY_REVIEWS);
-  const extendedReviews = [...reviews, ...reviews];
+  const [reviews, setReviews] = useState<SeoReviewItem[]>(DEFAULT_SEO_REVIEWS);
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
@@ -278,47 +227,32 @@ export default function Landing() {
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
-  // 실제 고객 후기 불러오기
+  // 실제 고객 후기 불러오기 (로컬 DB가 비어 있으면 실서버 공개 후기 API로 안전 폴백)
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL}/board/public/reviews?limit=15`)
+    fetch(`${import.meta.env.VITE_API_URL}/board/public/reviews?limit=30`)
       .then(res => res.json())
-      .then(data => {
-        if (data && data.posts && data.posts.length > 0) {
-          const formatted = data.posts.map((p: any) => {
-            const stars = Math.round(((p.ratingConvenience || 5) + (p.ratingKindness || 5) + (p.ratingSpeed || 5)) / 3);
-            const total = p.receiptSnapshot?.totalPrice || 0;
-            const receiptTotal = `${total.toLocaleString()}원`;
-            
-            let receiptDetails = '';
-            if (p.receiptSnapshot?.collectionItems) {
-              receiptDetails = p.receiptSnapshot.collectionItems.map((item: any) => 
-                `${item.categoryLabel} ${item.quantity}${item.unitType === 'KG' ? 'kg' : '대'}`
-              ).join(' | ');
-            }
-            if (!receiptDetails) receiptDetails = "헌옷 및 기타 재활용품 수거";
-
-            const tags = [
-              `👔 편리성 ${p.ratingConvenience || 5}점`,
-              `🤝 친절도 ${p.ratingKindness || 5}점`,
-              `⚡ 신속정확 ${p.ratingSpeed || 5}점`
-            ];
-
-            const dateStr = new Date(p.createdAt).toLocaleDateString('ko-KR');
-            const meta = `${p.authorName} · ${p.maskedAddress || '지역 비공개'} · ${dateStr}`;
-
-            return {
-              stars: stars || 5,
-              text: p.content || "정말 편리하고 깔끔하게 수거해주셨어요!",
-              meta,
-              receiptTotal,
-              receiptDetails,
-              tags
-            };
-          });
-          setReviews(formatted);
+      .then(async (data) => {
+        if (data && Array.isArray(data.posts) && data.posts.length > 0) {
+          setReviews(normalizePublicReviews(data.posts));
+        } else if (import.meta.env.VITE_API_URL !== PROD_PUBLIC_API) {
+          const prodRes = await fetch(`${PROD_PUBLIC_API}/board/public/reviews?limit=30`);
+          const prodData = await prodRes.json();
+          if (prodData && Array.isArray(prodData.posts) && prodData.posts.length > 0) {
+            setReviews(normalizePublicReviews(prodData.posts));
+          }
         }
       })
-      .catch(err => console.error('Failed to fetch public reviews:', err));
+      .catch(async () => {
+        try {
+          const prodRes = await fetch(`${PROD_PUBLIC_API}/board/public/reviews?limit=30`);
+          const prodData = await prodRes.json();
+          if (prodData && Array.isArray(prodData.posts) && prodData.posts.length > 0) {
+            setReviews(normalizePublicReviews(prodData.posts));
+          }
+        } catch (err) {
+          console.error('Failed to fetch public reviews:', err);
+        }
+      });
   }, []);
 
 
@@ -461,6 +395,9 @@ export default function Landing() {
         <div className="hidden sm:flex relative z-10 max-w-7xl mx-auto w-full px-5 md:px-8 pt-4 pb-10 flex-col">
           <div className="flex-1 flex flex-col items-center text-center relative w-full">
             <h1 className="font-black leading-[1.1] tracking-tighter text-[11vw] sm:text-7xl md:text-8xl lg:text-[7.5rem] uppercase w-full">
+              <span className="sr-only">
+                올클(ALL-CLEAR) 헌옷 방문수거 및 당일 현금 정산 - 화성 동탄 용인 수지 수원 성남 분당 오산 헌옷 파는 곳 ·{' '}
+              </span>
               <span className="block reveal text-gray-900 transition-colors hover:text-gray-700">
                 Old Clothes,
               </span>
@@ -515,11 +452,11 @@ export default function Landing() {
                 <span className="text-primary-600 font-extrabold tracking-widest text-[15px] uppercase">Eco-friendly</span>
               </div>
 
-              {/* 메인 타이포그래피 */}
-              <h1 className="reveal reveal-delay-1 font-black leading-[1.05] tracking-tighter text-[14vw] uppercase text-gray-900 break-words mb-2">
+              {/* 메인 타이포그래피 (단일 H1 원칙 준수를 위해 p 태그로 렌더링하되 시각 스타일은 100% 동일 유지) */}
+              <p className="reveal reveal-delay-1 font-black leading-[1.05] tracking-tighter text-[14vw] uppercase text-gray-900 break-words mb-2">
                 Old <br/>Clothes,<br/>
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-sky-500">All Clear.</span>
-              </h1>
+              </p>
               
               {/* 한글 타이포그래피 추가 (올-클) */}
               <h2 className="reveal reveal-delay-1 text-primary-600 font-black text-5xl tracking-tight mb-8 text-center">
@@ -1020,69 +957,8 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* ================= 고객 후기 (Marquee) ================= */}
-      <section id="reviews" className="relative py-16 sm:py-24 bg-sky-50 overflow-hidden scroll-mt-16">
-        <div className="max-w-7xl mx-auto px-5 md:px-8 mb-12 text-center">
-          <p className="reveal text-primary-600 font-black tracking-widest text-base sm:text-xl mb-3">생생한 수거 후기</p>
-          <h2 className="reveal reveal-delay-1 text-2xl sm:text-5xl font-black tracking-tight text-gray-900 break-keep">
-            고객님들이 직접 증명하는<br />올클의 만족도
-          </h2>
-        </div>
-
-        
-        {/* 베스트 후기 하이라이트 */}
-        <div className="max-w-4xl mx-auto px-5 md:px-8 mb-16 reveal reveal-delay-2">
-          <div className="bg-white rounded-3xl p-6 md:p-10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-blue-50 relative overflow-hidden group">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-bl-[100px] -z-0 transition-transform group-hover:scale-110"></div>
-            <div className="relative z-10">
-              <div className="flex items-center gap-3 mb-6">
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-sm">👑 베스트 리뷰</span>
-                <div className="flex text-amber-400 text-lg">
-                  ★★★★★
-                </div>
-              </div>
-              <h3 className="text-xl md:text-2xl font-bold text-gray-900 mb-4 leading-relaxed break-keep">
-                "이사가면서 헌옷이 산더미처럼 나왔는데, 올클 덕분에 10분만에 해결했어요! 너무 친절하시고 정산도 바로 들어와서 진짜 최고입니다. 맘카페에도 추천글 올렸어요!"
-              </h3>
-              <div className="flex items-center justify-between mt-8 border-t border-gray-100 pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 font-bold text-lg">김</div>
-                  <div>
-                    <p className="font-bold text-gray-900 text-sm md:text-base">김** 고객님</p>
-                    <p className="text-xs md:text-sm text-gray-500">서울 강남구 · 정산금액 28,400원</p>
-                  </div>
-                </div>
-                <div className="hidden md:block bg-blue-50 px-4 py-2 rounded-xl border border-blue-100 text-blue-700 text-sm font-bold">
-                  헌옷 35kg | 신발 12켤레 수거
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="relative mt-4 max-w-[100vw]">
-          {/* 흐린 그라데이션 오버레이 (좌우) - 스크롤 페이드 효과 */}
-          <div className="absolute left-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-r from-sky-50 to-transparent z-10 pointer-events-none"></div>
-          <div className="absolute right-0 top-0 bottom-0 w-12 md:w-32 bg-gradient-to-l from-sky-50 to-transparent z-10 pointer-events-none"></div>
-
-          <div className="reveal reveal-delay-2 relative">
-            <div className="flex w-max animate-marquee hover:[animation-play-state:paused] group cursor-grab active:cursor-grabbing pb-8 pt-4">
-              {/* 첫 번째 세트 */}
-              <div className="flex">
-                {extendedReviews.map((review, i) => (
-                  <ReviewCard key={i} review={review} />
-                ))}
-              </div>
-              {/* 두 번째 세트 (무한 루프용 동일 구성) */}
-              <div className="flex">
-                {extendedReviews.map((review, i) => (
-                  <ReviewCard key={`dup-${i}`} review={review} />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* ================= 고객 후기 (SEO 최적화 시맨틱 그리드 & JSON-LD 스키마) ================= */}
+      <SeoReviewSection reviews={reviews} />
 
 {/* ================= 진행중인 이벤트 ================= */}
       <section id="event" className="relative min-h-[auto] sm:min-h-[100svh] flex items-center scroll-mt-16 py-16 sm:py-24 overflow-hidden bg-sky-50">
@@ -1098,8 +974,8 @@ export default function Landing() {
             
             {/* 왼쪽: 기존 이벤트 포스터 */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 h-full flex flex-col">
-              <div className="w-full aspect-[3/4] sm:aspect-auto sm:flex-1 bg-sky-100 relative overflow-hidden group">
-                 <img src="/event_poster.jpg" alt="리뷰 이벤트 배너" className="absolute inset-0 w-full h-full object-cover" />
+              <div className="w-full aspect-[3/4] sm:min-h-[380px] sm:flex-1 bg-sky-100 relative overflow-hidden group">
+                 <img src="/event_poster.jpg" alt="올클 헌옷 방문수거 리뷰 치킨 기프티콘 이벤트 배너" className="absolute inset-0 w-full h-full object-cover" />
               </div>
               <div className="p-8 text-left bg-gradient-to-br from-white to-sky-50 mt-auto">
                 <h3 className="text-2xl font-black text-gray-900 mb-3">🍗 헌옷수거 리뷰 달고 치킨 받자!</h3>

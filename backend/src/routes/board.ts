@@ -336,6 +336,7 @@ router.get('/public/reviews', async (req, res) => {
         id: true, content: true, authorName: true,
         ratingConvenience: true, ratingKindness: true, ratingSpeed: true,
         maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
+        cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
         createdAt: true,
       },
     });

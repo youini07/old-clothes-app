@@ -10,6 +10,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ReceiptPage from './pages/ReceiptPage';
 import BoardPage from './pages/BoardPage';
 import Landing from './pages/Landing';
+import PublicReviewsPage from './pages/PublicReviewsPage';
 
 
 import GlobalNoticeBanner from './components/GlobalNoticeBanner';
@@ -23,6 +24,7 @@ function App() {
         <GlobalPopupBanner />
         <Routes>
           <Route path="/" element={<Landing />} />
+          <Route path="/reviews" element={<PublicReviewsPage />} />
           <Route path="/staff-login" element={<Login />} />
           <Route path="/login" element={<Navigate to="/staff-login" replace />} />
           <Route path="/request" element={<RequestForm />} />
