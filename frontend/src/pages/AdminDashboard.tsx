@@ -1759,7 +1759,7 @@ export default function AdminDashboard() {
                       <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.eventIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
                     </button>
                   </div>
-                  <p className="text-sm text-gray-500 leading-relaxed mb-4">문자 정산서 하단에 이벤트 문구를 노출하여 리뷰를 유도합니다.</p>
+                  <p className="text-sm text-gray-500 leading-relaxed mb-4">수거 완료 문자 최상단(간편리뷰·영수증 링크 바로 위)과 모바일 영수증 상단에 이벤트 문구를 눈에 띄게 노출하여 리뷰 참여율을 높입니다.</p>
                   {settings.eventIsActive && (
                     <textarea
                       value={settings.eventText || ''}

@@ -15,7 +15,13 @@ router.get('/:id/receipt', async (req, res) => {
     const request = await prisma.request.findUnique({
       where: { id },
       include: {
-        collectionItems: true
+        collectionItems: true,
+        partner: {
+          select: {
+            eventText: true,
+            eventIsActive: true
+          }
+        }
       }
     });
 
@@ -51,6 +57,10 @@ router.get('/:id/receipt', async (req, res) => {
         snsUrl1: existingReview.snsUrl1,
         snsUrl2: existingReview.snsUrl2,
         snsUrl3: existingReview.snsUrl3
+      } : null,
+      partnerEvent: request.partner ? {
+        text: request.partner.eventText,
+        isActive: request.partner.eventIsActive
       } : null
     };
 

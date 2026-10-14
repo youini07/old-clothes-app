@@ -619,12 +619,18 @@ export default function DriverDashboard() {
     return `안녕하세요! 올클입니다.\n\n지금 고객님 댁으로 수거하러 출발합니다!\n곧 도착할 예정이오니 잠시만 기다려주세요.\n감사합니다.`;
   };
 
-  // 수거 완료 문자 템플릿 — 항목별 영수증 형태
+  // 수거 완료 문자 템플릿 — 고객이 문자를 열자마자 리뷰 이벤트와 간편리뷰/영수증 링크를 볼 수 있도록 최상단에 배치
   const getSmsTemplate3 = (req: RequestItem) => {
     const price = req.totalPrice || 0;
     const items = req.collectionItems || [];
-    const eventString = partnerEvent?.isActive && partnerEvent?.text ? `\n\n⭐━━━━ 이벤트 안내 ━━━━⭐\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent.text}\n━━━━━━━━━━━━━━━━━━` : '';
-    const receiptLink = `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${req.id}${eventString}`;
+    const receiptUrl = `${window.location.origin}/receipt/${req.id}`;
+    const hasActiveEvent = Boolean(partnerEvent?.isActive && partnerEvent?.text);
+
+    // 왜 상단에 배치하는가: 문자 미리보기 및 첫 화면에서 정산 금액만 보고 닫아버리는 고객이
+    // 리뷰 이벤트 혜택과 간편리뷰 링크를 놓치지 않도록 인사말 바로 아래 최상단에 강조 배치함
+    const topEventAndLinkBlock = hasActiveEvent
+      ? `\n\n🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 & 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━`
+      : `\n\n🧾 상세 사진·영수증 확인 및 간편리뷰 작성:\n${receiptUrl}`;
     
     if (items.length > 0) {
       // 항목별 정산 내역이 있는 경우 영수증 형태
@@ -632,11 +638,24 @@ export default function DriverDashboard() {
         const unitLabel = item.unitType === 'KG' ? 'kg' : '대';
         return `· ${item.categoryLabel}: ${item.quantity}${unitLabel} × ${item.unitPrice.toLocaleString()}원 = ${item.subtotal.toLocaleString()}원`;
       }).join('\n');
-      return `안녕하세요! 올클입니다.\n\n고객님의 수거가 완료되었습니다!\n\n[정산서]\n${itemLines}\n────────\n합계: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.${receiptLink}`;
+      return `안녕하세요! 올클입니다.\n고객님의 수거가 완료되었습니다!${topEventAndLinkBlock}\n\n[정산서]\n${itemLines}\n────────\n합계: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.`;
     }
     // 기존 호환: 항목 데이터 없는 경우 (이전 방식으로 완료된 건)
     const weight = req.actualWeight || 0;
-    return `안녕하세요! 올클입니다.\n\n고객님의 헌옷 수거가 완료되었습니다!\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!${receiptLink}`;
+    return `안녕하세요! 올클입니다.\n고객님의 헌옷 수거가 완료되었습니다!${topEventAndLinkBlock}\n\n[정산 내역]\n- 수거 무게: ${weight}kg\n- 정산 금액: ${price.toLocaleString()}원\n\n저희 올클을 이용해 주셔서 진심으로 감사드립니다.\n앞으로도 많은 이용 부탁드립니다!`;
+  };
+
+  // 커스텀 메시지 3번 생성 헬퍼 — 커스텀 템플릿 사용 시에도 이벤트 안내를 상단에 먼저 노출
+  const getCustomSmsTemplate3 = (req: RequestItem) => {
+    const formattedPhone = driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3');
+    const customBody = processSmsTemplate(smsTemplates?.template3 || '', req, '오후 12시~2시', formattedPhone);
+    const receiptUrl = `${window.location.origin}/receipt/${req.id}`;
+    const hasActiveEvent = Boolean(partnerEvent?.isActive && partnerEvent?.text);
+
+    if (hasActiveEvent) {
+      return `🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 & 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━\n\n${customBody}`;
+    }
+    return `${customBody}\n\n🧾 상세 사진·영수증 확인 및 간편리뷰 작성:\n${receiptUrl}`;
   };
 
   let isCoBoss = false;
@@ -1143,8 +1162,19 @@ export default function DriverDashboard() {
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-green-100 bg-green-50 hover:bg-green-100 transition-colors"
               >
-                <div className="font-bold text-green-800 mb-1">3. 수거 완료 안내</div>
-                <div className="text-xs text-green-600 line-clamp-2">"안녕하세요! 올클입니다. 고객님의 헌옷 수거가 완료되었습니다..."</div>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-bold text-green-800">3. 수거 완료 안내</span>
+                  {partnerEvent?.isActive && partnerEvent?.text && (
+                    <span className="text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full">
+                      🎁 상단 이벤트 문구 포함
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-green-600 line-clamp-2">
+                  {partnerEvent?.isActive && partnerEvent?.text
+                    ? `"안녕하세요! 올클입니다. 고객님의 수거가 완료되었습니다! 🎁[리뷰 이벤트 안내] ${partnerEvent.text}..."`
+                    : `"안녕하세요! 올클입니다. 고객님의 헌옷 수거가 완료되었습니다..."`}
+                </div>
               </a>
 
               {/* 추가 커스텀 메시지들 */}
@@ -1170,11 +1200,18 @@ export default function DriverDashboard() {
               )}
               {smsTemplates?.template3 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template3, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')) + `\n\n🧾 상세 사진 및 영수증 확인:\n${window.location.origin}/receipt/${selectedSmsReq.req.id}` + (partnerEvent?.isActive && partnerEvent?.text ? `\n\n⭐━━━━ 이벤트 안내 ━━━━⭐\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent.text}\n━━━━━━━━━━━━━━━━━━` : ''))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getCustomSmsTemplate3(selectedSmsReq.req))}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
                 >
-                  <div className="font-bold text-gray-800 mb-1">🔹 커스텀 메시지 3</div>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="font-bold text-gray-800">🔹 커스텀 메시지 3</span>
+                    {partnerEvent?.isActive && partnerEvent?.text && (
+                      <span className="text-[11px] font-extrabold bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 rounded-full">
+                        🎁 상단 이벤트 문구 포함
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-600 line-clamp-2">{smsTemplates.template3}</div>
                 </a>
               )}

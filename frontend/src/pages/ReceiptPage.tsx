@@ -35,6 +35,10 @@ interface ReceiptData {
     snsUrl2?: string | null;
     snsUrl3?: string | null;
   } | null;
+  partnerEvent?: {
+    text?: string | null;
+    isActive?: boolean;
+  } | null;
 }
 
 // ──────────────────────────────────────────
@@ -285,6 +289,40 @@ export default function ReceiptPage() {
           </div>
         </div>
 
+        {/* 상단 리뷰 이벤트 바로가기 배너 — 증빙 사진 스크롤이 길어 하단 리뷰 폼을 못 보고 이탈하는 것을 방지 */}
+        {receipt.status === 'COMPLETED' && receipt.partnerId && (
+          <div className="px-5 py-4 bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-b border-amber-200">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-start gap-2.5">
+                <span className="text-xl shrink-0 mt-0.5">🎁</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-extrabold text-amber-900">
+                    {reviewSubmitted ? '리뷰 이벤트 참여 링크를 등록하셨나요?' : '잠깐! 10초 간편리뷰 & 이벤트 혜택 놓치지 마세요!'}
+                  </p>
+                  {receipt.partnerEvent?.isActive && receipt.partnerEvent?.text ? (
+                    <p className="text-xs text-amber-800 font-semibold mt-1 whitespace-pre-line leading-relaxed bg-white/80 rounded-xl p-2.5 border border-amber-200/80">
+                      {receipt.partnerEvent.text}
+                    </p>
+                  ) : (
+                    <p className="text-[11px] text-amber-700 mt-0.5 break-keep">
+                      영수증 하단에서 간편리뷰 및 맘카페·블로그·SNS 후기 링크를 등록하실 수 있습니다.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById('quick-review-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }}
+                className="w-full py-2.5 px-4 bg-amber-400 hover:bg-amber-500 active:scale-[0.99] text-gray-900 font-extrabold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>{reviewSubmitted ? '👇 이벤트 참여 링크 등록/수정하러 가기' : '👇 10초 간편리뷰 & 이벤트 참여하러 바로가기'}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* 항목별 상세 내역 */}
         <div className="p-6 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -387,7 +425,7 @@ export default function ReceiptPage() {
             - 등록하면 개인정보가 마스킹된 상태로 후기 게시판에 자동 등록됨
         ──────────────────────────────────────────── */}
         {receipt.status === 'COMPLETED' && receipt.partnerId && (
-          <div className="border-t-4 border-amber-400">
+          <div id="quick-review-section" className="border-t-4 border-amber-400 scroll-mt-4">
             {reviewSubmitted ? (
               // 리뷰 등록 완료 화면
               <div className="p-8 text-center bg-gradient-to-b from-amber-50 to-white">
