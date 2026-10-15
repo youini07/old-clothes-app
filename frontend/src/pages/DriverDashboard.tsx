@@ -569,6 +569,12 @@ export default function DriverDashboard() {
   }, [requests, activeTab]);
 
   
+  // 모바일 문자 앱(sms: URI 스킴)에서 본문 내 반각 '&' 문자를 쿼리 파라미터 구분자로 오인하여
+  // '&' 이후 내용(영수증 링크 및 정산서)이 통째로 잘리는 현상을 방지하는 인코딩 헬퍼
+  const encodeSmsBody = (text: string) => {
+    return encodeURIComponent(text.replace(/&/g, '＆'));
+  };
+
   const processSmsTemplate = (template: string, req: any, timeStr: string, phoneStr: string) => {
     if (!template) return '';
     let msg = template;
@@ -628,8 +634,9 @@ export default function DriverDashboard() {
 
     // 왜 상단에 배치하는가: 문자 미리보기 및 첫 화면에서 정산 금액만 보고 닫아버리는 고객이
     // 리뷰 이벤트 혜택과 간편리뷰 링크를 놓치지 않도록 인사말 바로 아래 최상단에 강조 배치함
+    // 주의: 모바일 sms:?body= 스킴에서 '&' 문자가 있으면 이후 텍스트가 잘리므로 '및'으로 표기함
     const topEventAndLinkBlock = hasActiveEvent
-      ? `\n\n🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 & 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━`
+      ? `\n\n🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 및 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━`
       : `\n\n🧾 상세 사진·영수증 확인 및 간편리뷰 작성:\n${receiptUrl}`;
     
     if (items.length > 0) {
@@ -653,7 +660,7 @@ export default function DriverDashboard() {
     const hasActiveEvent = Boolean(partnerEvent?.isActive && partnerEvent?.text);
 
     if (hasActiveEvent) {
-      return `🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 & 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━\n\n${customBody}`;
+      return `🎁━━━ 리뷰 이벤트 안내 ━━━🎁\n📢 [특별 이벤트 진행중!]\n\n${partnerEvent!.text}\n\n👇 아래 링크에서 영수증 확인 및 10초 간편리뷰 참여:\n${receiptUrl}\n━━━━━━━━━━━━━━━━━━\n\n${customBody}`;
     }
     return `${customBody}\n\n🧾 상세 사진·영수증 확인 및 간편리뷰 작성:\n${receiptUrl}`;
   };
@@ -1140,7 +1147,7 @@ export default function DriverDashboard() {
             
             <div className="space-y-3">
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate1(selectedSmsReq.req))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(getSmsTemplate1(selectedSmsReq.req))}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-blue-100 bg-blue-50 hover:bg-blue-100 transition-colors"
               >
@@ -1149,7 +1156,7 @@ export default function DriverDashboard() {
               </a>
               
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate2())}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(getSmsTemplate2())}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-indigo-100 bg-indigo-50 hover:bg-indigo-100 transition-colors"
               >
@@ -1158,7 +1165,7 @@ export default function DriverDashboard() {
               </a>
               
               <a 
-                href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getSmsTemplate3(selectedSmsReq.req))}`}
+                href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(getSmsTemplate3(selectedSmsReq.req))}`}
                 onClick={() => setSelectedSmsReq(null)}
                 className="block w-full text-left p-4 rounded-xl border border-green-100 bg-green-50 hover:bg-green-100 transition-colors"
               >
@@ -1180,7 +1187,7 @@ export default function DriverDashboard() {
               {/* 추가 커스텀 메시지들 */}
               {smsTemplates?.template1 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template1, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(processSmsTemplate(smsTemplates.template1, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-4"
                 >
@@ -1190,7 +1197,7 @@ export default function DriverDashboard() {
               )}
               {smsTemplates?.template2 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(processSmsTemplate(smsTemplates.template2, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(processSmsTemplate(smsTemplates.template2, selectedSmsReq.req, '오후 12시~2시', driverPhone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, '$1-$2-$3')))}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
                 >
@@ -1200,7 +1207,7 @@ export default function DriverDashboard() {
               )}
               {smsTemplates?.template3 && (
                 <a 
-                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeURIComponent(getCustomSmsTemplate3(selectedSmsReq.req))}`}
+                  href={`sms:${selectedSmsReq.req.phone}?body=${encodeSmsBody(getCustomSmsTemplate3(selectedSmsReq.req))}`}
                   onClick={() => setSelectedSmsReq(null)}
                   className="block w-full text-left p-4 rounded-xl border border-gray-200 bg-gray-50 hover:bg-gray-100 transition-colors mt-3"
                 >
