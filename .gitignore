@@ -28,3 +28,8 @@ backend/prisma/dev.db-journal
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Local Marketing & Utility Tools
+tiktok-studio/
+start_tiktok_studio.bat
+frontend/make_profile_icons.py

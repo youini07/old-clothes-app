@@ -26,7 +26,13 @@ router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, funct
         const request = yield prisma_1.prisma.request.findUnique({
             where: { id },
             include: {
-                collectionItems: true
+                collectionItems: true,
+                partner: {
+                    select: {
+                        eventText: true,
+                        eventIsActive: true
+                    }
+                }
             }
         });
         if (!request) {
@@ -59,6 +65,10 @@ router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, funct
                 snsUrl1: existingReview.snsUrl1,
                 snsUrl2: existingReview.snsUrl2,
                 snsUrl3: existingReview.snsUrl3
+            } : null,
+            partnerEvent: request.partner ? {
+                text: request.partner.eventText,
+                isActive: request.partner.eventIsActive
             } : null
         };
         res.json(receiptData);

@@ -813,7 +813,7 @@ export default function Landing() {
 
               <div className="relative z-10">
                 <div className="flex flex-wrap gap-2.5">
-                  {['화성시', '용인시', '성남시', '수원시', '오산시'].map((region, i) => (
+                  {['수원시', '화성시 (만세구 제외)', '용인시', '오산시', '성남시', '광주시'].map((region, i) => (
                     <span key={i} className="px-5 py-2.5 bg-gray-50 text-gray-800 font-extrabold rounded-xl border border-gray-100 shadow-sm text-sm sm:text-base transition-colors group-hover:bg-primary-50 group-hover:text-primary-700 group-hover:border-primary-100">
                       {region}
                     </span>
@@ -829,18 +829,18 @@ export default function Landing() {
                   <div>
                     <h3 className="text-lg sm:text-xl font-black text-gray-900 flex items-center gap-2 mb-1">
                       <MapPin className="w-5 h-5 text-gray-400" />
-                      인접 권역
+                      인접 권역 안내
                     </h3>
-                    <p className="text-gray-500 text-xs sm:text-sm font-medium">메인 권역과 인접한 지역</p>
+                    <p className="text-gray-500 text-xs sm:text-sm font-medium">메인 6대 권역과 인접한 지역</p>
                   </div>
                   <div className="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-full font-bold text-xs inline-flex items-center gap-1.5 border border-gray-200">
                     <AlertCircle className="w-3.5 h-3.5" /> 문의 필요
                   </div>
                 </div>
                 <p className="text-gray-600 font-medium text-sm leading-relaxed bg-gray-50 p-4 rounded-xl">
-                  평택, 안양, 광주 등 메인 5개 도시와 맞닿아 있는 지역은 수거가 가능합니다. 
+                  수원, 화성(만세구 제외), 용인, 오산, 성남, 광주 외 인접 지역은 물량 및 동선에 따라 수거 가능 여부가 달라질 수 있습니다.
                   <br/><br/>
-                  <a href={KAKAO_LOGIN_URL} className="text-primary-600 hover:text-primary-700 underline underline-offset-4 decoration-primary-200 font-bold">수거 신청을 남겨주시면</a> 물량에 따라 일정을 조율해 드립니다.
+                  <a href={KAKAO_LOGIN_URL} className="text-primary-600 hover:text-primary-700 underline underline-offset-4 decoration-primary-200 font-bold">수거 신청을 남겨주시면</a> 확인 후 일정을 안내해 드립니다.
                 </p>
               </div>
 
@@ -855,7 +855,7 @@ export default function Landing() {
                       <span className="text-xl">🚀</span> 그 외 타 지역
                     </h3>
                     <p className="text-gray-300 text-sm font-medium leading-relaxed mb-6">
-                      현재 위 안내된 권역 외 지역은 수거가 어렵습니다.<br/>
+                      현재 위 안내된 권역(화성 만세구 포함) 외 지역은 수거가 어렵습니다.<br/>
                       더 많은 지역에서 찾아뵐 수 있도록 빠르게 거점을 늘려가겠습니다.
                     </p>
                   </div>
@@ -877,13 +877,13 @@ export default function Landing() {
           <div className="mt-16 pt-8 border-t border-gray-200/60 opacity-60 hover:opacity-100 transition-opacity duration-300">
             <h5 className="text-center text-[10px] sm:text-xs font-black text-gray-400 tracking-widest mb-3">SERVICE KEYWORDS</h5>
             <p className="text-[11px] sm:text-xs leading-relaxed text-gray-400 text-center max-w-4xl mx-auto break-keep">
-              <strong>화성시</strong> (동탄 헌옷수거, 병점 헌옷수거함, 향남 헌옷방문수거, 봉담 헌옷팔기, 남양 안입는옷 버리기) · 
+              <strong>수원시</strong> (영통 헌옷수거, 광교 헌옷수거함, 권선구 헌옷 방문수거, 장안구·팔달구 헌옷 팔기) · 
+              <strong>화성시(만세구 제외)</strong> (동탄 헌옷수거, 병점 헌옷수거함, 봉담 헌옷팔기) · 
               <strong>용인시</strong> (수지 헌옷수거, 기흥 헌옷매입, 죽전 헌책 수거, 처인구 헌옷 방문 매입) · 
-              <strong>성남시</strong> (분당 헌옷수거, 판교 헌옷방문수거, 위례 헌옷 팔기, 헌옷매입 업체) · 
-              <strong>수원시</strong> (영통 헌옷수거, 광교 헌옷수거함, 권선구 헌옷 방문수거, 장안구 헌옷 팔기) · 
               <strong>오산시</strong> (오산 헌옷수거, 세교 헌옷매입) · 
-              <strong>인접 권역</strong> (평택 헌옷방문수거, 안양 헌옷수거, 광명, 광주 헌옷팔기) · 
-              <strong>수거 품목</strong> (헌옷, 신발, 가방, 헌책, 냄비, 후라이팬, 고철 방문 수거 및 당일 현금 최고가 지급)
+              <strong>성남시</strong> (분당 헌옷수거, 판교 헌옷방문수거, 위례 헌옷 팔기, 헌옷매입 업체) · 
+              <strong>광주시</strong> (경기광주 헌옷수거, 태전동·오포 헌옷방문수거) · 
+              <strong>수거 품목</strong> (헌옷·가방·신발 합산 20kg 이상 방문수거 / 헌책, 냄비, 후라이팬 별도 추가 수거 / 겨울부츠 수거 불가)
             </p>
           </div>
 
@@ -900,7 +900,7 @@ export default function Landing() {
               헌옷 방문수거, 무엇이든 물어보세요
             </h2>
             <p className="mt-3 text-gray-600 font-medium text-xs sm:text-base">
-              안 입는 옷 버리기부터 헌책 수거 비용까지, 올클에 대해 궁금한 점을 확인하세요.
+              수거 가능 지역부터 20kg 합산 품목 기준까지, 올클에 대해 궁금한 점을 확인하세요.
             </p>
           </div>
 
@@ -914,19 +914,21 @@ export default function Landing() {
                 </span>
               </summary>
               <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
-                A. 올클 본점 전담 수거 권역(화성시, 용인시, 성남시, 수원시, 오산시)은 당일 접수 및 빠른 방문 수거가 가능합니다. 그 외 인접 지역(평택, 안양, 광주 등)은 수거는 가능하나 물량에 따라 일정 조율이 필요할 수 있습니다. 자세한 내용은 수거 신청 후 안내해 드립니다.
+                A. 올클 본점 전담 수거 권역은 <strong>수원시, 화성시(만세구 제외), 용인시, 오산시, 성남시, 광주시</strong>입니다. 해당 6대 지역은 당일 접수 및 빠른 비대면 방문 수거가 가능합니다.
               </p>
             </details>
 
             <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
               <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
-                Q. 헌옷 방문수거 최소 기준 무게가 어떻게 되나요?
+                Q. 헌옷 방문수거 최소 기준 무게와 품목은 어떻게 되나요?
                 <span className="transition group-open:rotate-180">
                   <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
                 </span>
               </summary>
               <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
-                A. 무상 수거가 아닌 유상 매입 방식이기 때문에, 아파트 헌옷 수거함에 버리는 것과 달리 기본적으로 <strong>20kg 이상</strong>부터 방문 수거가 가능합니다. 20kg은 보통 100리터 종량제 봉투 2개 정도를 꽉 채운 양입니다. 헌옷, 신발, 가방 등을 모두 합친 무게로 산정됩니다.
+                A. 무상 수거가 아닌 유상 매입 방식이기 때문에 기본적으로 <strong>헌옷 + 가방 + 신발 합산 20kg 이상</strong>(100리터 종량제 봉투 약 2개 분량)부터 방문 수거가 가능합니다. <br className="hidden sm:block" />
+                • <strong>별도 품목 안내:</strong> 헌책, 후라이팬·냄비류는 <strong>20kg 합산에는 포함되지 않으며</strong>, 옷·가방·신발 20kg 이상 수거 시 별도로 함께 수거 및 정산해 드립니다.<br className="hidden sm:block" />
+                • <strong>수거 불가 품목:</strong> <strong>겨울부츠</strong>는 수거 불가 품목입니다.
               </p>
             </details>
 

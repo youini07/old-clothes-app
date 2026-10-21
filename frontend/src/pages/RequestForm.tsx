@@ -61,7 +61,12 @@ export default function RequestForm() {
     new (window as any).daum.Postcode({
       oncomplete: function(data: any) {
         if (!data.address.startsWith('경기')) {
-          alert('현재는 경기도 지역만 수거 서비스를 제공하고 있습니다.');
+          alert('현재 수거 가능 지역은 경기도 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주입니다.');
+          return;
+        }
+        // 왜 만세구를 체크하는가: 화성시 중 만세구 권역은 수거 제외 구역이므로 주소 선택 단계에서 사전 안내합니다.
+        if (data.address.includes('만세구') || (data.sigungu && data.sigungu.includes('만세구'))) {
+          alert('죄송합니다. 화성시 만세구 지역은 현재 수거 제외 구역입니다.\n(수거 가능 지역: 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주)');
           return;
         }
         setAddress(data.address);
@@ -175,6 +180,9 @@ export default function RequestForm() {
           {/* 주소 입력부 */}
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-700">방문 주소</label>
+            <p className="text-xs font-bold text-blue-600 bg-blue-50/80 px-3 py-2 rounded-lg border border-blue-100">
+              📍 수거 가능 지역: 수원 · 화성(만세구 제외) · 용인 · 오산 · 성남 · 광주
+            </p>
             <div className="flex space-x-2">
               <input
                 type="text"
@@ -210,7 +218,7 @@ export default function RequestForm() {
 
           {/* 예상 물품량 */}
           <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-700">대략적인 헌옷 무게 (kg)</label>
+            <label className="block text-sm font-medium text-gray-700">대략적인 옷 + 가방 + 신발 합산 무게 (kg)</label>
             <input
               type="number"
               value={estimatedWeight}
@@ -222,19 +230,23 @@ export default function RequestForm() {
             {estimatedWeight !== '' && Number(estimatedWeight) < 20 ? (
               <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-bold flex items-start gap-2 animate-in fade-in zoom-in duration-300">
                 <span className="text-lg leading-none">🚫</span>
-                <p>20kg 이상 시 수거 가능합니다.</p>
+                <div className="space-y-1 text-xs sm:text-sm">
+                  <p>헌옷 + 가방 + 신발 합산 20kg 이상 시 수거 가능합니다.</p>
+                  <p className="font-medium text-red-500">※ 책·후라이팬은 20kg 합산에 포함되지 않으며, 겨울부츠는 수거 불가입니다.</p>
+                </div>
               </div>
             ) : (
-              <div className="bg-blue-50 border border-blue-100 text-blue-600 px-4 py-3 rounded-xl text-sm font-bold flex items-start gap-2">
-                <span className="text-lg leading-none">ℹ️</span>
-                <p>최소 수거 가능 무게는 20kg 이상입니다.</p>
+              <div className="bg-blue-50 border border-blue-100 text-blue-700 px-4 py-3 rounded-xl text-xs sm:text-sm font-bold space-y-1">
+                <p className="flex items-center gap-1.5"><span>ℹ️</span> 최소 수거 기준: 헌옷 + 가방 + 신발 합산 20kg 이상</p>
+                <p className="font-medium text-blue-600 pl-5">• 책, 후라이팬·냄비류는 별도 품목으로 20kg 합산에 들어가지 않습니다.</p>
+                <p className="font-medium text-rose-600 pl-5">• ⚠️ 겨울부츠는 수거 불가 품목입니다.</p>
               </div>
             )}
             <label className="block text-sm font-medium text-gray-700 mt-2">상세 품목 메모 (선택)</label>
             <textarea
               value={estimatedVolume}
               onChange={(e) => setEstimatedVolume(e.target.value)}
-              placeholder="예: 헌옷 외 신발 2켤레, 가방 1개 등 추가 메모"
+              placeholder="예: 옷·신발·가방 20kg 외 헌책 1박스, 후라이팬 2개 별도 추가 등"
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none h-20 resize-none"
             ></textarea>
           </div>
