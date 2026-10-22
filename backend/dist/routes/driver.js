@@ -104,7 +104,9 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         }
         const whereCondition = Object.assign({ driverId: driverProfile.id }, demoExcludeFilter);
         const totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
-        const requests = yield prisma_1.prisma.request.findMany({
+        // 왜: 기사 대시보드 목록 조회(최대 1000건) 시 Base64 사진(포장사진, 증빙사진, 품목사진)을 모두 불러오면
+        // 수십 MB의 Egress와 메모리 스파이크가 발생하므로 경량 필드만 조회하고 사진 존재 플래그만 첨부함
+        const rawRequests = yield prisma_1.prisma.request.findMany({
             where: whereCondition,
             orderBy: [
                 { orderIndex: 'asc' },
@@ -112,10 +114,9 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             ], // 동선 순서, 그 다음 생성일 순으로 정렬하여 순서 고정
             skip,
             take: limit,
-            include: {
-                collectionItems: true // 항목별 수거 정산 내역을 함께 조회
-            }
+            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } })
         });
+        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
         const totalPages = Math.ceil(totalCount / limit);
         res.json({ requests, totalPages, currentPage: page, totalCount });
     }
@@ -128,10 +129,11 @@ router.put('/reorder', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
     const { reorderedRequests } = req.body;
     // reorderedRequests: [{ id: 'req_1', orderIndex: 0 }, { id: 'req_2', orderIndex: 1 }, ...]
     try {
-        // 트랜잭션으로 일괄 업데이트
+        // 왜: 트랜잭션 업데이트 시 RETURNING *로 인해 Base64 사진들이 메모리에 읽히는 것을 방지하기 위해 select: { id: true } 지정
         yield prisma_1.prisma.$transaction(reorderedRequests.map((reqItem) => prisma_1.prisma.request.update({
             where: { id: reqItem.id },
-            data: { orderIndex: reqItem.orderIndex }
+            data: { orderIndex: reqItem.orderIndex },
+            select: { id: true }
         })));
         res.json({ message: '동선 순서가 업데이트 되었습니다.' });
     }
@@ -146,10 +148,15 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
     // 변경: 기존의 단일 무게 입력 대신 항목별 배열을 수신
     const { items, driverNote } = req.body;
     try {
-        // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회
+        // 1. 기존 수거 요청 및 배정된 파트너(사장님) 정보 조회 (Base64 사진 제외)
         const existingRequest = yield prisma_1.prisma.request.findUnique({
             where: { id },
-            include: { partner: true }
+            select: {
+                id: true,
+                phone: true,
+                userName: true,
+                partner: { select: { useBizMessage: true } }
+            }
         });
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
@@ -168,18 +175,21 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
         // 4. 트랜잭션으로 수거 완료 처리 + 항목 일괄 생성
         const request = yield prisma_1.prisma.$transaction((tx) => __awaiter(void 0, void 0, void 0, function* () {
             var _a;
-            // 4-1. Request 상태 업데이트
+            // 4-1. Request 상태 업데이트 (응답에 Base64 사진을 다시 에코하지 않도록 경량 select 적용)
+            const firstPhotoUrl = typeof ((_a = items[0]) === null || _a === void 0 ? void 0 : _a.photoUrl) === 'string' && items[0].photoUrl.trim().length > 0
+                ? items[0].photoUrl
+                : null;
             const updatedRequest = yield tx.request.update({
                 where: { id },
                 data: {
                     actualWeight: totalWeight || null,
                     totalPrice,
                     driverNote: driverNote || '수거 완료',
-                    itemPhotoUrl: ((_a = items[0]) === null || _a === void 0 ? void 0 : _a.photoUrl) || null, // 기존 호환: 첫 번째 항목 사진
+                    itemPhotoUrl: firstPhotoUrl, // 기존 호환: 첫 번째 항목 사진
                     status: statusService_1.getStatusForAction.onCompleted(),
                     completedDate: new Date()
                 },
-                include: { partner: true }
+                select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { partner: { select: { useBizMessage: true } } })
             });
             // 4-2. CollectionItem 일괄 생성
             yield tx.collectionItem.createMany({
@@ -191,7 +201,7 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
                     unitType: item.unitType,
                     unitPrice: item.unitPrice,
                     subtotal: item.subtotal,
-                    photoUrl: item.photoUrl || null
+                    photoUrl: typeof item.photoUrl === 'string' && item.photoUrl.trim().length > 0 ? item.photoUrl : null
                 }))
             });
             return updatedRequest;
@@ -214,8 +224,11 @@ router.post('/depart/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.r
     const { id } = req.params;
     const { currentLat, currentLng } = req.body;
     try {
-        // 1. 요청 정보 가져오기
-        const request = yield prisma_1.prisma.request.findUnique({ where: { id: id } });
+        // 1. 요청 정보 가져오기 (Base64 사진 제외)
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id: id },
+            select: { id: true, address: true, partnerId: true, phone: true, userName: true }
+        });
         if (!request) {
             return res.status(404).json({ error: '수거 신청 건을 찾을 수 없습니다.' });
         }
@@ -236,19 +249,20 @@ router.post('/depart/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.r
             data: {
                 status: statusService_1.getStatusForAction.onDriverDeparted(),
                 etaMinutes
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         // 5. 파트너(사장님)의 비즈메시지 설정 확인
         let useBizMessage = false;
         if (request.partnerId) {
-            const partner = yield prisma_1.prisma.user.findUnique({ where: { id: request.partnerId } });
+            const partner = yield prisma_1.prisma.user.findUnique({ where: { id: request.partnerId }, select: { useBizMessage: true } });
             if (partner) {
                 useBizMessage = partner.useBizMessage;
             }
         }
         // 6. 기사 전화번호 조회
         let driverPhone = undefined;
-        const driver = yield prisma_1.prisma.user.findUnique({ where: { id: req.user.userId } });
+        const driver = yield prisma_1.prisma.user.findUnique({ where: { id: req.user.userId }, select: { phone: true } });
         if (driver && driver.phone) {
             driverPhone = driver.phone;
         }
@@ -333,9 +347,10 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
         if (!currentLat || !currentLng) {
             return res.status(400).json({ error: '현재 위치 좌표가 필요합니다.' });
         }
-        // 기사에게 배정된 미완료 수거 건 조회
+        // 기사에게 배정된 미완료 수거 건 조회 (Base64 사진 제외, 주소/이름/ID만 조회)
         const requests = yield prisma_1.prisma.request.findMany({
-            where: { driverId: driver.id, status: { not: 'COMPLETED' } }
+            where: { driverId: driver.id, status: { not: 'COMPLETED' } },
+            select: { id: true, userName: true, address: true }
         });
         if (requests.length <= 1) {
             return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
@@ -428,10 +443,11 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
             }
             optimizedList = route.map(r => r.request);
         }
-        // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
+        // 데이터베이스에 정렬된 orderIndex 일괄 업데이트 (RETURNING * 방지를 위해 id만 select)
         yield prisma_1.prisma.$transaction(optimizedList.map((reqItem, idx) => prisma_1.prisma.request.update({
             where: { id: reqItem.id },
-            data: { orderIndex: idx }
+            data: { orderIndex: idx },
+            select: { id: true }
         })));
         // 총 주행거리 계산 (km로 변환하여 저장)
         const todayDistanceKm = usedTmap ? parseFloat((totalDistanceMeter / 1000).toFixed(1)) : null;
@@ -547,13 +563,20 @@ router.get('/daily-stats', authMiddleware_1.authenticate, (0, authMiddleware_1.r
                 }
             };
         }
-        // 통계 계산
+        // 왜: 통계 집계 시 collectionItems.photoUrl(Base64)까지 함께 불러오면 메모리가 급증하므로 정산에 필요한 숫자/라벨 필드만 select함
         const completedRequests = yield prisma_1.prisma.request.findMany({
             where: Object.assign(Object.assign({ driverId: driver.id, status: 'COMPLETED' }, dateFilter), demoExcludeFilter),
             select: {
                 actualWeight: true,
                 totalPrice: true,
-                collectionItems: true
+                collectionItems: {
+                    select: {
+                        categoryLabel: true,
+                        quantity: true,
+                        subtotal: true,
+                        unitType: true
+                    }
+                }
             }
         });
         const categoryStatsMap = completedRequests.reduce((acc, r) => {

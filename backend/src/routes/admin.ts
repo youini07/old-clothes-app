@@ -2,7 +2,7 @@ import express from 'express';
 import bcrypt from 'bcryptjs';
 import axios from 'axios';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../lib/prisma';
+import { prisma, REQUEST_LIGHT_SELECT, COLLECTION_ITEM_LIGHT_SELECT, attachPhotoFlags } from '../lib/prisma';
 import { authenticate, requireRole } from '../middleware/authMiddleware';
 import { validatePartner, validateDriver } from '../middleware/validateMiddleware';
 import { getStatusForAction } from '../services/statusService';
@@ -218,21 +218,23 @@ router.get('/super/customers/:phone/requests', authenticate, requireRole(['SUPER
   try {
     const { phone } = req.params;
     
-    // 전화번호를 기준으로 매칭되는 모든 Request 조회
-    const requests = await prisma.request.findMany({
+    // 왜: 고객별 수거 내역 목록 조회 시 Base64 사진을 제외하여 메모리 및 트래픽 낭비를 방지함
+    const rawRequests = await prisma.request.findMany({
       where: {
         OR: [
           { phone: phone },
           { customer: { phone: phone } }
         ]
       },
-      include: {
+      select: {
+        ...REQUEST_LIGHT_SELECT,
         partner: { select: { businessName: true } },
         driver: { select: { user: { select: { name: true } } } },
-        collectionItems: true
+        collectionItems: { select: COLLECTION_ITEM_LIGHT_SELECT }
       },
       orderBy: { createdAt: 'desc' }
     });
+    const requests = await attachPhotoFlags(rawRequests);
 
     res.json(requests);
   } catch (error) {
@@ -672,8 +674,11 @@ router.delete('/partners/:id', authenticate, requireRole(['SUPER_ADMIN']), async
     await prisma.chatMessage.deleteMany({ where: { senderId: id } });
 
     // 5.5. 게시판 및 파트너 단가표 삭제
-    // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제
-    const boardPosts = await prisma.boardPost.findMany({ where: { partnerId: id } });
+    // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제 (왜: ID만 조회하여 eventImage1..3 로드 방지)
+    const boardPosts = await prisma.boardPost.findMany({
+      where: { partnerId: id },
+      select: { id: true }
+    });
     const postIds = boardPosts.map((p: any) => p.id);
     if (postIds.length > 0) {
       await prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
@@ -714,17 +719,36 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
       include: { region: true }
     });
 
-    let requests;
+    let rawRequests;
     let totalCount = 0;
+
+    // 왜: 사장님 대시보드에서 limit=9999 등으로 목록을 조회할 때 Base64 사진(포장/증빙/품목)까지 모두 조회하면
+    // 1회 호출당 수십 MB의 Egress와 1~2GB의 RAM 피크가 발생하므로, 목록에서는 경량 필드만 select하고 사진은 단건 모달 클릭 시 온디맨드 조회함
+    const listSelect = {
+      ...REQUEST_LIGHT_SELECT,
+      driver: {
+        select: {
+          id: true,
+          userId: true,
+          partnerId: true,
+          isCoBoss: true,
+          vehicleInfo: true,
+          todayDistanceKm: true,
+          customRegionId: true,
+          user: { select: { id: true, name: true, phone: true, email: true } }
+        }
+      },
+      collectionItems: { select: COLLECTION_ITEM_LIGHT_SELECT }
+    };
 
     if (coverages.length === 0) {
       // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
       const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
       
       totalCount = await prisma.request.count({ where: whereCondition });
-      requests = await prisma.request.findMany({
+      rawRequests = await prisma.request.findMany({
         where: whereCondition,
-        include: { driver: { include: { user: true } }, collectionItems: true },
+        select: listSelect,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
@@ -737,15 +761,16 @@ router.get('/requests', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), a
       const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
 
       totalCount = await prisma.request.count({ where: whereCondition });
-      requests = await prisma.request.findMany({
+      rawRequests = await prisma.request.findMany({
         where: whereCondition,
-        include: { driver: { include: { user: true } }, collectionItems: true },
+        select: listSelect,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit
       });
     }
-    
+
+    const requests = await attachPhotoFlags(rawRequests);
     const totalPages = Math.ceil(totalCount / limit);
     res.json({ requests, totalPages, currentPage: page, totalCount });
   } catch (error) {
@@ -798,9 +823,10 @@ router.get('/requests/calendar', authenticate, requireRole(['PARTNER', 'SUPER_AD
       ]
     };
 
+    // 왜: 달력 뷰에서는 사진이나 정산 품목 상세가 전혀 쓰이지 않으므로 경량 필드만 select하여 트래픽과 메모리를 절감함
     const requests = await prisma.request.findMany({
       where: whereCondition,
-      include: { driver: { include: { user: true } }, collectionItems: true },
+      select: REQUEST_LIGHT_SELECT,
       orderBy: { createdAt: 'desc' }
     });
 
@@ -817,8 +843,11 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
   const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
-    // 해당 요청의 현재 상태 확인
-    const request = await prisma.request.findUnique({ where: { id } });
+    // 해당 요청의 현재 상태 확인 (Base64 제외)
+    const request = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true, partnerId: true }
+    });
     
     if (!request) {
       return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
@@ -841,7 +870,10 @@ router.post('/requests/:id/claim', authenticate, requireRole(['PARTNER', 'SUPER_
         partnerId,
         status: 'ASSIGNED'
       },
-      include: { partner: true }
+      select: {
+        ...REQUEST_LIGHT_SELECT,
+        partner: { select: { useBizMessage: true, businessName: true, name: true } }
+      }
     });
 
     // 업체 배정 안내 알림톡 발송 (비동기)
@@ -874,7 +906,10 @@ router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPE
   const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
-    const request = await prisma.request.findUnique({ where: { id } });
+    const request = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true, partnerId: true, driverId: true }
+    });
     if (!request) {
       return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
     }
@@ -892,7 +927,8 @@ router.post('/requests/:id/unclaim', authenticate, requireRole(['PARTNER', 'SUPE
       data: {
         partnerId: null,
         status: 'PENDING'
-      }
+      },
+      select: REQUEST_LIGHT_SELECT
     });
 
     res.json({ message: '수락이 취소되었습니다.', request: updated });
@@ -926,7 +962,11 @@ router.post('/requests/bulk-claim', authenticate, requireRole(['PARTNER', 'SUPER
     if (updatedResult.count > 0) {
       const updatedRequests = await prisma.request.findMany({
         where: { id: { in: requestIds }, partnerId },
-        include: { partner: true }
+        select: {
+          phone: true,
+          userName: true,
+          partner: { select: { useBizMessage: true, businessName: true, name: true } }
+        }
       });
 
       updatedRequests.forEach(updated => {
@@ -956,7 +996,10 @@ router.delete('/requests/:id', authenticate, requireRole(['SUPER_ADMIN', 'PARTNE
   const { id } = req.params;
   
   try {
-    const existingRequest = await prisma.request.findUnique({ where: { id } });
+    const existingRequest = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true }
+    });
     if (!existingRequest) {
       return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
     }
@@ -981,7 +1024,8 @@ router.patch('/requests/:id/estimated-time', authenticate, requireRole(['SUPER_A
   try {
     const updatedRequest = await prisma.request.update({
       where: { id },
-      data: { estimatedPickupHour }
+      data: { estimatedPickupHour },
+      select: REQUEST_LIGHT_SELECT
     });
     res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
   } catch (error) {
@@ -1096,7 +1140,10 @@ router.post('/drivers', validateDriver, authenticate, requireRole(['PARTNER']), 
 router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req: any, res: any) => {
   const { requestId, driverId, confirmedDate } = req.body;
   try {
-    const existingReq = await prisma.request.findUnique({ where: { id: requestId } });
+    const existingReq = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: { id: true, confirmedDate: true, desiredDate: true }
+    });
     if (!existingReq) return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
 
     const request = await prisma.request.update({
@@ -1106,7 +1153,10 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
         status: getStatusForAction.onDriverAssigned(),
         confirmedDate: confirmedDate ? new Date(confirmedDate) : (existingReq.confirmedDate || existingReq.desiredDate)
       },
-      include: { partner: true }
+      select: {
+        ...REQUEST_LIGHT_SELECT,
+        partner: { select: { useBizMessage: true } }
+      }
     });
 
     // 기사 전화번호 및 알림톡 발송
@@ -1153,7 +1203,10 @@ router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_
   const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
-    const request = await prisma.request.findUnique({ where: { id } });
+    const request = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true, partnerId: true }
+    });
     if (!request) {
       return res.status(404).json({ error: '수거 신청을 찾을 수 없습니다.' });
     }
@@ -1165,7 +1218,8 @@ router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_
 
     const updated = await prisma.request.update({
       where: { id },
-      data: { confirmedDate: new Date(confirmedDate) }
+      data: { confirmedDate: new Date(confirmedDate) },
+      select: REQUEST_LIGHT_SELECT
     });
 
     res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
@@ -1195,7 +1249,15 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
     
     const requests = await prisma.request.findMany({
       where: whereClause,
-      include: { partner: true }
+      select: {
+        id: true,
+        phone: true,
+        userName: true,
+        customerId: true,
+        partnerId: true,
+        confirmedDate: true,
+        partner: { select: { useBizMessage: true } }
+      }
     });
 
     if (requests.length === 0) {
@@ -1221,7 +1283,8 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
       }
       return prisma.request.update({
         where: { id },
-        data
+        data,
+        select: { id: true }
       });
     }).filter(Boolean);
 
@@ -1276,9 +1339,10 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
   try {
     const partnerId = req.user!.partnerId || req.user!.userId;
 
-    // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+    // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링 (Base64 제외)
     const requests = await prisma.request.findMany({
-      where: { id: { in: requestIds }, partnerId }
+      where: { id: { in: requestIds }, partnerId },
+      select: { id: true, customerId: true, partnerId: true, confirmedDate: true, desiredDate: true }
     });
 
     if (requests.length === 0) {
@@ -1298,7 +1362,8 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
           status: getStatusForAction.onDriverAssigned(),
           orderIndex: index + 1,
           confirmedDate: existingReq?.confirmedDate || existingReq?.desiredDate
-        }
+        },
+        select: { id: true }
       });
     }).filter(Boolean);
 
@@ -1351,12 +1416,13 @@ router.post('/requests/reorder', authenticate, requireRole(['PARTNER']), async (
       return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청이 포함되어 있습니다.' });
     }
 
-    // 트랜잭션으로 일괄 업데이트
+    // 트랜잭션으로 일괄 업데이트 (RETURNING * 방지)
     await prisma.$transaction(
       requestIds.map((id, index) =>
         prisma.request.update({
           where: { id },
-          data: { orderIndex: index }
+          data: { orderIndex: index },
+          select: { id: true }
         })
       )
     );
@@ -1383,9 +1449,10 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
       return res.status(403).json({ error: '권한이 없거나 기사 프로필을 찾을 수 없습니다.' });
     }
 
-    // 기사에게 배정된 미완료 수거 건 조회
+    // 기사에게 배정된 미완료 수거 건 조회 (Base64 사진 제외)
     const requests = await prisma.request.findMany({
-      where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId }
+      where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId },
+      select: REQUEST_LIGHT_SELECT
     });
 
     if (requests.length <= 1) {
@@ -1481,14 +1548,16 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
       optimizedList.map((reqItem, idx) =>
         prisma.request.update({
           where: { id: reqItem.id },
-          data: { orderIndex: idx }
+          data: { orderIndex: idx },
+          select: { id: true }
         })
       )
     );
 
-    // 변경된 요청 목록을 순서대로 다시 반환
+    // 변경된 요청 목록을 순서대로 다시 반환 (Base64 사진 제외)
     const updatedRequests = await prisma.request.findMany({
       where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId },
+      select: REQUEST_LIGHT_SELECT,
       orderBy: { orderIndex: 'asc' }
     });
 
@@ -1506,7 +1575,10 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
     const partnerId = req.user!.partnerId || req.user!.userId;
     
     // 권한 확인
-    const request = await prisma.request.findUnique({ where: { id } });
+    const request = await prisma.request.findUnique({
+      where: { id },
+      select: { id: true, partnerId: true }
+    });
     if (!request || request.partnerId !== partnerId) {
       return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청입니다.' });
     }
@@ -1518,7 +1590,8 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
         status: 'ASSIGNED', // 기사 미배정 상태로 롤백 (파트너는 여전히 수락된 상태)
         confirmedDate: null,
         etaMinutes: null
-      }
+      },
+      select: REQUEST_LIGHT_SELECT
     });
 
     res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
@@ -1540,7 +1613,8 @@ router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), 
     
     // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
     const requests = await prisma.request.findMany({
-      where: { id: { in: ids }, partnerId }
+      where: { id: { in: ids }, partnerId },
+      select: { id: true }
     });
 
     if (requests.length === 0) {
@@ -1775,15 +1849,16 @@ router.get('/stats', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN']), asyn
   try {
     const partnerId = req.user!.partnerId || req.user!.userId;
 
-    // 파트너가 담당하는 권역 ID 목록
-    const coverages = await prisma.coverage.findMany({ where: { partnerId } });
-    const regionIds = coverages.map((c: any) => c.regionId);
-
-    // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
+    // 왜: 통계 집계 시 전체 Request 컬럼(Base64 사진 포함)을 메모리에 올리면 RAM이 급증하므로 집계에 필요한 3개 필드만 select함
     const allRequests = await prisma.request.findMany({
       where: {
         partnerId: partnerId,
         ...demoExcludeFilter
+      },
+      select: {
+        status: true,
+        actualWeight: true,
+        createdAt: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -1843,9 +1918,19 @@ router.get('/monitoring', authenticate, requireRole(['SUPER_ADMIN']), async (req
     const demoNames = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아', 
                '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은', '테스트', '수동접수'];
 
-    // 1. 전체 수거 건 통계 (더미 데이터 제외)
+    // 1. 전체 수거 건 통계 (왜: 전국 수거 건 전체 조회 시 Base64 사진을 제외하여 수백 MB의 RAM 피크를 방지함)
     const allRequestsRaw = await prisma.request.findMany({
-      include: { partner: true },
+      select: {
+        id: true,
+        userName: true,
+        customerId: true,
+        partnerId: true,
+        regionId: true,
+        status: true,
+        actualWeight: true,
+        completedDate: true,
+        createdAt: true
+      },
       orderBy: { createdAt: 'desc' }
     });
 
@@ -2413,7 +2498,8 @@ router.post('/requests/manual', authenticate, requireRole(['PARTNER', 'SUPER_ADM
         partnerId,
         regionId,
         customerId: null, // 비회원
-      }
+      },
+      select: REQUEST_LIGHT_SELECT
     });
 
     res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
@@ -2432,7 +2518,10 @@ router.patch('/requests/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
   const partnerId = req.user!.partnerId || req.user!.userId;
 
   try {
-    const existingReq = await prisma.request.findUnique({ where: { id: requestId } });
+    const existingReq = await prisma.request.findUnique({
+      where: { id: requestId },
+      select: { id: true, partnerId: true }
+    });
     if (!existingReq) {
       return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
     }
@@ -2450,7 +2539,8 @@ router.patch('/requests/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
         detailAddress: updateData.detailAddress !== undefined ? updateData.detailAddress : undefined,
         estimatedVolume: updateData.estimatedVolume !== undefined ? updateData.estimatedVolume : undefined,
         desiredDate: updateData.desiredDate ? new Date(updateData.desiredDate) : undefined,
-      }
+      },
+      select: REQUEST_LIGHT_SELECT
     });
 
     res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
@@ -2508,6 +2598,7 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
       dateFilter = { completedDate: { gte: startOfDay, lte: endOfDay } };
     }
 
+    // 왜: 기사별 기간/일일 통계 계산 시 collectionItems.photoUrl(Base64)을 제외하여 RAM 사용량과 DB I/O를 절감함
     const completedRequests = await prisma.request.findMany({
       where: {
         driverId: { in: driverIds },
@@ -2520,7 +2611,14 @@ router.get('/drivers/daily-stats', authenticate, requireRole(['PARTNER', 'SUPER_
         actualWeight: true,
         totalPrice: true,
         completedDate: true,
-        collectionItems: true
+        collectionItems: {
+          select: {
+            categoryLabel: true,
+            quantity: true,
+            subtotal: true,
+            unitType: true
+          }
+        }
       }
     });
 
@@ -2620,9 +2718,18 @@ router.get('/crm/customers', authenticate, requireRole(['SUPER_ADMIN', 'PARTNER'
       ? { partnerId: userId, status: 'COMPLETED' }
       : { status: 'COMPLETED' };
 
+    // 왜: CRM 고객 통계 집계 시 완료된 수거 건들의 Base64 사진(itemPhotoUrl 등)이 전부 메모리에 적재되는 것을 방지하기 위해 집계 대상 컬럼만 select함
     const completedRequests = await prisma.request.findMany({
       where: whereClause,
-      include: {
+      select: {
+        phone: true,
+        userName: true,
+        address: true,
+        detailAddress: true,
+        actualWeight: true,
+        totalPrice: true,
+        completedDate: true,
+        createdAt: true,
         driver: { select: { user: { select: { name: true } } } }
       },
       orderBy: { completedDate: 'desc' }

@@ -28,7 +28,7 @@ const initCrmCron = () => {
             targetDateStart.setHours(0, 0, 0, 0);
             const targetDateEnd = new Date(targetDateStart);
             targetDateEnd.setDate(targetDateEnd.getDate() + 1);
-            // 대상 Request 검색: 완료된 지 90일 지남, 아직 CRM 안 보냄, 파트너가 CRM 자동화 사용 중
+            // 왜: 스케줄러 실행 시 완료된 수거 건의 대용량 Base64 사진들이 메모리에 적재되어 RAM 스파이크가 발생하는 것을 방지하기 위해 필요한 필드만 select함
             const targetRequests = yield prisma_1.prisma.request.findMany({
                 where: {
                     status: 'COMPLETED',
@@ -41,8 +41,16 @@ const initCrmCron = () => {
                         useCrmAutomation: true
                     }
                 },
-                include: {
-                    partner: true
+                select: {
+                    id: true,
+                    phone: true,
+                    userName: true,
+                    partner: {
+                        select: {
+                            businessName: true,
+                            name: true
+                        }
+                    }
                 }
             });
             console.log(`[CRM Automation] 발송 대상 수: ${targetRequests.length}건`);
@@ -55,10 +63,11 @@ const initCrmCron = () => {
                 const appLink = process.env.FRONTEND_URL || 'https://all-cle.com';
                 const success = yield (0, notificationService_1.sendCrmNotification)(req.phone, req.userName, req.partner.businessName || req.partner.name, appLink);
                 if (success) {
-                    // 중복 발송 방지를 위해 crmSent 업데이트
+                    // 중복 발송 방지를 위해 crmSent 업데이트 (왜: select: { id: true }를 지정하지 않으면 RETURNING *로 수거 완료 건의 Base64 사진 컬럼 4개가 메모리에 로드됨)
                     yield prisma_1.prisma.request.update({
                         where: { id: req.id },
-                        data: { crmSent: true }
+                        data: { crmSent: true },
+                        select: { id: true }
                     });
                     successCount++;
                 }
@@ -106,8 +115,11 @@ const initCrmCron = () => {
                         yield prisma_1.prisma.chatRoom.delete({ where: { id: r.id } });
                     }
                     yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: user.id } });
-                    // 게시판 및 파트너 단가표 삭제
-                    const boardPosts = yield prisma_1.prisma.boardPost.findMany({ where: { partnerId: user.id } });
+                    // 게시판 및 파트너 단가표 삭제 (왜: ID만 조회하여 eventImage1..3 Base64 컬럼 로드 방지)
+                    const boardPosts = yield prisma_1.prisma.boardPost.findMany({
+                        where: { partnerId: user.id },
+                        select: { id: true }
+                    });
                     const postIds = boardPosts.map((p) => p.id);
                     if (postIds.length > 0) {
                         yield prisma_1.prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });

@@ -218,6 +218,45 @@ export default function CustomerDashboard() {
   };
 
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+  const [loadingPhotosReqId, setLoadingPhotosReqId] = useState<string | null>(null);
+
+  // 특정 수거 건의 원본 증빙/포장 사진을 온디맨드로 조회하여 상태에 병합
+  const handleLoadRequestPhotos = async (reqId: string) => {
+    if (loadingPhotosReqId === reqId) return;
+    setLoadingPhotosReqId(reqId);
+    try {
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/${reqId}/photos`);
+      const photoData = res.data;
+      setRequests(prev => prev.map((r: any) => {
+        if (r.id !== reqId) return r;
+        const mergedItems = r.collectionItems && photoData.collectionItems
+          ? r.collectionItems.map((item: any, idx: number) => {
+              const matched = item.id
+                ? photoData.collectionItems.find((p: any) => p.id === item.id) ?? photoData.collectionItems[idx]
+                : photoData.collectionItems[idx];
+              return {
+                ...item,
+                photoUrl: matched?.photoUrl ?? item.photoUrl ?? null
+              };
+            })
+          : (photoData.collectionItems || r.collectionItems);
+        return {
+          ...r,
+          itemPhotoUrl: photoData.itemPhotoUrl,
+          scalePhotoUrl: photoData.scalePhotoUrl,
+          extraPhotoUrl: photoData.extraPhotoUrl,
+          customerPackedPhotoUrl: photoData.customerPackedPhotoUrl,
+          collectionItems: mergedItems,
+          _photosLoaded: true
+        };
+      }));
+    } catch (error) {
+      console.error('증빙 사진 로드 실패:', error);
+      alert('사진을 불러오는 중 오류가 발생했습니다.');
+    } finally {
+      setLoadingPhotosReqId(null);
+    }
+  };
 
   const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>, reqId: string) => {
     const file = e.target.files?.[0];
@@ -235,8 +274,13 @@ export default function CustomerDashboard() {
       });
 
       alert('포장 사진이 업로드되었습니다.');
-      // 리스트 갱신
-      fetchMyRequests(token || '', page);
+      // 전체 목록 재조회 대신 업로드된 사진을 현재 상태에 즉시 반영하여 불필요한 Egress 방지
+      setRequests(prev => prev.map((r: any) => r.id === reqId ? {
+        ...r,
+        customerPackedPhotoUrl: base64Photo,
+        hasCustomerPackedPhoto: true,
+        hasPhotos: true
+      } : r));
     } catch (error) {
       console.error('사진 업로드 실패:', error);
       alert('사진 업로드 중 오류가 발생했습니다.');
@@ -498,73 +542,85 @@ export default function CustomerDashboard() {
                             </div>
                           )}
                           
-                          {/* 📸 모든 증빙 사진 통합 표시 */}
-                          {(req.customerPackedPhotoUrl || req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl || (req.collectionItems && req.collectionItems.some((item: any) => item.photoUrl))) && (
+                          {/* 📸 모든 증빙 사진 통합 표시 (목록 응답 경량화로 온디맨드 로드 지원) */}
+                          {(req.hasPhotos || req.customerPackedPhotoUrl || req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl || (req.collectionItems && req.collectionItems.some((item: any) => item.photoUrl))) && (
                             <div className="mt-4 pt-4 border-t border-gray-100">
                               <h5 className="text-xs font-bold text-gray-600 mb-2">📸 수거 증빙 사진</h5>
-                              <div className="flex gap-2 overflow-x-auto pb-2">
-                                {/* 고객 포장 사진 */}
-                                {req.customerPackedPhotoUrl && (
-                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                    <img 
-                                      src={req.customerPackedPhotoUrl} 
-                                      alt="포장 사진" 
-                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                      onClick={() => setEnlargedImage(req.customerPackedPhotoUrl!)}
-                                    />
-                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">고객 포장</span>
-                                  </div>
-                                )}
-                                {/* 새 방식: 항목별 증빙 사진 */}
-                                {req.collectionItems && req.collectionItems.map((item: any, idx: number) => {
-                                  if (!item.photoUrl) return null;
-                                  return (
-                                    <div key={`col-${idx}`} className="flex-shrink-0 flex flex-col items-center gap-1">
+                              {(req._photosLoaded || req.customerPackedPhotoUrl || req.itemPhotoUrl || req.scalePhotoUrl || req.extraPhotoUrl || (req.collectionItems && req.collectionItems.some((item: any) => item.photoUrl))) ? (
+                                <div className="flex gap-2 overflow-x-auto pb-2">
+                                  {/* 고객 포장 사진 */}
+                                  {req.customerPackedPhotoUrl && (
+                                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
                                       <img 
-                                        src={item.photoUrl} 
-                                        alt={item.categoryLabel} 
+                                        src={req.customerPackedPhotoUrl} 
+                                        alt="포장 사진" 
                                         className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                        onClick={() => setEnlargedImage(item.photoUrl)}
+                                        onClick={() => setEnlargedImage(req.customerPackedPhotoUrl!)}
                                       />
-                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">{item.categoryLabel}</span>
+                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">고객 포장</span>
                                     </div>
-                                  );
-                                })}
-                                {/* 기존 호환 3단계 증빙 사진 */}
-                                {req.itemPhotoUrl && (!req.collectionItems || req.collectionItems.length === 0) && (
-                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                    <img 
-                                      src={req.itemPhotoUrl} 
-                                      alt="수거 전 물품" 
-                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                      onClick={() => setEnlargedImage(req.itemPhotoUrl)}
-                                    />
-                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">수거 전</span>
-                                  </div>
-                                )}
-                                {req.scalePhotoUrl && (
-                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                    <img 
-                                      src={req.scalePhotoUrl} 
-                                      alt="무게 측정" 
-                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                      onClick={() => setEnlargedImage(req.scalePhotoUrl)}
-                                    />
-                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">무게 측정</span>
-                                  </div>
-                                )}
-                                {req.extraPhotoUrl && (
-                                  <div className="flex-shrink-0 flex flex-col items-center gap-1">
-                                    <img 
-                                      src={req.extraPhotoUrl} 
-                                      alt="특이사항" 
-                                      className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
-                                      onClick={() => setEnlargedImage(req.extraPhotoUrl)}
-                                    />
-                                    <span className="text-[10px] text-gray-500 w-16 truncate text-center">특이사항</span>
-                                  </div>
-                                )}
-                              </div>
+                                  )}
+                                  {/* 새 방식: 항목별 증빙 사진 */}
+                                  {req.collectionItems && req.collectionItems.map((item: any, idx: number) => {
+                                    if (!item.photoUrl) return null;
+                                    return (
+                                      <div key={`col-${idx}`} className="flex-shrink-0 flex flex-col items-center gap-1">
+                                        <img 
+                                          src={item.photoUrl} 
+                                          alt={item.categoryLabel} 
+                                          className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                          onClick={() => setEnlargedImage(item.photoUrl)}
+                                        />
+                                        <span className="text-[10px] text-gray-500 w-16 truncate text-center">{item.categoryLabel}</span>
+                                      </div>
+                                    );
+                                  })}
+                                  {/* 기존 호환 3단계 증빙 사진 */}
+                                  {req.itemPhotoUrl && (!req.collectionItems || req.collectionItems.length === 0) && (
+                                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                      <img 
+                                        src={req.itemPhotoUrl} 
+                                        alt="수거 전 물품" 
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                        onClick={() => setEnlargedImage(req.itemPhotoUrl)}
+                                      />
+                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">수거 전</span>
+                                    </div>
+                                  )}
+                                  {req.scalePhotoUrl && (
+                                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                      <img 
+                                        src={req.scalePhotoUrl} 
+                                        alt="무게 측정" 
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                        onClick={() => setEnlargedImage(req.scalePhotoUrl)}
+                                      />
+                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">무게 측정</span>
+                                    </div>
+                                  )}
+                                  {req.extraPhotoUrl && (
+                                    <div className="flex-shrink-0 flex flex-col items-center gap-1">
+                                      <img 
+                                        src={req.extraPhotoUrl} 
+                                        alt="특이사항" 
+                                        className="w-16 h-16 object-cover rounded-lg border border-gray-200 shadow-sm cursor-pointer hover:opacity-80 transition-opacity" 
+                                        onClick={() => setEnlargedImage(req.extraPhotoUrl)}
+                                      />
+                                      <span className="text-[10px] text-gray-500 w-16 truncate text-center">특이사항</span>
+                                    </div>
+                                  )}
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadRequestPhotos(req.id)}
+                                  disabled={loadingPhotosReqId === req.id}
+                                  className="w-full py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+                                >
+                                  {loadingPhotosReqId === req.id && <Spinner className="w-3.5 h-3.5 text-gray-500" />}
+                                  {loadingPhotosReqId === req.id ? '증빙 사진 불러오는 중...' : '📸 수거 증빙 사진 보기'}
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -578,20 +634,33 @@ export default function CustomerDashboard() {
                           
                           {req.customerPackedPhotoUrl ? (
                             <div className="relative inline-block">
-                              <img src={req.customerPackedPhotoUrl} alt="포장 사진" className="w-24 h-24 object-cover rounded-xl border border-gray-200" />
+                              <img src={req.customerPackedPhotoUrl} alt="포장 사진" className="w-24 h-24 object-cover rounded-xl border border-gray-200 cursor-pointer" onClick={() => setEnlargedImage(req.customerPackedPhotoUrl!)} />
                               <label className="absolute -bottom-2 -right-2 bg-blue-600 text-white p-1.5 rounded-full shadow-md cursor-pointer hover:bg-blue-700">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
                                 <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, req.id)} disabled={uploadingReqId === req.id} />
                               </label>
                             </div>
                           ) : (
-                            <label className={`block w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 ${uploadingReqId === req.id ? 'opacity-50 pointer-events-none' : ''}`}>
-                              {uploadingReqId === req.id && <Spinner className="w-4 h-4 text-gray-500" />}
-                              <span className="text-sm font-bold text-gray-500">
-                                {uploadingReqId === req.id ? '업로드 중...' : '📷 사진 촬영 또는 앨범 선택'}
-                              </span>
-                              <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, req.id)} disabled={uploadingReqId === req.id} />
-                            </label>
+                            <div className="space-y-2">
+                              {req.hasCustomerPackedPhoto && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleLoadRequestPhotos(req.id)}
+                                  disabled={loadingPhotosReqId === req.id}
+                                  className="w-full py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl text-xs font-bold transition-colors flex items-center justify-center gap-2"
+                                >
+                                  {loadingPhotosReqId === req.id && <Spinner className="w-3.5 h-3.5 text-blue-600" />}
+                                  {loadingPhotosReqId === req.id ? '사진 불러오는 중...' : '✅ 등록된 포장 사진 확인하기'}
+                                </button>
+                              )}
+                              <label className={`block w-full py-3 border-2 border-dashed border-gray-300 rounded-xl text-center cursor-pointer hover:bg-gray-50 transition-colors flex items-center justify-center gap-2 ${uploadingReqId === req.id ? 'opacity-50 pointer-events-none' : ''}`}>
+                                {uploadingReqId === req.id && <Spinner className="w-4 h-4 text-gray-500" />}
+                                <span className="text-sm font-bold text-gray-500">
+                                  {uploadingReqId === req.id ? '업로드 중...' : (req.hasCustomerPackedPhoto ? '📷 포장 사진 변경 / 재업로드' : '📷 사진 촬영 또는 앨범 선택')}
+                                </span>
+                                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={(e) => handlePhotoUpload(e, req.id)} disabled={uploadingReqId === req.id} />
+                              </label>
+                            </div>
                           )}
                         </div>
                       )}

@@ -218,21 +218,18 @@ router.get('/super/customers', authMiddleware_1.authenticate, (0, authMiddleware
 router.get('/super/customers/:phone/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const { phone } = req.params;
-        // 전화번호를 기준으로 매칭되는 모든 Request 조회
-        const requests = yield prisma_1.prisma.request.findMany({
+        // 왜: 고객별 수거 내역 목록 조회 시 Base64 사진을 제외하여 메모리 및 트래픽 낭비를 방지함
+        const rawRequests = yield prisma_1.prisma.request.findMany({
             where: {
                 OR: [
                     { phone: phone },
                     { customer: { phone: phone } }
                 ]
             },
-            include: {
-                partner: { select: { businessName: true } },
-                driver: { select: { user: { select: { name: true } } } },
-                collectionItems: true
-            },
+            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { partner: { select: { businessName: true } }, driver: { select: { user: { select: { name: true } } } }, collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } }),
             orderBy: { createdAt: 'desc' }
         });
+        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
         res.json(requests);
     }
     catch (error) {
@@ -632,8 +629,11 @@ router.delete('/partners/:id', authMiddleware_1.authenticate, (0, authMiddleware
         }
         yield prisma_1.prisma.chatMessage.deleteMany({ where: { senderId: id } });
         // 5.5. 게시판 및 파트너 단가표 삭제
-        // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제
-        const boardPosts = yield prisma_1.prisma.boardPost.findMany({ where: { partnerId: id } });
+        // 해당 파트너의 게시글(공지, 문의, 리뷰)에 달린 댓글 먼저 삭제 (왜: ID만 조회하여 eventImage1..3 로드 방지)
+        const boardPosts = yield prisma_1.prisma.boardPost.findMany({
+            where: { partnerId: id },
+            select: { id: true }
+        });
         const postIds = boardPosts.map((p) => p.id);
         if (postIds.length > 0) {
             yield prisma_1.prisma.boardComment.deleteMany({ where: { postId: { in: postIds } } });
@@ -669,15 +669,29 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             where: { partnerId },
             include: { region: true }
         });
-        let requests;
+        let rawRequests;
         let totalCount = 0;
+        // 왜: 사장님 대시보드에서 limit=9999 등으로 목록을 조회할 때 Base64 사진(포장/증빙/품목)까지 모두 조회하면
+        // 1회 호출당 수십 MB의 Egress와 1~2GB의 RAM 피크가 발생하므로, 목록에서는 경량 필드만 select하고 사진은 단건 모달 클릭 시 온디맨드 조회함
+        const listSelect = Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { driver: {
+                select: {
+                    id: true,
+                    userId: true,
+                    partnerId: true,
+                    isCoBoss: true,
+                    vehicleInfo: true,
+                    todayDistanceKm: true,
+                    customRegionId: true,
+                    user: { select: { id: true, name: true, phone: true, email: true } }
+                }
+            }, collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } });
         if (coverages.length === 0) {
             // 권역 미설정 → 전체 지역의 미배정 요청 + 본인에게 이미 배정된 요청
             const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
-            requests = yield prisma_1.prisma.request.findMany({
+            rawRequests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
-                include: { driver: { include: { user: true } }, collectionItems: true },
+                select: listSelect,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
@@ -689,14 +703,15 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             const cityFilters = cities.map((city) => ({ address: { contains: city } }));
             const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
-            requests = yield prisma_1.prisma.request.findMany({
+            rawRequests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
-                include: { driver: { include: { user: true } }, collectionItems: true },
+                select: listSelect,
                 orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit
             });
         }
+        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
         const totalPages = Math.ceil(totalCount / limit);
         res.json({ requests, totalPages, currentPage: page, totalCount });
     }
@@ -744,9 +759,10 @@ router.get('/requests/calendar', authMiddleware_1.authenticate, (0, authMiddlewa
                 }
             ]
         };
+        // 왜: 달력 뷰에서는 사진이나 정산 품목 상세가 전혀 쓰이지 않으므로 경량 필드만 select하여 트래픽과 메모리를 절감함
         const requests = yield prisma_1.prisma.request.findMany({
             where: whereCondition,
-            include: { driver: { include: { user: true } }, collectionItems: true },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
             orderBy: { createdAt: 'desc' }
         });
         res.json({ requests });
@@ -761,8 +777,11 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
     const { id } = req.params;
     const partnerId = req.user.partnerId || req.user.userId;
     try {
-        // 해당 요청의 현재 상태 확인
-        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        // 해당 요청의 현재 상태 확인 (Base64 제외)
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, partnerId: true }
+        });
         if (!request) {
             return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
         }
@@ -782,7 +801,7 @@ router.post('/requests/:id/claim', authMiddleware_1.authenticate, (0, authMiddle
                 partnerId,
                 status: 'ASSIGNED'
             },
-            include: { partner: true }
+            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { partner: { select: { useBizMessage: true, businessName: true, name: true } } })
         });
         // 업체 배정 안내 알림톡 발송 (비동기)
         if (updated.partner && updated.partner.useBizMessage) {
@@ -807,7 +826,10 @@ router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMidd
     const { id } = req.params;
     const partnerId = req.user.partnerId || req.user.userId;
     try {
-        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, partnerId: true, driverId: true }
+        });
         if (!request) {
             return res.status(404).json({ error: '해당 수거 신청을 찾을 수 없습니다.' });
         }
@@ -822,7 +844,8 @@ router.post('/requests/:id/unclaim', authMiddleware_1.authenticate, (0, authMidd
             data: {
                 partnerId: null,
                 status: 'PENDING'
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.json({ message: '수락이 취소되었습니다.', request: updated });
     }
@@ -852,7 +875,11 @@ router.post('/requests/bulk-claim', authMiddleware_1.authenticate, (0, authMiddl
         if (updatedResult.count > 0) {
             const updatedRequests = yield prisma_1.prisma.request.findMany({
                 where: { id: { in: requestIds }, partnerId },
-                include: { partner: true }
+                select: {
+                    phone: true,
+                    userName: true,
+                    partner: { select: { useBizMessage: true, businessName: true, name: true } }
+                }
             });
             updatedRequests.forEach(updated => {
                 if (updated.partner && updated.partner.useBizMessage) {
@@ -874,7 +901,10 @@ router.post('/requests/bulk-claim', authMiddleware_1.authenticate, (0, authMiddl
 router.delete('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['SUPER_ADMIN', 'PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { id } = req.params;
     try {
-        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const existingRequest = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true }
+        });
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 요청을 찾을 수 없습니다.' });
         }
@@ -896,7 +926,8 @@ router.patch('/requests/:id/estimated-time', authMiddleware_1.authenticate, (0, 
     try {
         const updatedRequest = yield prisma_1.prisma.request.update({
             where: { id },
-            data: { estimatedPickupHour }
+            data: { estimatedPickupHour },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
     }
@@ -1004,7 +1035,10 @@ router.post('/drivers', validateMiddleware_1.validateDriver, authMiddleware_1.au
 router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { requestId, driverId, confirmedDate } = req.body;
     try {
-        const existingReq = yield prisma_1.prisma.request.findUnique({ where: { id: requestId } });
+        const existingReq = yield prisma_1.prisma.request.findUnique({
+            where: { id: requestId },
+            select: { id: true, confirmedDate: true, desiredDate: true }
+        });
         if (!existingReq)
             return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
         const request = yield prisma_1.prisma.request.update({
@@ -1014,7 +1048,7 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
                 status: statusService_1.getStatusForAction.onDriverAssigned(),
                 confirmedDate: confirmedDate ? new Date(confirmedDate) : (existingReq.confirmedDate || existingReq.desiredDate)
             },
-            include: { partner: true }
+            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { partner: { select: { useBizMessage: true } } })
         });
         // 기사 전화번호 및 알림톡 발송
         let driverPhone = undefined;
@@ -1045,7 +1079,10 @@ router.patch('/requests/:id/date', authMiddleware_1.authenticate, (0, authMiddle
     const { confirmedDate } = req.body;
     const partnerId = req.user.partnerId || req.user.userId;
     try {
-        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, partnerId: true }
+        });
         if (!request) {
             return res.status(404).json({ error: '수거 신청을 찾을 수 없습니다.' });
         }
@@ -1055,7 +1092,8 @@ router.patch('/requests/:id/date', authMiddleware_1.authenticate, (0, authMiddle
         }
         const updated = yield prisma_1.prisma.request.update({
             where: { id },
-            data: { confirmedDate: new Date(confirmedDate) }
+            data: { confirmedDate: new Date(confirmedDate) },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
     }
@@ -1081,7 +1119,15 @@ router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMid
         const whereClause = isAdmin ? { id: { in: requestIds } } : { id: { in: requestIds }, partnerId };
         const requests = yield prisma_1.prisma.request.findMany({
             where: whereClause,
-            include: { partner: true }
+            select: {
+                id: true,
+                phone: true,
+                userName: true,
+                customerId: true,
+                partnerId: true,
+                confirmedDate: true,
+                partner: { select: { useBizMessage: true } }
+            }
         });
         if (requests.length === 0) {
             return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
@@ -1104,7 +1150,8 @@ router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMid
             }
             return prisma_1.prisma.request.update({
                 where: { id },
-                data
+                data,
+                select: { id: true }
             });
         }).filter(Boolean);
         yield prisma_1.prisma.$transaction(updatePromises);
@@ -1143,9 +1190,10 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
     }
     try {
         const partnerId = req.user.partnerId || req.user.userId;
-        // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
+        // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링 (Base64 제외)
         const requests = yield prisma_1.prisma.request.findMany({
-            where: { id: { in: requestIds }, partnerId }
+            where: { id: { in: requestIds }, partnerId },
+            select: { id: true, customerId: true, partnerId: true, confirmedDate: true, desiredDate: true }
         });
         if (requests.length === 0) {
             return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
@@ -1163,7 +1211,8 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
                     status: statusService_1.getStatusForAction.onDriverAssigned(),
                     orderIndex: index + 1,
                     confirmedDate: (existingReq === null || existingReq === void 0 ? void 0 : existingReq.confirmedDate) || (existingReq === null || existingReq === void 0 ? void 0 : existingReq.desiredDate)
-                }
+                },
+                select: { id: true }
             });
         }).filter(Boolean);
         yield prisma_1.prisma.$transaction(updatePromises);
@@ -1204,10 +1253,11 @@ router.post('/requests/reorder', authMiddleware_1.authenticate, (0, authMiddlewa
         if (validCount !== requestIds.length) {
             return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청이 포함되어 있습니다.' });
         }
-        // 트랜잭션으로 일괄 업데이트
+        // 트랜잭션으로 일괄 업데이트 (RETURNING * 방지)
         yield prisma_1.prisma.$transaction(requestIds.map((id, index) => prisma_1.prisma.request.update({
             where: { id },
-            data: { orderIndex: index }
+            data: { orderIndex: index },
+            select: { id: true }
         })));
         res.json({ message: '순서가 성공적으로 저장되었습니다.' });
     }
@@ -1229,9 +1279,10 @@ router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, 
         if (!driver || driver.partnerId !== partnerId) {
             return res.status(403).json({ error: '권한이 없거나 기사 프로필을 찾을 수 없습니다.' });
         }
-        // 기사에게 배정된 미완료 수거 건 조회
+        // 기사에게 배정된 미완료 수거 건 조회 (Base64 사진 제외)
         const requests = yield prisma_1.prisma.request.findMany({
-            where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId }
+            where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         if (requests.length <= 1) {
             return res.json({ message: '수거 건수가 적어 동선 최적화가 필요하지 않습니다.', requests });
@@ -1310,11 +1361,13 @@ router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, 
         // 데이터베이스에 정렬된 orderIndex 일괄 업데이트
         yield prisma_1.prisma.$transaction(optimizedList.map((reqItem, idx) => prisma_1.prisma.request.update({
             where: { id: reqItem.id },
-            data: { orderIndex: idx }
+            data: { orderIndex: idx },
+            select: { id: true }
         })));
-        // 변경된 요청 목록을 순서대로 다시 반환
+        // 변경된 요청 목록을 순서대로 다시 반환 (Base64 사진 제외)
         const updatedRequests = yield prisma_1.prisma.request.findMany({
             where: { driverId: driver.id, status: { not: 'COMPLETED' }, partnerId },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
             orderBy: { orderIndex: 'asc' }
         });
         res.json({ message: '동선 최적화가 완료되었습니다!', requests: updatedRequests });
@@ -1330,7 +1383,10 @@ router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMid
     try {
         const partnerId = req.user.partnerId || req.user.userId;
         // 권한 확인
-        const request = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const request = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, partnerId: true }
+        });
         if (!request || request.partnerId !== partnerId) {
             return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청입니다.' });
         }
@@ -1341,7 +1397,8 @@ router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMid
                 status: 'ASSIGNED', // 기사 미배정 상태로 롤백 (파트너는 여전히 수락된 상태)
                 confirmedDate: null,
                 etaMinutes: null
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
     }
@@ -1360,7 +1417,8 @@ router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authM
         const partnerId = req.user.partnerId || req.user.userId;
         // 권한 확인: 본인의 파트너 ID가 매칭되는 건만 필터링
         const requests = yield prisma_1.prisma.request.findMany({
-            where: { id: { in: ids }, partnerId }
+            where: { id: { in: ids }, partnerId },
+            select: { id: true }
         });
         if (requests.length === 0) {
             return res.status(403).json({ error: '권한이 없거나 찾을 수 없는 요청들입니다.' });
@@ -1563,12 +1621,14 @@ router.delete('/drivers/:id', authMiddleware_1.authenticate, (0, authMiddleware_
 router.get('/stats', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const partnerId = req.user.partnerId || req.user.userId;
-        // 파트너가 담당하는 권역 ID 목록
-        const coverages = yield prisma_1.prisma.coverage.findMany({ where: { partnerId } });
-        const regionIds = coverages.map((c) => c.regionId);
-        // 해당 파트너에게 배정(수락)된 수거 건만 조회 (취소한 건은 제외)
+        // 왜: 통계 집계 시 전체 Request 컬럼(Base64 사진 포함)을 메모리에 올리면 RAM이 급증하므로 집계에 필요한 3개 필드만 select함
         const allRequests = yield prisma_1.prisma.request.findMany({
             where: Object.assign({ partnerId: partnerId }, demoExcludeFilter),
+            select: {
+                status: true,
+                actualWeight: true,
+                createdAt: true
+            },
             orderBy: { createdAt: 'desc' }
         });
         // 전체 통계 계산
@@ -1621,9 +1681,19 @@ router.get('/monitoring', authMiddleware_1.authenticate, (0, authMiddleware_1.re
     try {
         const demoNames = ['김민준', '이서연', '박도윤', '최서윤', '정하준', '강지우', '조서진', '윤하은', '장지호', '임지아',
             '한은우', '오민서', '서윤우', '신채원', '권우진', '황수아', '안건우', '송지율', '유연우', '홍다은', '테스트', '수동접수'];
-        // 1. 전체 수거 건 통계 (더미 데이터 제외)
+        // 1. 전체 수거 건 통계 (왜: 전국 수거 건 전체 조회 시 Base64 사진을 제외하여 수백 MB의 RAM 피크를 방지함)
         const allRequestsRaw = yield prisma_1.prisma.request.findMany({
-            include: { partner: true },
+            select: {
+                id: true,
+                userName: true,
+                customerId: true,
+                partnerId: true,
+                regionId: true,
+                status: true,
+                actualWeight: true,
+                completedDate: true,
+                createdAt: true
+            },
             orderBy: { createdAt: 'desc' }
         });
         // 더미데이터 필터링: seed_demo 이름이면서 비회원(customerId 없음)이거나 이름에 '테스트' 포함
@@ -2144,7 +2214,8 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
                 partnerId,
                 regionId,
                 customerId: null, // 비회원
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.status(201).json({ message: '수동 접수가 완료되었습니다.', request: newRequest });
     }
@@ -2161,7 +2232,10 @@ router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_
     const updateData = req.body;
     const partnerId = req.user.partnerId || req.user.userId;
     try {
-        const existingReq = yield prisma_1.prisma.request.findUnique({ where: { id: requestId } });
+        const existingReq = yield prisma_1.prisma.request.findUnique({
+            where: { id: requestId },
+            select: { id: true, partnerId: true }
+        });
         if (!existingReq) {
             return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
         }
@@ -2177,7 +2251,8 @@ router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_
                 detailAddress: updateData.detailAddress !== undefined ? updateData.detailAddress : undefined,
                 estimatedVolume: updateData.estimatedVolume !== undefined ? updateData.estimatedVolume : undefined,
                 desiredDate: updateData.desiredDate ? new Date(updateData.desiredDate) : undefined,
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT
         });
         res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
     }
@@ -2229,6 +2304,7 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
             endOfDay.setHours(endOfDay.getHours() - 9);
             dateFilter = { completedDate: { gte: startOfDay, lte: endOfDay } };
         }
+        // 왜: 기사별 기간/일일 통계 계산 시 collectionItems.photoUrl(Base64)을 제외하여 RAM 사용량과 DB I/O를 절감함
         const completedRequests = yield prisma_1.prisma.request.findMany({
             where: Object.assign(Object.assign({ driverId: { in: driverIds }, status: 'COMPLETED' }, dateFilter), demoExcludeFilter),
             select: {
@@ -2236,7 +2312,14 @@ router.get('/drivers/daily-stats', authMiddleware_1.authenticate, (0, authMiddle
                 actualWeight: true,
                 totalPrice: true,
                 completedDate: true,
-                collectionItems: true
+                collectionItems: {
+                    select: {
+                        categoryLabel: true,
+                        quantity: true,
+                        subtotal: true,
+                        unitType: true
+                    }
+                }
             }
         });
         // 날짜 + 기사별로 그룹화
@@ -2325,9 +2408,18 @@ router.get('/crm/customers', authMiddleware_1.authenticate, (0, authMiddleware_1
         const whereClause = userRole === 'PARTNER'
             ? { partnerId: userId, status: 'COMPLETED' }
             : { status: 'COMPLETED' };
+        // 왜: CRM 고객 통계 집계 시 완료된 수거 건들의 Base64 사진(itemPhotoUrl 등)이 전부 메모리에 적재되는 것을 방지하기 위해 집계 대상 컬럼만 select함
         const completedRequests = yield prisma_1.prisma.request.findMany({
             where: whereClause,
-            include: {
+            select: {
+                phone: true,
+                userName: true,
+                address: true,
+                detailAddress: true,
+                actualWeight: true,
+                totalPrice: true,
+                completedDate: true,
+                createdAt: true,
                 driver: { select: { user: { select: { name: true } } } }
             },
             orderBy: { completedDate: 'desc' }

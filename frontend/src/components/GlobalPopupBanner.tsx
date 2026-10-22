@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import axios from 'axios';
 import { X } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
+import { getGlobalSettingsCached } from '../utils/globalSettingsCache';
 
 export default function GlobalPopupBanner() {
   const [popupImageUrl, setPopupImageUrl] = useState<string | null>(null);
@@ -14,10 +14,10 @@ export default function GlobalPopupBanner() {
     if (location.pathname !== '/') return;
 
     const fetchPopup = () => {
-      axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
-        .then(res => {
-          if (res.data?.popupIsActive && res.data?.popupImageUrl) {
-            setPopupImageUrl(res.data.popupImageUrl);
+      getGlobalSettingsCached()
+        .then(data => {
+          if (data?.popupIsActive && data?.popupImageUrl) {
+            setPopupImageUrl(data.popupImageUrl);
             
             // Check cookie or localStorage for "Do not show for a week"
             const hideUntil = localStorage.getItem('hide_popup_until');

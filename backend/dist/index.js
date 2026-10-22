@@ -12,10 +12,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+require("dotenv/config");
 const express_1 = __importDefault(require("express"));
 const http_1 = __importDefault(require("http"));
+const zlib_1 = __importDefault(require("zlib"));
 const cors_1 = __importDefault(require("cors"));
-const dotenv_1 = __importDefault(require("dotenv"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const socket_1 = require("./socket");
 const auth_1 = __importDefault(require("./routes/auth"));
@@ -26,7 +27,6 @@ const chat_1 = __importDefault(require("./routes/chat"));
 const board_1 = __importDefault(require("./routes/board"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const prisma_1 = require("./lib/prisma");
-dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.set('trust proxy', 1); // 리버스 프록시(Railway, Vercel 등) 환경에서 클라이언트 IP를 정상적으로 가져오기 위함
 const server = http_1.default.createServer(app);
@@ -37,6 +37,32 @@ app.use((0, cors_1.default)({
     origin: true, // 임시로 모든 도메인 허용 (배포된 프론트엔드 도메인에서 접속 가능하도록)
     credentials: true
 }));
+// 왜: 외부 패키지 의존성 없이 대용량 JSON API 응답의 네트워크 송신 트래픽(Egress)을 70~90% 절감하기 위해
+// 1KB 이상의 JSON 응답에 대해 Node 내장 zlib으로 gzip 압축을 수행함
+app.use((req, res, next) => {
+    const originalJson = res.json.bind(res);
+    res.json = (body) => {
+        const acceptEncoding = req.headers['accept-encoding'] || '';
+        if (typeof acceptEncoding === 'string' && acceptEncoding.includes('gzip') && !res.headersSent) {
+            try {
+                const jsonString = JSON.stringify(body);
+                if (jsonString && jsonString.length > 1024) {
+                    const compressed = zlib_1.default.gzipSync(Buffer.from(jsonString, 'utf-8'));
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    res.setHeader('Content-Encoding', 'gzip');
+                    res.setHeader('Vary', 'Accept-Encoding');
+                    res.setHeader('Content-Length', String(compressed.length));
+                    return res.send(compressed);
+                }
+            }
+            catch (_a) {
+                // 압축 실패 시 원본 JSON 응답으로 안전하게 폴백
+            }
+        }
+        return originalJson(body);
+    };
+    next();
+});
 // Rate Limiting 설정
 const globalLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15분
@@ -72,6 +98,7 @@ app.use('/api/board', board_1.default);
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
+        res.setHeader('Cache-Control', 'public, max-age=60');
         res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null, popupImageUrl: null, popupIsActive: false, eventYoutubeUrl: null });
     }
     catch (error) {

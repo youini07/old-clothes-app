@@ -8,6 +8,7 @@ import AddressSearchModal from '../components/AddressSearchModal';
 import CalendarView from '../components/CalendarView';
 import DriverMap from '../components/DriverMap';
 import CompletedDatePicker from '../components/CompletedDatePicker';
+import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 
 interface RequestItem {
   id: string;
@@ -29,6 +30,9 @@ interface RequestItem {
   scalePhotoUrl?: string | null;
   extraPhotoUrl?: string | null;
   customerPackedPhotoUrl?: string | null;
+  hasCustomerPackedPhoto?: boolean;
+  hasPhotos?: boolean;
+  _photosLoaded?: boolean;
   completedDate?: string | Date | null;
   desiredDate?: string | Date; // 고객 수거 희망일
   confirmedDate?: string | Date | null; // 사장님 확정 방문일
@@ -39,12 +43,13 @@ interface RequestItem {
   bname?: string | null;
   totalPrice?: number;
   collectionItems?: Array<{
+    id?: string;
     categoryLabel: string;
     quantity: number;
     unitType: string;
     unitPrice: number;
     subtotal: number;
-    photoUrl: string | null;
+    photoUrl?: string | null;
   }>;
 }
 
@@ -292,7 +297,59 @@ export default function AdminDashboard() {
     new Date().toLocaleDateString('en-CA')
   );
   const [selectedCompletedRequest, setSelectedCompletedRequest] = useState<RequestItem | null>(null);
+  const [isLoadingCompletedPhotos, setIsLoadingCompletedPhotos] = useState(false);
   const [enlargedImage, setEnlargedImage] = useState<string | null>(null);
+
+  // 완료된 수거 상세 모달 오픈 시 해당 건의 원본 증빙 사진만 온디맨드로 조회
+  useEffect(() => {
+    if (!selectedCompletedRequest || selectedCompletedRequest._photosLoaded) {
+      setIsLoadingCompletedPhotos(false);
+      return;
+    }
+    let isCancelled = false;
+    const reqId = selectedCompletedRequest.id;
+    setIsLoadingCompletedPhotos(true);
+
+    axios.get(`${import.meta.env.VITE_API_URL}/requests/${reqId}/photos`)
+      .then((res) => {
+        if (isCancelled) return;
+        const photoData = res.data;
+        const mergePhotos = (r: RequestItem): RequestItem => {
+          const mergedItems = r.collectionItems && photoData.collectionItems
+            ? r.collectionItems.map((item, idx) => {
+                const matched = item.id
+                  ? photoData.collectionItems.find((p: any) => p.id === item.id) ?? photoData.collectionItems[idx]
+                  : photoData.collectionItems[idx];
+                return {
+                  ...item,
+                  photoUrl: matched?.photoUrl ?? item.photoUrl ?? null
+                };
+              })
+            : (photoData.collectionItems || r.collectionItems);
+          return {
+            ...r,
+            itemPhotoUrl: photoData.itemPhotoUrl,
+            scalePhotoUrl: photoData.scalePhotoUrl,
+            extraPhotoUrl: photoData.extraPhotoUrl,
+            customerPackedPhotoUrl: photoData.customerPackedPhotoUrl,
+            collectionItems: mergedItems,
+            _photosLoaded: true
+          };
+        };
+
+        setIsLoadingCompletedPhotos(false);
+        setSelectedCompletedRequest(prev => (prev && prev.id === reqId ? mergePhotos(prev) : prev));
+        setRequests(prev => prev.map(r => (r.id === reqId ? mergePhotos(r) : r)));
+      })
+      .catch((err) => {
+        console.error('완료 증빙 사진 로드 실패:', err);
+        if (!isCancelled) setIsLoadingCompletedPhotos(false);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedCompletedRequest]);
 
   const [completedFilterType, setCompletedFilterType] = useState<'day' | 'month' | 'all'>('day');
   const [completedFilterMonth, setCompletedFilterMonth] = useState<string>(() => {
@@ -498,6 +555,7 @@ export default function AdminDashboard() {
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
+        invalidateGlobalSettingsCache();
         window.dispatchEvent(new Event('globalNoticeUpdated'));
       }
 
@@ -511,9 +569,14 @@ export default function AdminDashboard() {
 
 
   // 달력 데이터 조회 (해당 월만 서버에서 필터링해서 가져옴)
+  const calendarInFlightRef = useRef<string | null>(null);
   const fetchCalendarData = async (year?: number, month?: number) => {
     const y = year ?? calendarRangeRef.current.year;
     const m = month ?? calendarRangeRef.current.month;
+    const key = `${y}-${m}`;
+    // 동일한 연/월에 대해 이미 진행 중인 요청이 있으면 중복 호출 방지
+    if (calendarInFlightRef.current === key) return;
+    calendarInFlightRef.current = key;
     const seq = ++calendarFetchSeqRef.current;
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
@@ -526,6 +589,10 @@ export default function AdminDashboard() {
       setCalendarRequests(res.data.requests || []);
     } catch (err) {
       console.error('달력 데이터 조회 실패:', err);
+    } finally {
+      if (calendarInFlightRef.current === key) {
+        calendarInFlightRef.current = null;
+      }
     }
   };
 
@@ -546,8 +613,10 @@ export default function AdminDashboard() {
       setRequests(reqsRes.data.requests || []);
       setDrivers(driversRes.data.drivers || []);
 
-      // 달력 뷰 데이터도 함께 갱신 (배정/취소 등 변경 사항 반영)
-      fetchCalendarData();
+      // 달력 뷰가 활성화된 경우에만 달력 데이터도 함께 갱신 (중복 호출은 calendarInFlightRef로 방어)
+      if (activeView === 'calendar') {
+        fetchCalendarData();
+      }
 
       // 미답변 문의 수 조회 (게시판 알림 뱃지용)
       try {
@@ -3487,65 +3556,72 @@ export default function AdminDashboard() {
               {/* 사진 리스트 */}
               <div>
                 <h3 className="text-sm font-bold text-gray-700 mb-3">📍 첨부 증빙 사진</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {/* 고객 업로드 포장 사진 */}
-                  {selectedCompletedRequest.customerPackedPhotoUrl && (
-                    <div className="flex flex-col items-center gap-1.5">
-                      <div className="w-full h-24 bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                        <img src={selectedCompletedRequest.customerPackedPhotoUrl} alt="고객 업로드 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.customerPackedPhotoUrl!)} />
+                {isLoadingCompletedPhotos ? (
+                  <div className="py-6 flex flex-col items-center justify-center gap-2 text-sm text-gray-500 bg-gray-50 rounded-2xl border border-gray-100">
+                    <Spinner className="w-5 h-5 text-primary-600" />
+                    <span>증빙 사진을 불러오는 중입니다...</span>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {/* 고객 업로드 포장 사진 */}
+                    {selectedCompletedRequest.customerPackedPhotoUrl && (
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className="w-full h-24 bg-blue-50 border border-blue-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                          <img src={selectedCompletedRequest.customerPackedPhotoUrl} alt="고객 업로드 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.customerPackedPhotoUrl!)} />
+                        </div>
+                        <span className="text-[10px] text-blue-600 font-bold">고객 포장 사진</span>
                       </div>
-                      <span className="text-[10px] text-blue-600 font-bold">고객 포장 사진</span>
-                    </div>
-                  )}
+                    )}
 
-                  {/* 항목별 증빙 사진 (새 방식) */}
-                  {selectedCompletedRequest.collectionItems && selectedCompletedRequest.collectionItems.map((item, idx) => {
-                    if (!item.photoUrl) return null;
-                    return (
-                      <div key={`item-photo-${idx}`} className="flex flex-col items-center gap-1.5">
-                        <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                          <img src={item.photoUrl} alt={item.categoryLabel} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(item.photoUrl!)} />
+                    {/* 항목별 증빙 사진 (새 방식) */}
+                    {selectedCompletedRequest.collectionItems && selectedCompletedRequest.collectionItems.map((item, idx) => {
+                      if (!item.photoUrl) return null;
+                      return (
+                        <div key={`item-photo-${idx}`} className="flex flex-col items-center gap-1.5">
+                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                            <img src={item.photoUrl} alt={item.categoryLabel} className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(item.photoUrl!)} />
+                          </div>
+                          <span className="text-[10px] text-gray-600 font-semibold truncate w-full text-center">{item.categoryLabel}</span>
                         </div>
-                        <span className="text-[10px] text-gray-600 font-semibold truncate w-full text-center">{item.categoryLabel}</span>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
 
-                  {/* 구버전 호환 (물품, 저울, 추가 사진) */}
-                  {!selectedCompletedRequest.collectionItems?.length && (
-                    <>
-                      {selectedCompletedRequest.itemPhotoUrl && (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.itemPhotoUrl!)} />
+                    {/* 구버전 호환 (물품, 저울, 추가 사진) */}
+                    {!selectedCompletedRequest.collectionItems?.length && (
+                      <>
+                        {selectedCompletedRequest.itemPhotoUrl && (
+                          <div className="flex flex-col items-center gap-1.5">
+                            <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                              <img src={selectedCompletedRequest.itemPhotoUrl} alt="물품 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.itemPhotoUrl!)} />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-semibold">물품 사진</span>
                           </div>
-                          <span className="text-[10px] text-gray-500 font-semibold">물품 사진</span>
-                        </div>
-                      )}
-                      {selectedCompletedRequest.scalePhotoUrl && (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.scalePhotoUrl!)} />
+                        )}
+                        {selectedCompletedRequest.scalePhotoUrl && (
+                          <div className="flex flex-col items-center gap-1.5">
+                            <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                              <img src={selectedCompletedRequest.scalePhotoUrl} alt="저울 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.scalePhotoUrl!)} />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-semibold">저울 사진</span>
                           </div>
-                          <span className="text-[10px] text-gray-500 font-semibold">저울 사진</span>
-                        </div>
-                      )}
-                      {selectedCompletedRequest.extraPhotoUrl && (
-                        <div className="flex flex-col items-center gap-1.5">
-                          <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
-                            <img src={selectedCompletedRequest.extraPhotoUrl} alt="추가 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.extraPhotoUrl!)} />
+                        )}
+                        {selectedCompletedRequest.extraPhotoUrl && (
+                          <div className="flex flex-col items-center gap-1.5">
+                            <div className="w-full h-24 bg-gray-100 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center relative">
+                              <img src={selectedCompletedRequest.extraPhotoUrl} alt="추가 사진" className="w-full h-full object-cover cursor-pointer hover:opacity-80 transition-opacity" onClick={() => setEnlargedImage(selectedCompletedRequest.extraPhotoUrl!)} />
+                            </div>
+                            <span className="text-[10px] text-gray-500 font-semibold">특이사항 사진</span>
                           </div>
-                          <span className="text-[10px] text-gray-500 font-semibold">특이사항 사진</span>
-                        </div>
-                      )}
-                    </>
-                  )}
-                  
-                  {/* 사진이 하나도 없는 경우 */}
-                  {!selectedCompletedRequest.customerPackedPhotoUrl && !selectedCompletedRequest.itemPhotoUrl && (!selectedCompletedRequest.collectionItems || selectedCompletedRequest.collectionItems.every(i => !i.photoUrl)) && (
-                     <div className="col-span-full text-center text-sm text-gray-400 py-4">첨부된 사진이 없습니다.</div>
-                  )}
-                </div>
+                        )}
+                      </>
+                    )}
+                    
+                    {/* 사진이 하나도 없는 경우 */}
+                    {!selectedCompletedRequest.customerPackedPhotoUrl && !selectedCompletedRequest.itemPhotoUrl && !selectedCompletedRequest.scalePhotoUrl && !selectedCompletedRequest.extraPhotoUrl && (!selectedCompletedRequest.collectionItems || selectedCompletedRequest.collectionItems.every(i => !i.photoUrl)) && (
+                       <div className="col-span-full text-center text-sm text-gray-400 py-4">첨부된 사진이 없습니다.</div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

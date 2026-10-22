@@ -17,6 +17,8 @@ interface RequestItem {
   actualWeight?: number;
   totalPrice?: number;
   customerPackedPhotoUrl?: string | null;
+  hasCustomerPackedPhoto?: boolean;
+  hasPhotos?: boolean;
   isMustPickupDate?: boolean;
   desiredDate?: string | Date; // 고객 수거 희망일
   confirmedDate?: string | Date | null; // 사장님 확정 방문일
@@ -248,8 +250,32 @@ export default function DriverDashboard() {
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token') || localStorage.getItem('admin_token'));
   const [showMap, setShowMap] = useState(false);
 
-  // 고객 포장 사진 뷰어 상태
+  // 고객 포장 사진 뷰어 상태 (왜: 목록 조회 시 Base64 사진을 제외하고 버튼 클릭 시에만 단건 조회하여 Egress 절감)
   const [viewingPhoto, setViewingPhoto] = useState<string | null>(null);
+  const [loadingPhotoId, setLoadingPhotoId] = useState<string | null>(null);
+
+  const handleViewCustomerPackedPhoto = async (req: RequestItem) => {
+    if (req.customerPackedPhotoUrl) {
+      setViewingPhoto(req.customerPackedPhotoUrl);
+      return;
+    }
+    try {
+      setLoadingPhotoId(req.id);
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/requests/${req.id}/photos`, {
+        headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined
+      });
+      if (res.data?.customerPackedPhotoUrl) {
+        setViewingPhoto(res.data.customerPackedPhotoUrl);
+        setRequests(prev => prev.map(r => r.id === req.id ? { ...r, customerPackedPhotoUrl: res.data.customerPackedPhotoUrl } : r));
+      } else {
+        alert('등록된 포장 사진을 찾을 수 없습니다.');
+      }
+    } catch {
+      alert('사진을 불러오는데 실패했습니다.');
+    } finally {
+      setLoadingPhotoId(null);
+    }
+  };
 
   // 파트너(사장님) 정보 상태
   const [partnerAddress, setPartnerAddress] = useState<string>('');
@@ -850,14 +876,15 @@ export default function DriverDashboard() {
                       <div className="mt-2 inline-block ml-2 px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-bold">실제: {req.actualWeight}kg</div>
                     )}
                   </div>
-                  {req.customerPackedPhotoUrl && (
+                  {(req.hasCustomerPackedPhoto || req.customerPackedPhotoUrl) && (
                     <div className="mt-3 ml-6">
                       <button 
-                        onClick={() => setViewingPhoto(req.customerPackedPhotoUrl || null)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                        onClick={() => handleViewCustomerPackedPhoto(req)}
+                        disabled={loadingPhotoId === req.id}
+                        className="flex items-center gap-1.5 text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                        고객 포장 사진 확인
+                        {loadingPhotoId === req.id ? '사진 불러오는 중...' : '고객 포장 사진 확인'}
                       </button>
                     </div>
                   )}

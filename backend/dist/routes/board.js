@@ -17,6 +17,33 @@ const prisma_1 = require("../lib/prisma");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const authMiddleware_2 = require("../middleware/authMiddleware");
 const router = express_1.default.Router();
+// 왜: BoardPost의 레거시 Base64 이미지 컬럼(eventImage1, eventImage2, eventImage3)이
+// 조회/생성/수정 시 메모리와 응답 트래픽(Egress)에 포함되지 않도록 경량 select 정의
+const BOARD_POST_LIGHT_SELECT = {
+    id: true,
+    type: true,
+    authorId: true,
+    authorName: true,
+    partnerId: true,
+    title: true,
+    content: true,
+    isSecret: true,
+    isAnswered: true,
+    requestId: true,
+    ratingConvenience: true,
+    ratingKindness: true,
+    ratingSpeed: true,
+    maskedPhone: true,
+    maskedAddress: true,
+    receiptSnapshot: true,
+    cafeUrl1: true,
+    cafeUrl2: true,
+    snsUrl1: true,
+    snsUrl2: true,
+    snsUrl3: true,
+    createdAt: true,
+    updatedAt: true,
+};
 // ──────────────────────────────────────────
 // 1. 공지사항 (NOTICE) API
 // ──────────────────────────────────────────
@@ -54,7 +81,10 @@ router.post('/notices', authMiddleware_1.authenticate, (0, authMiddleware_2.requ
             return res.status(400).json({ error: '제목과 내용을 입력해주세요.' });
         }
         // 사장님 정보 조회 (이름 가져오기)
-        const partner = yield prisma_1.prisma.user.findUnique({ where: { id: req.user.userId } });
+        const partner = yield prisma_1.prisma.user.findUnique({
+            where: { id: req.user.userId },
+            select: { id: true, name: true, businessName: true },
+        });
         if (!partner)
             return res.status(404).json({ error: '사용자를 찾을 수 없습니다.' });
         const post = yield prisma_1.prisma.boardPost.create({
@@ -66,6 +96,7 @@ router.post('/notices', authMiddleware_1.authenticate, (0, authMiddleware_2.requ
                 title,
                 content,
             },
+            select: BOARD_POST_LIGHT_SELECT,
         });
         res.status(201).json(post);
     }
@@ -78,7 +109,10 @@ router.post('/notices', authMiddleware_1.authenticate, (0, authMiddleware_2.requ
 router.put('/notices/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
-        const post = yield prisma_1.prisma.boardPost.findUnique({ where: { id } });
+        const post = yield prisma_1.prisma.boardPost.findUnique({
+            where: { id },
+            select: { id: true, authorId: true },
+        });
         if (!post)
             return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
         if (post.authorId !== req.user.userId) {
@@ -88,6 +122,7 @@ router.put('/notices/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.r
         const updated = yield prisma_1.prisma.boardPost.update({
             where: { id },
             data: { title, content },
+            select: BOARD_POST_LIGHT_SELECT,
         });
         res.json(updated);
     }
@@ -100,7 +135,10 @@ router.put('/notices/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.r
 router.delete('/notices/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.requireRole)(['PARTNER']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
-        const post = yield prisma_1.prisma.boardPost.findUnique({ where: { id } });
+        const post = yield prisma_1.prisma.boardPost.findUnique({
+            where: { id },
+            select: { id: true, authorId: true },
+        });
         if (!post)
             return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
         if (post.authorId !== req.user.userId) {
@@ -208,7 +246,10 @@ router.post('/inquiries', authMiddleware_1.authenticate, (0, authMiddleware_2.re
             }
             targetPartnerId = latestRequest.partnerId;
         }
-        const customer = yield prisma_1.prisma.user.findUnique({ where: { id: req.user.userId } });
+        const customer = yield prisma_1.prisma.user.findUnique({
+            where: { id: req.user.userId },
+            select: { id: true, name: true },
+        });
         const post = yield prisma_1.prisma.boardPost.create({
             data: {
                 type: 'INQUIRY',
@@ -219,10 +260,7 @@ router.post('/inquiries', authMiddleware_1.authenticate, (0, authMiddleware_2.re
                 content,
                 isSecret: true, // 고객문의는 항상 비밀글
             },
-            include: {
-                comments: true,
-                author: { select: { id: true, name: true } },
-            },
+            select: Object.assign(Object.assign({}, BOARD_POST_LIGHT_SELECT), { comments: true, author: { select: { id: true, name: true } } }),
         });
         res.status(201).json(post);
     }
@@ -237,13 +275,10 @@ router.get('/inquiries/:id', authMiddleware_1.authenticate, (req, res) => __awai
         const id = req.params.id;
         const post = yield prisma_1.prisma.boardPost.findUnique({
             where: { id },
-            include: {
-                comments: {
+            select: Object.assign(Object.assign({}, BOARD_POST_LIGHT_SELECT), { comments: {
                     include: { author: { select: { id: true, name: true, role: true, businessName: true } } },
                     orderBy: { createdAt: 'asc' },
-                },
-                author: { select: { id: true, name: true } },
-            },
+                }, author: { select: { id: true, name: true } } }),
         });
         if (!post)
             return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
@@ -267,7 +302,10 @@ router.get('/inquiries/:id', authMiddleware_1.authenticate, (req, res) => __awai
 router.post('/inquiries/:id/comments', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
-        const post = yield prisma_1.prisma.boardPost.findUnique({ where: { id } });
+        const post = yield prisma_1.prisma.boardPost.findUnique({
+            where: { id },
+            select: { id: true, authorId: true, partnerId: true },
+        });
         if (!post)
             return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
         // 권한 체크: 작성자/대상 사장님/슈퍼관리자만 댓글 가능
@@ -297,6 +335,7 @@ router.post('/inquiries/:id/comments', authMiddleware_1.authenticate, (req, res)
             yield prisma_1.prisma.boardPost.update({
                 where: { id },
                 data: { isAnswered: true },
+                select: { id: true },
             });
         }
         res.status(201).json(comment);
@@ -325,6 +364,8 @@ router.get('/public/reviews', (req, res) => __awaiter(void 0, void 0, void 0, fu
                 createdAt: true,
             },
         });
+        // 왜: 랜딩 페이지 접속 시마다 반복 호출되는 공개 후기 목록을 60초간 브라우저 캐싱하여 트래픽 절감
+        res.setHeader('Cache-Control', 'public, max-age=60');
         res.json({ posts });
     }
     catch (error) {
@@ -429,10 +470,28 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
         if (ratings.some((r) => r < 1 || r > 5)) {
             return res.status(400).json({ error: '별점은 1~5 사이의 값이어야 합니다.' });
         }
-        // 수거 신청 데이터 조회 (리뷰에 필요한 정보)
+        // 수거 신청 데이터 조회 (리뷰에 필요한 정보만 select하여 Base64 사진 메모리 적재 방지)
         const request = yield prisma_1.prisma.request.findUnique({
             where: { id: requestId },
-            include: { collectionItems: true },
+            select: {
+                id: true,
+                customerId: true,
+                userName: true,
+                partnerId: true,
+                phone: true,
+                address: true,
+                totalPrice: true,
+                actualWeight: true,
+                completedDate: true,
+                collectionItems: {
+                    select: {
+                        categoryLabel: true,
+                        quantity: true,
+                        unitType: true,
+                        subtotal: true,
+                    },
+                },
+            },
         });
         if (!request)
             return res.status(404).json({ error: '수거 신청을 찾을 수 없습니다.' });
@@ -511,6 +570,7 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
                 snsUrl2,
                 snsUrl3,
             },
+            select: BOARD_POST_LIGHT_SELECT,
         });
         res.status(201).json({ message: '리뷰가 등록되었습니다!', post });
     }
@@ -523,7 +583,10 @@ router.post('/reviews', (req, res) => __awaiter(void 0, void 0, void 0, function
 router.delete('/reviews/:id', authMiddleware_1.authenticate, (0, authMiddleware_2.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
-        const post = yield prisma_1.prisma.boardPost.findUnique({ where: { id } });
+        const post = yield prisma_1.prisma.boardPost.findUnique({
+            where: { id },
+            select: { id: true, partnerId: true },
+        });
         if (!post)
             return res.status(404).json({ error: '게시글을 찾을 수 없습니다.' });
         // 사장님은 자기 게시판의 리뷰만 삭제 가능
@@ -544,7 +607,8 @@ router.patch('/reviews/by-request/:requestId/sns-links', (req, res) => __awaiter
         const { requestId } = req.params;
         const { cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3 } = req.body;
         const review = yield prisma_1.prisma.boardPost.findFirst({
-            where: { type: 'REVIEW', requestId }
+            where: { type: 'REVIEW', requestId },
+            select: { id: true },
         });
         if (!review) {
             return res.status(404).json({ error: '해당 수거 내역에 대한 리뷰를 찾을 수 없습니다.' });
@@ -553,7 +617,8 @@ router.patch('/reviews/by-request/:requestId/sns-links', (req, res) => __awaiter
             where: { id: review.id },
             data: {
                 cafeUrl1, cafeUrl2, snsUrl1, snsUrl2, snsUrl3
-            }
+            },
+            select: BOARD_POST_LIGHT_SELECT,
         });
         res.json(updated);
     }

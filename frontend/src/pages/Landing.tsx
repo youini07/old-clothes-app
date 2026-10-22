@@ -7,6 +7,7 @@ import SeoReviewSection, {
   normalizePublicReviews,
   type SeoReviewItem,
 } from '../components/SeoReviewSection';
+import { getGlobalSettingsCached } from '../utils/globalSettingsCache';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -180,10 +181,10 @@ export default function Landing() {
   const PROD_PUBLIC_API = 'https://old-clothes-app-production.up.railway.app/api';
 
   useEffect(() => {
-    axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
-      .then(async (res) => {
-        if (res.data?.eventYoutubeUrl) {
-          setEventYoutubeUrl(res.data.eventYoutubeUrl);
+    getGlobalSettingsCached()
+      .then(async (data) => {
+        if (data?.eventYoutubeUrl) {
+          setEventYoutubeUrl(data.eventYoutubeUrl);
         } else if (import.meta.env.VITE_API_URL !== PROD_PUBLIC_API) {
           const prodRes = await axios.get(`${PROD_PUBLIC_API}/public/global-settings`);
           if (prodRes.data?.eventYoutubeUrl) setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);

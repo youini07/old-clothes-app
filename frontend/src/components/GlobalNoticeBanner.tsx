@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import axios from 'axios';
 import { Megaphone, X } from 'lucide-react';
+import { getGlobalSettingsCached, invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 
 export default function GlobalNoticeBanner() {
   const [notice, setNotice] = useState<string | null>(null);
@@ -10,15 +10,15 @@ export default function GlobalNoticeBanner() {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    const fetchNotice = () => {
-      axios.get(`${import.meta.env.VITE_API_URL}/public/global-settings`)
-        .then(res => {
-          if (res.data?.noticeIsActive && res.data?.globalNotice) {
+    const fetchNotice = (forceRefresh = false) => {
+      getGlobalSettingsCached(forceRefresh)
+        .then(data => {
+          if (data?.noticeIsActive && data?.globalNotice) {
             // 줄바꿈 문자를 공백으로 치환하여 무조건 한 줄로 보이게 처리
-            setNotice(res.data.globalNotice.replace(/\n/g, ' '));
-            setDetail(res.data.globalNoticeDetail || null);
+            setNotice(data.globalNotice.replace(/\n/g, ' '));
+            setDetail(data.globalNoticeDetail || null);
             
-            const currentHash = res.data.globalNotice + (res.data.globalNoticeDetail || '');
+            const currentHash = data.globalNotice + (data.globalNoticeDetail || '');
             const dismissedHash = sessionStorage.getItem('dismissed_notice_hash');
             if (dismissedHash === currentHash) {
               setIsVisible(false);
@@ -34,10 +34,11 @@ export default function GlobalNoticeBanner() {
         .catch(err => console.error('공지사항 불러오기 실패:', err));
     };
 
-    fetchNotice();
+    fetchNotice(false);
 
     const handleUpdate = () => {
-      fetchNotice();
+      invalidateGlobalSettingsCache();
+      fetchNotice(true);
     };
     window.addEventListener('globalNoticeUpdated', handleUpdate);
     

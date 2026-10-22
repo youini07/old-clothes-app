@@ -19,6 +19,54 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const validateMiddleware_1 = require("../middleware/validateMiddleware");
 const notificationService_1 = require("../services/notificationService");
 const router = express_1.default.Router();
+// 왜: 목록 API에서 분리된 대용량 Base64 사진(고객 포장 사진, 수거 증빙 사진, 품목별 사진)을
+// 사용자가 상세/사진 보기를 클릭했을 때만 단건으로 온디맨드(On-Demand) 조회하고 브라우저 캐시를 적용하여 Egress를 절감함
+router.get('/:id/photos', authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    try {
+        const id = req.params.id;
+        const requestPhotos = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: {
+                id: true,
+                status: true,
+                updatedAt: true,
+                itemPhotoUrl: true,
+                scalePhotoUrl: true,
+                extraPhotoUrl: true,
+                customerPackedPhotoUrl: true,
+                collectionItems: {
+                    orderBy: { createdAt: 'asc' },
+                    select: {
+                        id: true,
+                        category: true,
+                        categoryLabel: true,
+                        quantity: true,
+                        unitType: true,
+                        unitPrice: true,
+                        subtotal: true,
+                        photoUrl: true,
+                    },
+                },
+            },
+        });
+        if (!requestPhotos) {
+            return res.status(404).json({ error: '요청을 찾을 수 없습니다.' });
+        }
+        // 왜: 수거 완료(COMPLETED)된 건의 증빙 사진은 불변이므로 1시간 캐시를 허용하되,
+        // 수거 전 상태에서는 고객이 포장 사진을 업로드/교체할 수 있으므로 즉시 재검증(must-revalidate)하도록 분리함
+        if (requestPhotos.status === 'COMPLETED') {
+            res.setHeader('Cache-Control', 'private, max-age=3600');
+        }
+        else {
+            res.setHeader('Cache-Control', 'private, max-age=0, must-revalidate');
+        }
+        res.json(requestPhotos);
+    }
+    catch (error) {
+        console.error('단건 사진 조회 실패:', error);
+        res.status(500).json({ error: '사진 정보를 불러오는데 실패했습니다.' });
+    }
+}));
 // 퍼블릭 영수증(수거 내역) 조회 API
 router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
@@ -71,6 +119,8 @@ router.get('/:id/receipt', (req, res) => __awaiter(void 0, void 0, void 0, funct
                 isActive: request.partner.eventIsActive
             } : null
         };
+        // 왜: 영수증 페이지 새로고침 시 대용량 이미지 재전송을 줄이기 위해 짧은 캐시 헤더 적용
+        res.setHeader('Cache-Control', 'public, max-age=60');
         res.json(receiptData);
     }
     catch (error) {
@@ -130,7 +180,8 @@ router.post('/', validateMiddleware_1.validateRequest, authMiddleware_1.optional
                 partnerId: null, // 사장님이 수락할 때까지 null
                 regionId,
                 customerId: ((_c = req.user) === null || _c === void 0 ? void 0 : _c.userId) || null,
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
         // 3. 회원 정보 자동 업데이트 (최초 1회 주소 및 전화번호 보완)
         if ((_d = req.user) === null || _d === void 0 ? void 0 : _d.userId) {
@@ -180,17 +231,24 @@ router.get('/me', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0,
         const skip = (page - 1) * limit;
         const whereCondition = { customerId: userId };
         const totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
-        const requests = yield prisma_1.prisma.request.findMany({
+        // 왜: 고객 목록 조회 시 Base64 사진들을 한꺼번에 내려주지 않고 경량 데이터와 사진 유무 플래그만 전달하여 Egress를 절감함
+        const rawRequests = yield prisma_1.prisma.request.findMany({
             where: whereCondition,
             orderBy: { createdAt: 'desc' },
             skip,
             take: limit,
-            include: {
-                driver: { include: { user: true } },
-                partner: { select: { businessName: true, name: true, phone: true, useChat: true } },
-                collectionItems: true // 항목별 수거 정산 내역 (영수증 표시용)
-            }
+            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { driver: {
+                    select: {
+                        id: true,
+                        userId: true,
+                        partnerId: true,
+                        isCoBoss: true,
+                        vehicleInfo: true,
+                        user: { select: { id: true, name: true, phone: true } },
+                    },
+                }, partner: { select: { businessName: true, name: true, phone: true, useChat: true } }, collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } }),
         });
+        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
         const totalPages = Math.ceil(totalCount / limit);
         res.json({ requests, totalPages, currentPage: page, totalCount });
     }
@@ -206,11 +264,13 @@ router.get('/', authMiddleware_1.authenticate, (req, res) => __awaiter(void 0, v
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
         const totalCount = yield prisma_1.prisma.request.count();
-        const requests = yield prisma_1.prisma.request.findMany({
+        const rawRequests = yield prisma_1.prisma.request.findMany({
             orderBy: { createdAt: 'desc' },
             skip,
-            take: limit
+            take: limit,
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
+        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
         const totalPages = Math.ceil(totalCount / limit);
         res.json({ requests, totalPages, currentPage: page, totalCount });
     }
@@ -228,7 +288,8 @@ router.patch('/:id/assign', authMiddleware_1.authenticate, (req, res) => __await
             data: {
                 driverId: driverId || null,
                 status: driverId ? 'ASSIGNED' : 'PENDING'
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
         res.json({ message: '배정 상태가 업데이트 되었습니다.', request: updatedRequest });
     }
@@ -270,7 +331,10 @@ router.patch('/:id/customer-photo', authMiddleware_1.optionalAuthenticate, (req,
     try {
         const id = req.params.id;
         const { customerPackedPhotoUrl } = req.body;
-        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const existingRequest = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, customerId: true },
+        });
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
         }
@@ -278,11 +342,17 @@ router.patch('/:id/customer-photo', authMiddleware_1.optionalAuthenticate, (req,
         if (req.user && existingRequest.customerId && req.user.userId !== existingRequest.customerId) {
             return res.status(403).json({ error: '권한이 없습니다.' });
         }
+        // 왜: 빈 문자열('')이 저장되면 PostgreSQL IS NOT NULL 검사만으로는 사진 유무를 판별할 수 없으므로 null로 정규화함
+        const normalizedPhotoUrl = typeof customerPackedPhotoUrl === 'string' && customerPackedPhotoUrl.trim().length > 0
+            ? customerPackedPhotoUrl
+            : null;
+        // 왜: 업로드된 Base64 이미지를 응답으로 다시 에코(반환)하면 불필요한 송신 트래픽(Egress)이 발생하므로 경량 필드만 반환함
         const updatedRequest = yield prisma_1.prisma.request.update({
             where: { id },
-            data: { customerPackedPhotoUrl }
+            data: { customerPackedPhotoUrl: normalizedPhotoUrl },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
-        res.json({ message: '포장 사진이 성공적으로 업로드되었습니다.', request: updatedRequest });
+        res.json({ message: '포장 사진이 성공적으로 업로드되었습니다.', request: Object.assign(Object.assign({}, updatedRequest), { hasCustomerPackedPhoto: Boolean(normalizedPhotoUrl) }) });
     }
     catch (error) {
         console.error('포장 사진 업로드 에러:', error);
@@ -293,7 +363,10 @@ router.patch('/:id/customer-photo', authMiddleware_1.optionalAuthenticate, (req,
 router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const id = req.params.id;
-        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const existingRequest = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: { id: true, customerId: true, status: true },
+        });
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
         }
@@ -306,7 +379,8 @@ router.patch('/:id/cancel', authMiddleware_1.optionalAuthenticate, (req, res) =>
         }
         const updatedRequest = yield prisma_1.prisma.request.update({
             where: { id },
-            data: { status: 'CANCELLED' }
+            data: { status: 'CANCELLED' },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
         res.json({ message: '수거 신청이 취소되었습니다.', request: updatedRequest });
     }
@@ -321,7 +395,10 @@ router.patch('/:id', validateMiddleware_1.validateRequest, authMiddleware_1.opti
     try {
         const id = req.params.id;
         const requestData = req.body;
-        const existingRequest = yield prisma_1.prisma.request.findUnique({ where: { id } });
+        const existingRequest = yield prisma_1.prisma.request.findUnique({
+            where: { id },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
+        });
         if (!existingRequest) {
             return res.status(404).json({ error: '수거 신청건을 찾을 수 없습니다.' });
         }
@@ -370,7 +447,8 @@ router.patch('/:id', validateMiddleware_1.validateRequest, authMiddleware_1.opti
                 isMustPickupDate: !!requestData.isMustPickupDate,
                 estimatedVolume: requestData.estimatedVolume,
                 regionId,
-            }
+            },
+            select: prisma_1.REQUEST_LIGHT_SELECT,
         });
         res.json({ message: '수거 신청이 수정되었습니다.', request: updatedRequest });
     }
