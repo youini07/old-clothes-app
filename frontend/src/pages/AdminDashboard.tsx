@@ -133,7 +133,8 @@ export default function AdminDashboard() {
   const [boardPosts, setBoardPosts] = useState<any[]>([]);
   const [boardLoading, setBoardLoading] = useState(false);
   const [boardPage, setBoardPage] = useState(1);
-  const [, setBoardTotalPages] = useState(1);
+  const [boardTotalPages, setBoardTotalPages] = useState(1);
+  const [boardTotalCount, setBoardTotalCount] = useState(0);
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' });
   const [reviewExtractStartDate, setReviewExtractStartDate] = useState('');
   const [reviewExtractEndDate, setReviewExtractEndDate] = useState('');
@@ -635,28 +636,32 @@ export default function AdminDashboard() {
   };
 
   // 게시판 게시글 목록 조회 함수
-  const fetchBoardPosts = async (tab?: 'notices' | 'inquiries' | 'reviews') => {
+  // 왜 targetPage를 인자로 받는가: 탭 전환이나 페이지네이션 클릭 시 React 상태 비동기 반영 전 구버전 boardPage(클로저)로 요청하는 문제를 방지하기 위함
+  const fetchBoardPosts = async (tab?: 'notices' | 'inquiries' | 'reviews', targetPage?: number) => {
     const currentTab = tab || boardTab;
+    const currentPage = targetPage ?? boardPage;
     setBoardLoading(true);
     try {
       const headers = { Authorization: `Bearer ${authToken}` };
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const targetPartnerId = userInfo.partnerId || userInfo.id;
       let url = '';
 
       if (currentTab === 'notices') {
         // 공지사항: 자기 partnerId로 조회
-        url = `${import.meta.env.VITE_API_URL}/board/notices/${userInfo.id}?page=${boardPage}`;
+        url = `${import.meta.env.VITE_API_URL}/board/notices/${targetPartnerId}?page=${currentPage}`;
       } else if (currentTab === 'inquiries') {
         // 고객문의: 인증 필요 (사장님에게 온 문의)
-        url = `${import.meta.env.VITE_API_URL}/board/inquiries?page=${boardPage}`;
+        url = `${import.meta.env.VITE_API_URL}/board/inquiries?page=${currentPage}`;
       } else if (currentTab === 'reviews') {
         // 후기: 자기 partnerId로 조회
-        url = `${import.meta.env.VITE_API_URL}/board/reviews/${userInfo.id}?page=${boardPage}`;
+        url = `${import.meta.env.VITE_API_URL}/board/reviews/${targetPartnerId}?page=${currentPage}`;
       }
 
       const res = await axios.get(url, { headers });
       setBoardPosts(res.data.posts || []);
       setBoardTotalPages(res.data.totalPages || 1);
+      setBoardTotalCount(res.data.total ?? res.data.totalReviews ?? (res.data.posts?.length || 0));
     } catch (err) {
       console.error('게시판 데이터 로드 실패:', err);
       setBoardPosts([]);
@@ -2296,12 +2301,12 @@ export default function AdminDashboard() {
           <div className="space-y-4">
             {/* 게시판 서브 탭 */}
             <div className="flex bg-gray-100 rounded-2xl p-1">
-              <button onClick={() => { setBoardTab('notices'); setBoardPage(1); fetchBoardPosts('notices'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'notices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📢 공지사항</button>
-              <button onClick={() => { setBoardTab('inquiries'); setBoardPage(1); fetchBoardPosts('inquiries'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all relative ${boardTab === 'inquiries' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
+              <button onClick={() => { setBoardTab('notices'); setBoardPage(1); setSelectedInquiry(null); fetchBoardPosts('notices', 1); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'notices' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>📢 공지사항</button>
+              <button onClick={() => { setBoardTab('inquiries'); setBoardPage(1); setSelectedInquiry(null); fetchBoardPosts('inquiries', 1); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all relative ${boardTab === 'inquiries' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>
                 💬 고객문의
                 {unreadInquiryCount > 0 && <span className="ml-1 inline-flex w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full items-center justify-center">{unreadInquiryCount > 9 ? '9+' : unreadInquiryCount}</span>}
               </button>
-              <button onClick={() => { setBoardTab('reviews'); setBoardPage(1); fetchBoardPosts('reviews'); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'reviews' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⭐ 후기</button>
+              <button onClick={() => { setBoardTab('reviews'); setBoardPage(1); setSelectedInquiry(null); fetchBoardPosts('reviews', 1); }} className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${boardTab === 'reviews' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⭐ 후기</button>
             </div>
 
             {/* 공지사항 관리 */}
@@ -2429,6 +2434,16 @@ export default function AdminDashboard() {
             {/* 후기 관리 */}
             {boardTab === 'reviews' && (
               <div>
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <span className="text-xs font-bold text-gray-500">
+                    전체 누적 후기 <strong className="text-blue-600">{boardTotalCount}</strong>건 (페이지당 20건 표시)
+                  </span>
+                  {boardTotalPages > 1 && (
+                    <span className="text-xs font-bold text-gray-400">
+                      {boardPage} / {boardTotalPages} 페이지
+                    </span>
+                  )}
+                </div>
                 <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center gap-3 justify-between">
                   <div className="flex items-center gap-2 w-full sm:w-auto">
                     <span className="text-sm font-bold text-blue-900 whitespace-nowrap">명단 추출</span>
@@ -2531,6 +2546,53 @@ export default function AdminDashboard() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* 게시판 공통 페이지네이션 (2페이지 이상일 때 이전/다음 및 페이지 번호 이동 지원) */}
+            {!selectedInquiry && boardTotalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4 pb-2">
+                <button
+                  onClick={() => {
+                    const prev = Math.max(1, boardPage - 1);
+                    setBoardPage(prev);
+                    fetchBoardPosts(boardTab, prev);
+                  }}
+                  disabled={boardPage <= 1 || boardLoading}
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-gray-200 text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors"
+                >
+                  ← 이전
+                </button>
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: boardTotalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => {
+                        setBoardPage(pageNum);
+                        fetchBoardPosts(boardTab, pageNum);
+                      }}
+                      disabled={boardLoading}
+                      className={`w-9 h-9 rounded-xl text-sm font-bold transition-colors ${
+                        boardPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    const next = Math.min(boardTotalPages, boardPage + 1);
+                    setBoardPage(next);
+                    fetchBoardPosts(boardTab, next);
+                  }}
+                  disabled={boardPage >= boardTotalPages || boardLoading}
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-white border border-gray-200 text-gray-600 disabled:opacity-30 hover:bg-gray-50 transition-colors"
+                >
+                  다음 →
+                </button>
               </div>
             )}
           </div>
