@@ -149,6 +149,16 @@
       });
     }
   </script>
+
+  <!-- 네이버 애널리틱스 방문자 및 유입경로 추적 스크립트 (왜 body 하단에 배치하는가: 초기 화면 렌더링을 막지 않고 모든 페이지 접속을 집계하기 위함) -->
+  <script type="text/javascript" src="//wcs.pstatic.net/wcslog.js"></script>
+  <script type="text/javascript">
+    if (!wcs_add) var wcs_add = {};
+    wcs_add["wa"] = "1cbc89f28dba7c0";
+    if (window.wcs) {
+      wcs_do();
+    }
+  </script>
 </body>
 
 </html>
