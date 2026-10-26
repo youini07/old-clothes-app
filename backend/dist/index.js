@@ -106,7 +106,7 @@ app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, v
     }
 }));
 app.get('/api/health', (req, res) => {
-    res.json({ status: 'ok', message: 'Backend is running!' });
+    res.json({ status: 'ok', version: '1.1.0-perf', message: 'Backend is running!' });
 });
 const crmCron_1 = require("./jobs/crmCron");
 // 글로벌 에러 핸들러 (반드시 모든 라우트 아래에 위치)

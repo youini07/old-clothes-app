@@ -104,7 +104,7 @@ app.get('/api/public/global-settings', async (req, res) => {
 });
 
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running!' });
+  res.json({ status: 'ok', version: '1.1.0-perf', message: 'Backend is running!' });
 });
 
 import { initCrmCron } from './jobs/crmCron';
