@@ -8,6 +8,7 @@ import AddressSearchModal from '../components/AddressSearchModal';
 import CalendarView from '../components/CalendarView';
 import DriverMap from '../components/DriverMap';
 import CompletedDatePicker from '../components/CompletedDatePicker';
+import ChickenRaffleModal, { type RaffleParticipant } from '../components/ChickenRaffleModal';
 import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 
 interface RequestItem {
@@ -138,6 +139,11 @@ export default function AdminDashboard() {
   const [noticeForm, setNoticeForm] = useState({ title: '', content: '' });
   const [reviewExtractStartDate, setReviewExtractStartDate] = useState('');
   const [reviewExtractEndDate, setReviewExtractEndDate] = useState('');
+  // 치킨 당첨자 추첨 관련 상태
+  const [chickenWinnerCount, setChickenWinnerCount] = useState<number>(1);
+  const [isRaffleModalOpen, setIsRaffleModalOpen] = useState<boolean>(false);
+  const [raffleParticipants, setRaffleParticipants] = useState<RaffleParticipant[]>([]);
+
   const handleExtractReviews = async () => {
     if (!reviewExtractStartDate || !reviewExtractEndDate) {
       alert('시작일과 종료일을 모두 선택해주세요.');
@@ -145,7 +151,8 @@ export default function AdminDashboard() {
     }
     try {
       const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/board/reviews/${userInfo.id}/export?startDate=${reviewExtractStartDate}&endDate=${reviewExtractEndDate}`, {
+      const targetPartnerId = userInfo.partnerId || userInfo.id;
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/board/reviews/${targetPartnerId}/export?startDate=${reviewExtractStartDate}&endDate=${reviewExtractEndDate}`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       const list = res.data.list;
@@ -166,6 +173,58 @@ export default function AdminDashboard() {
       }
     } catch(e) {
       alert('명단 추출에 실패했습니다.');
+    }
+  };
+
+  // 왜 별도 추첨 시작 핸들러를 두는가:
+  // 선택한 기간의 후기 명단을 추출·클립보드에 자동 복사함과 동시에,
+  // 영상 촬영용 치킨 당첨자 추첨 팝업 애니메이션을 즉시 실행하기 위함입니다.
+  const handleStartChickenRaffle = async () => {
+    if (!reviewExtractStartDate || !reviewExtractEndDate) {
+      alert('추첨할 시작일과 종료일을 모두 선택해주세요.');
+      return;
+    }
+    if (!chickenWinnerCount || chickenWinnerCount < 1) {
+      alert('치킨 당첨자 수는 최소 1명 이상이어야 합니다.');
+      return;
+    }
+    try {
+      const userInfo = JSON.parse(localStorage.getItem('user_info') || '{}');
+      const targetPartnerId = userInfo.partnerId || userInfo.id;
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/board/reviews/${targetPartnerId}/export?startDate=${reviewExtractStartDate}&endDate=${reviewExtractEndDate}`,
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      const list = res.data.list;
+      if (!list || list.length === 0) {
+        alert('해당 기간에 등록된 리뷰가 없습니다.');
+        return;
+      }
+      if (chickenWinnerCount > list.length) {
+        alert(`설정한 당첨자 수(${chickenWinnerCount}명)가 해당 기간의 전체 응모자 수(${list.length}명)보다 많습니다.`);
+        return;
+      }
+
+      const formattedList: RaffleParticipant[] = list.map((item: any, idx: number) => {
+        const suffix = item.maskedPhone ? item.maskedPhone.split('-').pop() : '없음';
+        return {
+          id: `${idx}-${item.authorName}-${suffix}`,
+          authorName: item.authorName,
+          phoneSuffix: suffix,
+          label: `${item.authorName}(${suffix})`,
+        };
+      });
+
+      // 추출된 명단을 클립보드에도 함께 자동 복사
+      if (navigator.clipboard) {
+        const text = formattedList.map((p) => p.label).join(', ');
+        navigator.clipboard.writeText(text).catch(() => {});
+      }
+
+      setRaffleParticipants(formattedList);
+      setIsRaffleModalOpen(true);
+    } catch (e) {
+      alert('추첨 명단 불러오기에 실패했습니다.');
     }
   };
 
@@ -2444,17 +2503,79 @@ export default function AdminDashboard() {
                     </span>
                   )}
                 </div>
-                <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col sm:flex-row items-center gap-3 justify-between">
-                  <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="mb-6 p-4 bg-blue-50 rounded-2xl border border-blue-100 flex flex-col lg:flex-row items-center gap-3 justify-between">
+                  <div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
                     <span className="text-sm font-bold text-blue-900 whitespace-nowrap">명단 추출</span>
-                    <input type="date" value={reviewExtractStartDate} onChange={e => setReviewExtractStartDate(e.target.value)} className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+                    <input
+                      type="date"
+                      value={reviewExtractStartDate}
+                      onChange={e => setReviewExtractStartDate(e.target.value)}
+                      className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
+                    />
                     <span className="text-gray-400">~</span>
-                    <input type="date" value={reviewExtractEndDate} onChange={e => setReviewExtractEndDate(e.target.value)} className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1" />
+                    <input
+                      type="date"
+                      value={reviewExtractEndDate}
+                      onChange={e => setReviewExtractEndDate(e.target.value)}
+                      className="px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
+                    />
                   </div>
-                  <button onClick={handleExtractReviews} className="w-full sm:w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-sm transition-colors whitespace-nowrap">
-                    추출 후 복사하기
-                  </button>
+
+                  {/* 치킨 당첨자 수 설정 및 명단 복사 / 추첨 액션 영역 */}
+                  <div className="flex flex-wrap items-center justify-end gap-2.5 w-full lg:w-auto">
+                    <div className="flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-lg border border-amber-300 shadow-sm">
+                      <span className="text-xs font-extrabold text-amber-800 whitespace-nowrap">🍗 치킨 당첨자 수</span>
+                      <button
+                        type="button"
+                        onClick={() => setChickenWinnerCount(prev => Math.max(1, prev - 1))}
+                        className="w-6 h-6 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs flex items-center justify-center transition-colors"
+                      >
+                        -
+                      </button>
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={chickenWinnerCount}
+                        onChange={e => setChickenWinnerCount(Math.max(1, parseInt(e.target.value) || 1))}
+                        className="w-10 text-center font-black text-sm text-gray-900 focus:outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setChickenWinnerCount(prev => Math.min(50, prev + 1))}
+                        className="w-6 h-6 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-xs flex items-center justify-center transition-colors"
+                      >
+                        +
+                      </button>
+                      <span className="text-xs font-bold text-gray-600">명</span>
+                    </div>
+
+                    <button
+                      onClick={handleExtractReviews}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-sm shadow-sm transition-colors whitespace-nowrap"
+                    >
+                      추출 후 복사하기
+                    </button>
+
+                    <button
+                      onClick={handleStartChickenRaffle}
+                      className="flex-1 sm:flex-none px-5 py-2 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-600 hover:via-orange-600 hover:to-rose-600 text-white font-extrabold rounded-lg text-sm shadow-md hover:shadow-lg active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-1.5"
+                    >
+                      <span>🎰</span>
+                      <span>당첨자 추첨 뽑기</span>
+                    </button>
+                  </div>
                 </div>
+
+                {/* 치킨 당첨자 추첨 라이브 애니메이션 모달 */}
+                <ChickenRaffleModal
+                  isOpen={isRaffleModalOpen}
+                  onClose={() => setIsRaffleModalOpen(false)}
+                  participants={raffleParticipants}
+                  winnerCount={chickenWinnerCount}
+                  startDate={reviewExtractStartDate}
+                  endDate={reviewExtractEndDate}
+                />
                 {boardLoading ? (
                   <div className="text-center py-12"><div className="w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto"></div></div>
                 ) : boardPosts.length === 0 ? (
