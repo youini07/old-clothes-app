@@ -8,6 +8,7 @@ import SeoReviewSection, {
   type SeoReviewItem,
 } from '../components/SeoReviewSection';
 import { getGlobalSettingsCached } from '../utils/globalSettingsCache';
+import ChickenEventProofSection from '../components/ChickenEventProofSection';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -174,6 +175,8 @@ export default function Landing() {
 
   
   const [eventYoutubeUrl, setEventYoutubeUrl] = useState<string | null>(null);
+  const [eventProofTitle, setEventProofTitle] = useState<string | null>(null);
+  const [eventProofImages, setEventProofImages] = useState<string[]>([]);
 
   // 왜 폴백(PROD_API_FALLBACK)을 두는가:
   // 로컬 개발 환경(localhost:5000)의 DB에는 실서버 슈퍼관리자에서 등록한 유튜브 링크나 실제 리뷰가 비어 있을 수 있으므로,
@@ -181,23 +184,71 @@ export default function Landing() {
   const PROD_PUBLIC_API = 'https://old-clothes-app-production.up.railway.app/api';
 
   useEffect(() => {
-    getGlobalSettingsCached()
-      .then(async (data) => {
+    let cancelled = false;
+
+    const loadProofImagesFrom = async (apiBase: string, version?: string | null) => {
+      try {
+        const versionQuery = version ? `?v=${encodeURIComponent(version)}` : '';
+        const proofRes = await axios.get(`${apiBase}/public/event-proof-images${versionQuery}`);
+        if (cancelled) return;
+        const list = Array.isArray(proofRes.data?.eventProofImages) ? proofRes.data.eventProofImages : [];
+        if (list.length > 0) {
+          setEventProofImages(list);
+          if (proofRes.data?.eventProofTitle) {
+            setEventProofTitle(proofRes.data.eventProofTitle);
+          }
+        }
+      } catch (err) {
+        // 구버전 서버 등 엔드포인트가 아직 없는 경우 조용히 무시해 기존 이벤트 섹션이 깨지지 않도록 방어
+        console.debug('이벤트 인증샷 로드 스킵:', err);
+      }
+    };
+
+    const loadEventSettings = async () => {
+      const localApi = import.meta.env.VITE_API_URL;
+      let hasYoutube = false;
+      let hasProofImages = false;
+
+      try {
+        const data = await getGlobalSettingsCached();
+        if (cancelled) return;
+
         if (data?.eventYoutubeUrl) {
           setEventYoutubeUrl(data.eventYoutubeUrl);
-        } else if (import.meta.env.VITE_API_URL !== PROD_PUBLIC_API) {
-          const prodRes = await axios.get(`${PROD_PUBLIC_API}/public/global-settings`);
-          if (prodRes.data?.eventYoutubeUrl) setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+          hasYoutube = true;
         }
-      })
-      .catch(async () => {
+        if (data?.eventProofTitle) {
+          setEventProofTitle(data.eventProofTitle);
+        }
+        if (typeof data?.eventProofCount === 'number' && data.eventProofCount > 0) {
+          await loadProofImagesFrom(localApi, data.updatedAt);
+          hasProofImages = true;
+        }
+      } catch (err) {
+        console.error('로컬 이벤트 설정 로드 실패:', err);
+      }
+
+      // 로컬 DB에 없는 항목이 있고 로컬 개발 환경이라면 실서버 공개 API에서 보충 조회
+      if (!cancelled && (!hasYoutube || !hasProofImages) && localApi !== PROD_PUBLIC_API) {
         try {
           const prodRes = await axios.get(`${PROD_PUBLIC_API}/public/global-settings`);
-          if (prodRes.data?.eventYoutubeUrl) setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+          if (cancelled) return;
+          if (!hasYoutube && prodRes.data?.eventYoutubeUrl) {
+            setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+          }
+          if (!hasProofImages && typeof prodRes.data?.eventProofCount === 'number' && prodRes.data.eventProofCount > 0) {
+            await loadProofImagesFrom(PROD_PUBLIC_API, prodRes.data.updatedAt);
+          }
         } catch (err) {
-          console.error('이벤트 설정 로드 실패:', err);
+          console.error('이벤트 설정 폴백 로드 실패:', err);
         }
-      });
+      }
+    };
+
+    void loadEventSettings();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const [scrolled, setScrolled] = useState(false);
@@ -973,7 +1024,7 @@ export default function Landing() {
             진행중인 <span className="text-primary-600">이벤트</span>
           </h2>
           
-          <div className={`reveal reveal-delay-2 mx-auto grid gap-8 ${eventYoutubeUrl ? 'max-w-6xl grid-cols-1 lg:grid-cols-2 items-start' : 'max-w-lg grid-cols-1'}`}>
+          <div className={`reveal reveal-delay-2 mx-auto grid gap-8 ${eventYoutubeUrl || eventProofImages.length > 0 ? 'max-w-6xl grid-cols-1 lg:grid-cols-2 items-stretch' : 'max-w-lg grid-cols-1'}`}>
             
             {/* 왼쪽: 기존 이벤트 포스터 */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 h-full flex flex-col">
@@ -983,7 +1034,7 @@ export default function Landing() {
               <div className="p-8 text-left bg-gradient-to-br from-white to-sky-50 mt-auto">
                 <h3 className="text-2xl font-black text-gray-900 mb-3">🍗 헌옷수거 리뷰 달고 치킨 받자!</h3>
                 <p className="text-gray-600 font-medium leading-relaxed mb-6 text-sm">
-                  수거 완료 후 모바일 영수증에 첨부된 링크를 통해 <strong>홈페이지 리뷰를 작성</strong>해 주시면, 매월 추첨을 통해 5분께 치킨 기프티콘을 쏩니다! (리뷰 작성 시 자동 응모)
+                  수거 완료 후 모바일 영수증에 첨부된 링크를 통해 <strong>홈페이지 리뷰를 작성</strong>해 주시면, 매월 추첨을 통해 치킨 기프티콘을 쏩니다! (리뷰 작성 시 자동 응모)
                 </p>
                 <a
                   href={KAKAO_LOGIN_URL}
@@ -994,8 +1045,8 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* 오른쪽: 당첨자 발표 영상 */}
-            {eventYoutubeUrl && (
+            {/* 오른쪽: 당첨자 발표 영상이 있으면 영상 카드, 영상이 없고 인증샷만 있으면 인증샷 카드 */}
+            {eventYoutubeUrl ? (
               <div className="bg-white rounded-3xl shadow-xl p-8 border border-gray-100 h-full flex flex-col items-center justify-center relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-red-500 to-red-400"></div>
                 <div className="mb-8 text-center w-full">
@@ -1018,9 +1069,26 @@ export default function Landing() {
                   ></iframe>
                 </div>
               </div>
-            )}
+            ) : eventProofImages.length > 0 ? (
+              <ChickenEventProofSection
+                title={eventProofTitle}
+                images={eventProofImages}
+                mode="card"
+              />
+            ) : null}
             
           </div>
+
+          {/* 발표 영상과 당첨자 기프티콘 인증샷이 모두 등록된 경우 상단 2열 아래에 풀와이드 갤러리로 노출 */}
+          {eventYoutubeUrl && eventProofImages.length > 0 && (
+            <div className="max-w-6xl mx-auto">
+              <ChickenEventProofSection
+                title={eventProofTitle}
+                images={eventProofImages}
+                mode="showcase"
+              />
+            </div>
+          )}
         </div>
       </section>
 

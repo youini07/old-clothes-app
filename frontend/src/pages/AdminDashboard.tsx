@@ -12,6 +12,7 @@ import ChickenRaffleModal, { type RaffleParticipant } from '../components/Chicke
 import ReviewCustomerContact from '../components/ReviewCustomerContact';
 import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 import { formatPhoneNumber } from '../utils/phone';
+import EventProofManager from '../components/EventProofManager';
 
 interface RequestItem {
   id: string;
@@ -227,7 +228,7 @@ export default function AdminDashboard() {
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean; eventText?: string; eventIsActive?: boolean; } | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean; eventYoutubeUrl?: string | null } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean; eventYoutubeUrl?: string | null; eventProofTitle?: string | null; eventProofImages?: string[] } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -497,7 +498,10 @@ export default function AdminDashboard() {
       const res = await axios.get(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      setGlobalSettings(res.data);
+      setGlobalSettings({
+        ...res.data,
+        eventProofImages: Array.isArray(res.data?.eventProofImages) ? res.data.eventProofImages : []
+      });
     } catch (error) {
       console.error('전역 설정 조회 실패:', error);
     }
@@ -579,8 +583,8 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSettings = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!settings) return;
     setIsSavingSettings(true);
     try {
@@ -597,23 +601,33 @@ export default function AdminDashboard() {
       setSettings(res.data.settings);
 
       if (globalSettings) {
-        await axios.patch(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
+        const globalRes = await axios.patch(`${import.meta.env.VITE_API_URL}/admin/global-settings`, {
           globalNotice: globalSettings.globalNotice,
           noticeIsActive: globalSettings.noticeIsActive,
           globalNoticeDetail: globalSettings.globalNoticeDetail || '',
           popupImageUrl: globalSettings.popupImageUrl || null,
           eventYoutubeUrl: globalSettings.eventYoutubeUrl || null,
-          popupIsActive: globalSettings.popupIsActive || false
+          popupIsActive: globalSettings.popupIsActive || false,
+          eventProofTitle: globalSettings.eventProofTitle || null,
+          eventProofImages: Array.isArray(globalSettings.eventProofImages) ? globalSettings.eventProofImages : []
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
+        if (globalRes.data?.settings) {
+          setGlobalSettings({
+            ...globalRes.data.settings,
+            eventProofImages: Array.isArray(globalRes.data.settings.eventProofImages)
+              ? globalRes.data.settings.eventProofImages
+              : []
+          });
+        }
         invalidateGlobalSettingsCache();
         window.dispatchEvent(new Event('globalNoticeUpdated'));
       }
 
       alert('설정이 성공적으로 저장되었습니다.');
     } catch (error: any) {
-      alert(error.response?.data?.error || '설정 저장 중 오류가 발생했습니다.');
+      alert(error.response?.data?.error || error.response?.data?.message || '설정 저장 중 오류가 발생했습니다.');
     } finally {
       setIsSavingSettings(false);
     }
@@ -1834,6 +1848,17 @@ export default function AdminDashboard() {
                   </div>
                 )}
 
+                {globalSettings && (
+                  <EventProofManager
+                    title={globalSettings.eventProofTitle || ''}
+                    images={globalSettings.eventProofImages || []}
+                    onChangeTitle={(nextTitle) => setGlobalSettings({ ...globalSettings, eventProofTitle: nextTitle })}
+                    onChangeImages={(nextImages) => setGlobalSettings({ ...globalSettings, eventProofImages: nextImages })}
+                    onSave={() => void handleSaveSettings()}
+                    isSaving={isSavingSettings}
+                  />
+                )}
+
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center gap-2 mb-4">
                     <span className="text-2xl">✨</span>
@@ -1889,7 +1914,7 @@ export default function AdminDashboard() {
                     <textarea
                       value={settings.eventText || ''}
                       onChange={(e) => setSettings({...settings, eventText: e.target.value})}
-                      placeholder="간편 리뷰 작성 시 추첨을 통해 치킨 쿠폰 5장을 드립니다!"
+                      placeholder="간편 리뷰 작성 시 추첨을 통해 치킨 기프티콘을 드립니다!"
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
                       rows={3}
                     />

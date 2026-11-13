@@ -13,6 +13,7 @@ import chatRouter from './routes/chat';
 import boardRouter from './routes/board';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/prisma';
+import { normalizeEventProofImages } from './lib/eventProofUtils';
 
 
 const app = express();
@@ -93,11 +94,57 @@ app.use('/api/chat', chatRouter);
 app.use('/api/board', boardRouter);
 
 // 공개(Public) API - 공지사항 등
+// 왜 eventProofImages 본문을 제외하는가:
+// GlobalNoticeBanner가 모든 페이지에서 이 API를 호출하므로, 여러 장의 Base64 인증샷을 제외하고 개수(eventProofCount)만 내려
+// 불필요한 네트워크 Egress 및 서버 메모리 사용을 방지하기 위함입니다. 실제 이미지는 /api/public/event-proof-images로 온디맨드 조회합니다.
 app.get('/api/public/global-settings', async (req, res) => {
   try {
     const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
     res.setHeader('Cache-Control', 'public, max-age=60');
-    res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null, popupImageUrl: null, popupIsActive: false, eventYoutubeUrl: null });
+    if (!settings) {
+      return res.json({
+        globalNotice: null,
+        noticeIsActive: false,
+        globalNoticeDetail: null,
+        popupImageUrl: null,
+        popupIsActive: false,
+        eventYoutubeUrl: null,
+        eventProofTitle: null,
+        eventProofCount: 0,
+        updatedAt: null
+      });
+    }
+    const proofImages = normalizeEventProofImages(settings.eventProofImages);
+    res.json({
+      id: settings.id,
+      globalNotice: settings.globalNotice,
+      noticeIsActive: settings.noticeIsActive,
+      globalNoticeDetail: settings.globalNoticeDetail,
+      popupImageUrl: settings.popupImageUrl,
+      popupIsActive: settings.popupIsActive,
+      eventYoutubeUrl: settings.eventYoutubeUrl,
+      eventProofTitle: settings.eventProofTitle,
+      eventProofCount: proofImages.length,
+      updatedAt: settings.updatedAt
+    });
+  } catch (error) {
+    res.status(500).json({ message: '서버 오류' });
+  }
+});
+
+// 공개(Public) API - 치킨 이벤트 지난달 당첨자 기프티콘 발송 인증 스샷 (랜딩 페이지 이벤트 섹션 전용 온디맨드 조회)
+app.get('/api/public/event-proof-images', async (req, res) => {
+  try {
+    const settings = await prisma.globalSettings.findUnique({
+      where: { id: 'global' },
+      select: { eventProofTitle: true, eventProofImages: true, updatedAt: true }
+    });
+    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.json({
+      eventProofTitle: settings?.eventProofTitle ?? null,
+      eventProofImages: normalizeEventProofImages(settings?.eventProofImages),
+      updatedAt: settings?.updatedAt ?? null
+    });
   } catch (error) {
     res.status(500).json({ message: '서버 오류' });
   }

@@ -27,6 +27,7 @@ const chat_1 = __importDefault(require("./routes/chat"));
 const board_1 = __importDefault(require("./routes/board"));
 const errorHandler_1 = require("./middleware/errorHandler");
 const prisma_1 = require("./lib/prisma");
+const eventProofUtils_1 = require("./lib/eventProofUtils");
 const app = (0, express_1.default)();
 app.set('trust proxy', 1); // 리버스 프록시(Railway, Vercel 등) 환경에서 클라이언트 IP를 정상적으로 가져오기 위함
 const server = http_1.default.createServer(app);
@@ -95,11 +96,58 @@ app.use('/api/driver', driver_1.default);
 app.use('/api/chat', chat_1.default);
 app.use('/api/board', board_1.default);
 // 공개(Public) API - 공지사항 등
+// 왜 eventProofImages 본문을 제외하는가:
+// GlobalNoticeBanner가 모든 페이지에서 이 API를 호출하므로, 여러 장의 Base64 인증샷을 제외하고 개수(eventProofCount)만 내려
+// 불필요한 네트워크 Egress 및 서버 메모리 사용을 방지하기 위함입니다. 실제 이미지는 /api/public/event-proof-images로 온디맨드 조회합니다.
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
         res.setHeader('Cache-Control', 'public, max-age=60');
-        res.json(settings || { globalNotice: null, noticeIsActive: false, globalNoticeDetail: null, popupImageUrl: null, popupIsActive: false, eventYoutubeUrl: null });
+        if (!settings) {
+            return res.json({
+                globalNotice: null,
+                noticeIsActive: false,
+                globalNoticeDetail: null,
+                popupImageUrl: null,
+                popupIsActive: false,
+                eventYoutubeUrl: null,
+                eventProofTitle: null,
+                eventProofCount: 0,
+                updatedAt: null
+            });
+        }
+        const proofImages = (0, eventProofUtils_1.normalizeEventProofImages)(settings.eventProofImages);
+        res.json({
+            id: settings.id,
+            globalNotice: settings.globalNotice,
+            noticeIsActive: settings.noticeIsActive,
+            globalNoticeDetail: settings.globalNoticeDetail,
+            popupImageUrl: settings.popupImageUrl,
+            popupIsActive: settings.popupIsActive,
+            eventYoutubeUrl: settings.eventYoutubeUrl,
+            eventProofTitle: settings.eventProofTitle,
+            eventProofCount: proofImages.length,
+            updatedAt: settings.updatedAt
+        });
+    }
+    catch (error) {
+        res.status(500).json({ message: '서버 오류' });
+    }
+}));
+// 공개(Public) API - 치킨 이벤트 지난달 당첨자 기프티콘 발송 인증 스샷 (랜딩 페이지 이벤트 섹션 전용 온디맨드 조회)
+app.get('/api/public/event-proof-images', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a, _b;
+    try {
+        const settings = yield prisma_1.prisma.globalSettings.findUnique({
+            where: { id: 'global' },
+            select: { eventProofTitle: true, eventProofImages: true, updatedAt: true }
+        });
+        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.json({
+            eventProofTitle: (_a = settings === null || settings === void 0 ? void 0 : settings.eventProofTitle) !== null && _a !== void 0 ? _a : null,
+            eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(settings === null || settings === void 0 ? void 0 : settings.eventProofImages),
+            updatedAt: (_b = settings === null || settings === void 0 ? void 0 : settings.updatedAt) !== null && _b !== void 0 ? _b : null
+        });
     }
     catch (error) {
         res.status(500).json({ message: '서버 오류' });

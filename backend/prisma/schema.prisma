@@ -191,6 +191,8 @@ model GlobalSettings {
   popupIsActive      Boolean  @default(false)
   deletePassword     String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
   eventYoutubeUrl    String? // 이벤트 당첨자 발표 유튜브 링크
+  eventProofTitle    String? // 지난달 당첨자 기프티콘 전송 인증 섹션 제목 (선택)
+  eventProofImages   Json? // 지난달 당첨자 기프티콘 전송 인증 스샷 목록 (string[])
   updatedAt          DateTime @updatedAt
 }
 

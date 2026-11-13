@@ -33,6 +33,7 @@ const statusService_1 = require("../services/statusService");
 const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
 const socket_1 = require("../socket");
+const eventProofUtils_1 = require("../lib/eventProofUtils");
 const router = express_1.default.Router();
 const demoExcludeFilter = {
     NOT: [
@@ -2131,7 +2132,7 @@ router.put('/price-table', authMiddleware_1.authenticate, (0, authMiddleware_1.r
         res.status(500).json({ error: '단가표 저장 중 오류가 발생했습니다.' });
     }
 }));
-// 전역 공지사항 설정 가져오기
+// 전역 공지사항 및 홈페이지 이벤트 설정 가져오기
 router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         let settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
@@ -2140,16 +2141,27 @@ router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware
                 data: { id: 'global', globalNotice: '', noticeIsActive: false, globalNoticeDetail: '' }
             });
         }
-        res.json(settings);
+        const { deletePassword: _dp } = settings, safeSettings = __rest(settings, ["deletePassword"]);
+        res.json(Object.assign(Object.assign({}, safeSettings), { eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(settings.eventProofImages) }));
     }
     catch (error) {
         console.error('전역 설정 가져오기 오류:', error);
         res.status(500).json({ message: '전역 설정 로드 중 오류가 발생했습니다.' });
     }
 }));
-// 전역 공지사항 설정 업데이트
+// 전역 공지사항 및 홈페이지 이벤트 설정 업데이트
 router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { globalNotice, noticeIsActive, globalNoticeDetail } = req.body;
+    // 인증샷 배열이 전달된 경우 형식/용량/개수 검증
+    let validatedProofImages = undefined;
+    if (req.body.eventProofImages !== undefined) {
+        const validation = (0, eventProofUtils_1.validateEventProofImagesInput)(req.body.eventProofImages);
+        if (!validation.ok) {
+            return res.status(400).json({ error: validation.error, message: validation.error });
+        }
+        validatedProofImages = validation.images;
+    }
+    const normalizedProofTitle = req.body.eventProofTitle !== undefined ? (0, eventProofUtils_1.normalizeEventProofTitle)(req.body.eventProofTitle) : undefined;
     try {
         const updatedSettings = yield prisma_1.prisma.globalSettings.upsert({
             where: { id: 'global' },
@@ -2159,7 +2171,9 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
                 globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : undefined,
                 popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : undefined,
                 popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : undefined,
-                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : undefined
+                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : undefined,
+                eventProofTitle: normalizedProofTitle,
+                eventProofImages: validatedProofImages !== undefined ? validatedProofImages : undefined
             },
             create: {
                 id: 'global',
@@ -2168,14 +2182,20 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
                 globalNoticeDetail: globalNoticeDetail !== undefined ? String(globalNoticeDetail) : '',
                 popupImageUrl: req.body.popupImageUrl !== undefined ? req.body.popupImageUrl : null,
                 popupIsActive: req.body.popupIsActive !== undefined ? Boolean(req.body.popupIsActive) : false,
-                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : null
+                eventYoutubeUrl: req.body.eventYoutubeUrl !== undefined ? req.body.eventYoutubeUrl : null,
+                eventProofTitle: normalizedProofTitle !== null && normalizedProofTitle !== void 0 ? normalizedProofTitle : null,
+                eventProofImages: validatedProofImages !== null && validatedProofImages !== void 0 ? validatedProofImages : []
             }
         });
-        res.json({ message: '공지사항이 저장되었습니다.', settings: updatedSettings });
+        const { deletePassword: _dp } = updatedSettings, safeSettings = __rest(updatedSettings, ["deletePassword"]);
+        res.json({
+            message: '설정이 저장되었습니다.',
+            settings: Object.assign(Object.assign({}, safeSettings), { eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(updatedSettings.eventProofImages) })
+        });
     }
     catch (error) {
         console.error('전역 설정 저장 오류:', error);
-        res.status(500).json({ message: '공지사항 저장 중 오류가 발생했습니다.' });
+        res.status(500).json({ message: '전역 설정 저장 중 오류가 발생했습니다.' });
     }
 }));
 // 비회원 수동 접수(전화 접수) API
