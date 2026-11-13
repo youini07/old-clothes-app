@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2 } from 'lucide-react';
+import { loadPostcodeConstructor } from '../utils/postcode';
 
 export default function RequestForm() {
   const navigate = useNavigate();
@@ -57,32 +58,38 @@ export default function RequestForm() {
     }
   }, [editMode, requestData]);
 
-  const handleAddressSearch = () => {
-    new (window as any).daum.Postcode({
-      oncomplete: function(data: any) {
-        if (!data.address.startsWith('경기')) {
-          alert('현재 수거 가능 지역은 경기도 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주입니다.');
-          return;
+  const handleAddressSearch = async () => {
+    try {
+      const Postcode = await loadPostcodeConstructor();
+      new Postcode({
+        oncomplete: function(data: any) {
+          if (!data.address.startsWith('경기')) {
+            alert('현재 수거 가능 지역은 경기도 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주입니다.');
+            return;
+          }
+          // 왜 만세구를 체크하는가: 화성시 중 만세구 권역은 수거 제외 구역이므로 주소 선택 단계에서 사전 안내합니다.
+          if (data.address.includes('만세구') || (data.sigungu && data.sigungu.includes('만세구'))) {
+            alert('죄송합니다. 화성시 만세구 지역은 현재 수거 제외 구역입니다.\n(수거 가능 지역: 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주)');
+            return;
+          }
+          setAddress(data.address);
+          setZipCode(data.zonecode);
+          
+          // 백엔드 권역 매칭을 위한 상세 행정구역 데이터
+          let provinceName = data.sido;
+          if (provinceName === '경기') provinceName = '경기도'; // DB 포맷 통일
+          
+          setRegionInfo({
+            province: provinceName,
+            city: data.sigungu,
+            town: data.bname || data.bname1 || ''
+          });
         }
-        // 왜 만세구를 체크하는가: 화성시 중 만세구 권역은 수거 제외 구역이므로 주소 선택 단계에서 사전 안내합니다.
-        if (data.address.includes('만세구') || (data.sigungu && data.sigungu.includes('만세구'))) {
-          alert('죄송합니다. 화성시 만세구 지역은 현재 수거 제외 구역입니다.\n(수거 가능 지역: 수원, 화성(만세구 제외), 용인, 오산, 성남, 광주)');
-          return;
-        }
-        setAddress(data.address);
-        setZipCode(data.zonecode);
-        
-        // 백엔드 권역 매칭을 위한 상세 행정구역 데이터
-        let provinceName = data.sido;
-        if (provinceName === '경기') provinceName = '경기도'; // DB 포맷 통일
-        
-        setRegionInfo({
-          province: provinceName,
-          city: data.sigungu,
-          town: data.bname || data.bname1 || ''
-        });
-      }
-    }).open();
+      }).open();
+    } catch (error) {
+      console.error('주소 검색 호출 실패:', error);
+      alert('주소 검색 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

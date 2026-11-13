@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import ReviewCustomerContact from '../components/ReviewCustomerContact';
 
 // ──────────────────────────────────────────
 // 타입 정의
@@ -19,6 +20,8 @@ interface BoardPost {
   ratingSpeed?: number;
   maskedPhone?: string;
   maskedAddress?: string;
+  customerPhone?: string | null;
+  customerName?: string | null;
   receiptSnapshot?: any;
   createdAt: string;
   updatedAt?: string;
@@ -77,6 +80,28 @@ export default function BoardPage() {
   // 인증 토큰 (고객문의용)
   const authToken = localStorage.getItem('auth_token') || localStorage.getItem('customer_token');
 
+  // 왜 별도 헬퍼로 관리자 토큰을 선별하는가:
+  // 같은 브라우저에서 관리자 로그인 후 카카오 고객 로그인을 수행한 경우 구 관리자 토큰이 남아있을 수 있으므로
+  // 현재 user_info.role이 관리자일 때만 관리자 토큰을 조회 요청에 사용합니다.
+  const getReviewAuthToken = (): string | null => {
+    try {
+      const userInfoRaw = localStorage.getItem('user_info');
+      const userInfo = userInfoRaw ? JSON.parse(userInfoRaw) : null;
+      if (!userInfo || userInfo.role === 'CUSTOMER') {
+        return authToken;
+      }
+      if (userInfo.role === 'SUPER_ADMIN') {
+        return localStorage.getItem('superadmin_token') || localStorage.getItem('auth_token');
+      }
+      if (userInfo.role === 'PARTNER' || (userInfo.role === 'DRIVER' && userInfo.isCoBoss)) {
+        return localStorage.getItem('admin_token') || localStorage.getItem('auth_token');
+      }
+    } catch {
+      // user_info 파싱 실패 시 기본 토큰 사용
+    }
+    return authToken;
+  };
+
   // 파트너 정보 (상호명)
   const [partnerName] = useState('');
 
@@ -102,6 +127,10 @@ export default function BoardPage() {
         headers['Authorization'] = `Bearer ${authToken}`;
       } else if (activeTab === 'reviews') {
         url = `${import.meta.env.VITE_API_URL}/board/reviews/${partnerId}?page=${page}`;
+        const reviewToken = getReviewAuthToken();
+        if (reviewToken) {
+          headers['Authorization'] = `Bearer ${reviewToken}`;
+        }
       }
 
       const res = await axios.get(url, { headers });
@@ -466,6 +495,11 @@ export default function BoardPage() {
                         </>
                       )}
                     </div>
+                    <ReviewCustomerContact
+                      customerPhone={post.customerPhone}
+                      customerName={post.customerName}
+                      authorName={post.authorName}
+                    />
 
                     {/* 영수증 요약 (있으면) */}
                     {post.receiptSnapshot && (

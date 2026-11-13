@@ -435,13 +435,74 @@ router.get('/reviews/:partnerId/export', async (req, res) => {
   }
 });
 
-router.get('/reviews/:partnerId', async (req, res) => {
+// 왜: 후기 작성자 실명/전화번호는 슈퍼관리자, 해당 업체 사장님, 해당 업체 공동사장에게만 허용해야 하므로
+// 권한 판별 로직을 한 곳에 분리해 공개 요청으로 개인정보가 노출되지 않도록 방어합니다.
+function isAuthorizedReviewAdmin(user: AuthRequest['user'], partnerId: string): boolean {
+  if (!user) return false;
+  if (user.role === 'SUPER_ADMIN') return true;
+  if (user.role === 'PARTNER' && user.userId === partnerId) return true;
+  if (user.role === 'DRIVER' && Boolean(user.isCoBoss) && user.partnerId === partnerId) return true;
+  return false;
+}
+
+// 왜: BoardPost에는 마스킹 정보만 저장되어 있으므로, 관리자 조회 시 연결된 Request(우선)와
+// User(폴백)에서 실제 연락처와 성함을 일괄 조회해 N+1 쿼리 및 스키마 변경 없이 매칭합니다.
+async function attachCustomerContacts<T extends { requestId?: string | null; authorId?: string | null }>(
+  posts: T[]
+) {
+  const requestIds = Array.from(
+    new Set(posts.map((p) => p.requestId).filter((id): id is string => Boolean(id)))
+  );
+
+  const requests = requestIds.length > 0
+    ? await prisma.request.findMany({
+        where: { id: { in: requestIds } },
+        select: { id: true, phone: true, userName: true },
+      })
+    : [];
+  const requestById = new Map(requests.map((r) => [r.id, r]));
+
+  const fallbackAuthorIds = Array.from(
+    new Set(
+      posts
+        .filter((p) => {
+          const linked = p.requestId ? requestById.get(p.requestId) : undefined;
+          return !linked?.phone?.trim() && Boolean(p.authorId);
+        })
+        .map((p) => p.authorId)
+        .filter((id): id is string => Boolean(id))
+    )
+  );
+
+  const users = fallbackAuthorIds.length > 0
+    ? await prisma.user.findMany({
+        where: { id: { in: fallbackAuthorIds } },
+        select: { id: true, phone: true, name: true },
+      })
+    : [];
+  const userById = new Map(users.map((u) => [u.id, u]));
+
+  return posts.map(({ requestId, authorId, ...publicFields }) => {
+    const linkedReq = requestId ? requestById.get(requestId) : undefined;
+    const linkedUser = authorId ? userById.get(authorId) : undefined;
+    const customerPhone = linkedReq?.phone?.trim() || linkedUser?.phone?.trim() || null;
+    const customerName = linkedReq?.userName?.trim() || linkedUser?.name?.trim() || null;
+    return {
+      ...publicFields,
+      customerPhone,
+      customerName,
+    };
+  });
+}
+
+router.get('/reviews/:partnerId', optionalAuthenticate, async (req: AuthRequest, res) => {
   try {
-    const { partnerId } = req.params;
+    const partnerId = req.params.partnerId as string;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 20;
+    const isAdmin = isAuthorizedReviewAdmin(req.user, partnerId);
 
-    const [posts, total] = await Promise.all([
+    const [rawPosts, total] = await Promise.all([
       prisma.boardPost.findMany({
         where: { type: 'REVIEW', partnerId },
         orderBy: { createdAt: 'desc' },
@@ -453,10 +514,21 @@ router.get('/reviews/:partnerId', async (req, res) => {
           maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
           cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
           createdAt: true,
+          requestId: true,
+          authorId: true,
         },
       }),
       prisma.boardPost.count({ where: { type: 'REVIEW', partnerId } }),
     ]);
+
+    let posts;
+    if (isAdmin) {
+      // 왜: 관리자 응답에는 고객 원본 전화번호가 포함되므로 공용 캐시에 저장되지 않도록 차단
+      res.setHeader('Cache-Control', 'private, no-store');
+      posts = await attachCustomerContacts(rawPosts);
+    } else {
+      posts = rawPosts.map(({ requestId: _reqId, authorId: _authorId, ...publicFields }) => publicFields);
+    }
 
     // 평균 별점 계산
     const avgRatings = await prisma.boardPost.aggregate({

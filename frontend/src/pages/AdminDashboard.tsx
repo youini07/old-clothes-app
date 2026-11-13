@@ -9,7 +9,9 @@ import CalendarView from '../components/CalendarView';
 import DriverMap from '../components/DriverMap';
 import CompletedDatePicker from '../components/CompletedDatePicker';
 import ChickenRaffleModal, { type RaffleParticipant } from '../components/ChickenRaffleModal';
+import ReviewCustomerContact from '../components/ReviewCustomerContact';
 import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
+import { formatPhoneNumber } from '../utils/phone';
 
 interface RequestItem {
   id: string;
@@ -104,16 +106,6 @@ interface Driver {
   customRegion?: CustomRegion | null;
   customRegionId?: string | null;
 }
-
-const formatPhoneNumber = (phoneStr: string) => {
-  if (!phoneStr) return '';
-  const cleaned = ('' + phoneStr).replace(/\D/g, '');
-  const match = cleaned.match(/^(\d{3})(\d{3,4})(\d{4})$/);
-  if (match) {
-    return `${match[1]}-${match[2]}-${match[3]}`;
-  }
-  return phoneStr;
-};
 
 export default function AdminDashboard() {
   const [requests, setRequests] = useState<RequestItem[]>([]);
@@ -2600,6 +2592,13 @@ export default function AdminDashboard() {
                           <span>·</span>
                           <span>{new Date(post.createdAt).toLocaleDateString('ko-KR')}</span>
                         </div>
+                        <ReviewCustomerContact
+                          customerPhone={post.customerPhone}
+                          customerName={post.customerName}
+                          authorName={post.authorName}
+                          maskedPhone={post.maskedPhone}
+                          showMaskedFallback
+                        />
                         
                         {/* SNS 링크 목록 */}
                         {(post.cafeUrl1 || post.cafeUrl2 || post.snsUrl1 || post.snsUrl2 || post.snsUrl3) && (

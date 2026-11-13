@@ -8,6 +8,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -407,12 +418,65 @@ router.get('/reviews/:partnerId/export', (req, res) => __awaiter(void 0, void 0,
         res.status(500).json({ error: '서버 오류가 발생했습니다.' });
     }
 }));
-router.get('/reviews/:partnerId', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
+// 왜: 후기 작성자 실명/전화번호는 슈퍼관리자, 해당 업체 사장님, 해당 업체 공동사장에게만 허용해야 하므로
+// 권한 판별 로직을 한 곳에 분리해 공개 요청으로 개인정보가 노출되지 않도록 방어합니다.
+function isAuthorizedReviewAdmin(user, partnerId) {
+    if (!user)
+        return false;
+    if (user.role === 'SUPER_ADMIN')
+        return true;
+    if (user.role === 'PARTNER' && user.userId === partnerId)
+        return true;
+    if (user.role === 'DRIVER' && Boolean(user.isCoBoss) && user.partnerId === partnerId)
+        return true;
+    return false;
+}
+// 왜: BoardPost에는 마스킹 정보만 저장되어 있으므로, 관리자 조회 시 연결된 Request(우선)와
+// User(폴백)에서 실제 연락처와 성함을 일괄 조회해 N+1 쿼리 및 스키마 변경 없이 매칭합니다.
+function attachCustomerContacts(posts) {
+    return __awaiter(this, void 0, void 0, function* () {
+        const requestIds = Array.from(new Set(posts.map((p) => p.requestId).filter((id) => Boolean(id))));
+        const requests = requestIds.length > 0
+            ? yield prisma_1.prisma.request.findMany({
+                where: { id: { in: requestIds } },
+                select: { id: true, phone: true, userName: true },
+            })
+            : [];
+        const requestById = new Map(requests.map((r) => [r.id, r]));
+        const fallbackAuthorIds = Array.from(new Set(posts
+            .filter((p) => {
+            var _a;
+            const linked = p.requestId ? requestById.get(p.requestId) : undefined;
+            return !((_a = linked === null || linked === void 0 ? void 0 : linked.phone) === null || _a === void 0 ? void 0 : _a.trim()) && Boolean(p.authorId);
+        })
+            .map((p) => p.authorId)
+            .filter((id) => Boolean(id))));
+        const users = fallbackAuthorIds.length > 0
+            ? yield prisma_1.prisma.user.findMany({
+                where: { id: { in: fallbackAuthorIds } },
+                select: { id: true, phone: true, name: true },
+            })
+            : [];
+        const userById = new Map(users.map((u) => [u.id, u]));
+        return posts.map((_a) => {
+            var _b, _c, _d, _e;
+            var { requestId, authorId } = _a, publicFields = __rest(_a, ["requestId", "authorId"]);
+            const linkedReq = requestId ? requestById.get(requestId) : undefined;
+            const linkedUser = authorId ? userById.get(authorId) : undefined;
+            const customerPhone = ((_b = linkedReq === null || linkedReq === void 0 ? void 0 : linkedReq.phone) === null || _b === void 0 ? void 0 : _b.trim()) || ((_c = linkedUser === null || linkedUser === void 0 ? void 0 : linkedUser.phone) === null || _c === void 0 ? void 0 : _c.trim()) || null;
+            const customerName = ((_d = linkedReq === null || linkedReq === void 0 ? void 0 : linkedReq.userName) === null || _d === void 0 ? void 0 : _d.trim()) || ((_e = linkedUser === null || linkedUser === void 0 ? void 0 : linkedUser.name) === null || _e === void 0 ? void 0 : _e.trim()) || null;
+            return Object.assign(Object.assign({}, publicFields), { customerPhone,
+                customerName });
+        });
+    });
+}
+router.get('/reviews/:partnerId', authMiddleware_1.optionalAuthenticate, (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const { partnerId } = req.params;
+        const partnerId = req.params.partnerId;
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
-        const [posts, total] = yield Promise.all([
+        const isAdmin = isAuthorizedReviewAdmin(req.user, partnerId);
+        const [rawPosts, total] = yield Promise.all([
             prisma_1.prisma.boardPost.findMany({
                 where: { type: 'REVIEW', partnerId },
                 orderBy: { createdAt: 'desc' },
@@ -424,10 +488,24 @@ router.get('/reviews/:partnerId', (req, res) => __awaiter(void 0, void 0, void 0
                     maskedPhone: true, maskedAddress: true, receiptSnapshot: true,
                     cafeUrl1: true, cafeUrl2: true, snsUrl1: true, snsUrl2: true, snsUrl3: true,
                     createdAt: true,
+                    requestId: true,
+                    authorId: true,
                 },
             }),
             prisma_1.prisma.boardPost.count({ where: { type: 'REVIEW', partnerId } }),
         ]);
+        let posts;
+        if (isAdmin) {
+            // 왜: 관리자 응답에는 고객 원본 전화번호가 포함되므로 공용 캐시에 저장되지 않도록 차단
+            res.setHeader('Cache-Control', 'private, no-store');
+            posts = yield attachCustomerContacts(rawPosts);
+        }
+        else {
+            posts = rawPosts.map((_a) => {
+                var { requestId: _reqId, authorId: _authorId } = _a, publicFields = __rest(_a, ["requestId", "authorId"]);
+                return publicFields;
+            });
+        }
         // 평균 별점 계산
         const avgRatings = yield prisma_1.prisma.boardPost.aggregate({
             where: { type: 'REVIEW', partnerId },
