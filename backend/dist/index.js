@@ -102,7 +102,7 @@ app.use('/api/board', board_1.default);
 app.get('/api/public/global-settings', (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         const settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
-        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
         if (!settings) {
             return res.json({
                 globalNotice: null,
@@ -142,7 +142,7 @@ app.get('/api/public/event-proof-images', (req, res) => __awaiter(void 0, void 0
             where: { id: 'global' },
             select: { eventProofTitle: true, eventProofImages: true, updatedAt: true }
         });
-        res.setHeader('Cache-Control', 'public, max-age=60');
+        res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
         res.json({
             eventProofTitle: (_a = settings === null || settings === void 0 ? void 0 : settings.eventProofTitle) !== null && _a !== void 0 ? _a : null,
             eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(settings === null || settings === void 0 ? void 0 : settings.eventProofImages),
