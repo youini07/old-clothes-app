@@ -8,14 +8,30 @@ let cachedAt = 0;
 let inFlightPromise: Promise<any> | null = null;
 let cacheBustToken = 0;
 const CACHE_TTL_MS = 30 * 1000;
+const CACHE_VERSION_STORAGE_KEY = 'global_settings_cache_v';
+
+function getStoredCacheVersion(): number {
+  try {
+    const raw = localStorage.getItem(CACHE_VERSION_STORAGE_KEY);
+    return raw ? Number(raw) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
 
 export function invalidateGlobalSettingsCache() {
   cachedData = null;
   cachedAt = 0;
   inFlightPromise = null;
-  // 왜: 백엔드가 Cache-Control: public, max-age=60을 반환하므로 관리자 설정 변경 직후에는
-  // 브라우저 HTTP 캐시를 우회하여 최신 설정을 즉시 가져오도록 캐시 버스팅 토큰을 갱신함
-  cacheBustToken = Date.now();
+  // 왜: 백엔드가 Cache-Control 헤더를 반환하므로 관리자 설정 변경 직후에는
+  // 페이지 새로고침/탭 이동 시에도 브라우저 HTTP 캐시를 우회하도록 localStorage에 버스팅 토큰을 기록합니다.
+  const nextVersion = Date.now();
+  cacheBustToken = nextVersion;
+  try {
+    localStorage.setItem(CACHE_VERSION_STORAGE_KEY, String(nextVersion));
+  } catch {
+    // 스토리지 접근 불가 환경 무시
+  }
 }
 
 export async function getGlobalSettingsCached(forceRefresh = false): Promise<any> {
@@ -24,6 +40,11 @@ export async function getGlobalSettingsCached(forceRefresh = false): Promise<any
     cachedData = null;
     cachedAt = 0;
     cacheBustToken = now;
+    try {
+      localStorage.setItem(CACHE_VERSION_STORAGE_KEY, String(now));
+    } catch {
+      // 무시
+    }
   }
 
   if (!forceRefresh && cachedData && now - cachedAt < CACHE_TTL_MS) {
@@ -34,8 +55,9 @@ export async function getGlobalSettingsCached(forceRefresh = false): Promise<any
     return inFlightPromise;
   }
 
+  const effectiveToken = Math.max(cacheBustToken, getStoredCacheVersion());
   const baseUrl = `${import.meta.env.VITE_API_URL}/public/global-settings`;
-  const url = cacheBustToken > 0 ? `${baseUrl}?v=${cacheBustToken}` : baseUrl;
+  const url = effectiveToken > 0 ? `${baseUrl}?v=${effectiveToken}` : baseUrl;
 
   inFlightPromise = axios
     .get(url)

@@ -100,7 +100,7 @@ app.use('/api/board', boardRouter);
 app.get('/api/public/global-settings', async (req, res) => {
   try {
     const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     if (!settings) {
       return res.json({
         globalNotice: null,
@@ -139,7 +139,7 @@ app.get('/api/public/event-proof-images', async (req, res) => {
       where: { id: 'global' },
       select: { eventProofTitle: true, eventProofImages: true, updatedAt: true }
     });
-    res.setHeader('Cache-Control', 'public, max-age=60');
+    res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     res.json({
       eventProofTitle: settings?.eventProofTitle ?? null,
       eventProofImages: normalizeEventProofImages(settings?.eventProofImages),

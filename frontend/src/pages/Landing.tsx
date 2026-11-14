@@ -32,6 +32,9 @@ const STATS = [
 
 
 // 스크롤 진입 시 요소를 서서히 등장시키는 옵저버
+// 왜 threshold를 0.01로 낮추고 rootMargin을 주는가:
+// 높이가 큰 컨테이너(이벤트 카드 등)가 작은 노트북/모바일 화면(예: 1024x671)에 일부만 진입했을 때
+// threshold 0.2를 넘기지 못해 opacity: 0 상태로 영원히 보이지 않는 문제를 방지하기 위함입니다.
 function useRevealObserver() {
   useEffect(() => {
     const els = document.querySelectorAll('.reveal');
@@ -44,7 +47,7 @@ function useRevealObserver() {
           }
         });
       },
-      { threshold: 0.2 }
+      { threshold: 0.01, rootMargin: '0px 0px 100px 0px' }
     );
     els.forEach((el) => io.observe(el));
     return () => io.disconnect();
@@ -1024,7 +1027,8 @@ export default function Landing() {
             진행중인 <span className="text-primary-600">이벤트</span>
           </h2>
           
-          <div className={`reveal reveal-delay-2 mx-auto grid gap-8 ${eventYoutubeUrl || eventProofImages.length > 0 ? 'max-w-6xl grid-cols-1 lg:grid-cols-2 items-stretch' : 'max-w-lg grid-cols-1'}`}>
+          {/* 이벤트 본문 그리드: 작은 뷰포트에서도 배너·영상·인증샷이 투명 상태로 숨지 않도록 reveal(opacity:0) 미적용 */}
+          <div className={`mx-auto grid gap-8 ${eventYoutubeUrl || eventProofImages.length > 0 ? 'max-w-6xl grid-cols-1 lg:grid-cols-2 items-stretch' : 'max-w-lg grid-cols-1'}`}>
             
             {/* 왼쪽: 기존 이벤트 포스터 */}
             <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-gray-100 h-full flex flex-col">
@@ -1068,6 +1072,16 @@ export default function Landing() {
                     className="w-full h-full"
                   ></iframe>
                 </div>
+                {eventProofImages.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById('event-proof-gallery')?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                    className="mt-6 inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs sm:text-sm font-extrabold shadow-sm transition-colors"
+                  >
+                    <span>🎁 지난달 당첨자 기프티콘 발송 인증 {eventProofImages.length}건 보기</span>
+                    <span>↓</span>
+                  </button>
+                )}
               </div>
             ) : eventProofImages.length > 0 ? (
               <ChickenEventProofSection
@@ -1081,7 +1095,7 @@ export default function Landing() {
 
           {/* 발표 영상과 당첨자 기프티콘 인증샷이 모두 등록된 경우 상단 2열 아래에 풀와이드 갤러리로 노출 */}
           {eventYoutubeUrl && eventProofImages.length > 0 && (
-            <div className="max-w-6xl mx-auto">
+            <div id="event-proof-gallery" className="max-w-6xl mx-auto scroll-mt-20">
               <ChickenEventProofSection
                 title={eventProofTitle}
                 images={eventProofImages}
