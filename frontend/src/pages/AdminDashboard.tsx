@@ -12,11 +12,10 @@ import ChickenRaffleModal, { type RaffleParticipant } from '../components/Chicke
 import ReviewCustomerContact from '../components/ReviewCustomerContact';
 import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 import { formatPhoneNumber } from '../utils/phone';
-import EventProofManager from '../components/EventProofManager';
 import { io } from 'socket.io-client';
 import { resolveServerRootUrl } from '../utils/apiUrl';
 import SmsAutoConfigModal from '../components/SmsAutoConfigModal';
-import InstallProgramManualSection from '../components/InstallProgramManualSection';
+import AdminSettingsView from '../components/AdminSettingsView';
 import { RequestSourceBadge, RawSmsPreviewBox } from '../components/SmsRequestBadge';
 
 interface RequestItem {
@@ -1773,297 +1772,33 @@ export default function AdminDashboard() {
           <button onClick={() => setActiveView('settings')} className={`flex-1 py-3 rounded-xl text-sm font-bold transition-all ${activeView === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}>⚙️ 설정</button>
         </div>
 
-        {/* 환경 설정 뷰 */}
+        {/* 환경 설정 뷰 (3분할 카테고리 탭 & 좌우 대칭 2열 그리드로 모듈화) */}
         {activeView === 'settings' && settings && (
-          <div className="max-w-6xl mx-auto">
-            <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900 mb-2">⚙️ 환경 설정</h2>
-                <p className="text-gray-500">수거 단가 및 카카오 알림톡 서비스 구독 여부를 설정할 수 있습니다.</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={handleSaveSettings}
-                disabled={isSavingSettings}
-                className="px-6 py-3 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2"
-              >
-                {isSavingSettings ? '저장 중...' : '변경사항 저장하기'}
-              </button>
-            </div>
-
-            {/* 사무실 010 문자 자동접수 전용 앱(allclear-app.apk) 설치 및 웹앱 저장 매뉴얼 */}
-            <div className="mb-6">
-              <InstallProgramManualSection onOpenSmsModal={() => setIsSmsAutoModalOpen(true)} />
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* 왼쪽 단: 기본 설정 항목들 */}
-              <div className="space-y-6">
-                {globalSettings && (
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center justify-between mb-2">
-                      <label className="block text-lg font-bold text-gray-900">📞 홈페이지 · 010 문자접수 대표 전화번호</label>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-4">
-                      고객 홈페이지의 010 간편 문자신청 버튼과 사무실 문자 자동접수 안내에 노출되는 대표 수신 번호입니다.
-                    </p>
-                    <input
-                      type="tel"
-                      value={globalSettings.representativePhone || ''}
-                      onChange={(e) => setGlobalSettings({ ...globalSettings, representativePhone: e.target.value })}
-                      placeholder="공기계 앱 설치 후 입력 (비워두면 홈페이지 문자접수 버튼 숨김)"
-                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900 font-bold tabular-nums"
-                    />
-                    <p className="mt-2 text-xs text-gray-500 leading-relaxed">
-                      ※ 비워두시면 고객 홈페이지에 <strong>[010 문자 접수] 버튼이 노출되지 않아</strong> 앱 설치 전에도 기존 카카오 수거신청만 안전하게 운영됩니다. 공기계에 전용 앱을 켜신 뒤 번호를 입력·저장하면 홈페이지에 즉시 활성화됩니다.
-                    </p>
-                  </div>
-                )}
-
-                {globalSettings && (
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center mb-4">
-                      <label className="block text-lg font-bold text-gray-900">📢 전역 공지사항 (앱 전체 띠 배너)</label>
-                      <button 
-                        type="button"
-                        onClick={() => setGlobalSettings({...globalSettings, noticeIsActive: !globalSettings.noticeIsActive})}
-                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${globalSettings.noticeIsActive ? 'bg-indigo-600' : 'bg-gray-300'}`}
-                      >
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${globalSettings.noticeIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-4">명절 휴무, 긴급 안내 등 고객과 기사님을 포함한 앱 전체 화면 최상단에 띄울 공지를 작성합니다.</p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">배너 텍스트 (간략히)</label>
-                        <textarea
-                          value={globalSettings.globalNotice}
-                          onChange={(e) => setGlobalSettings({...globalSettings, globalNotice: e.target.value})}
-                          placeholder="예: 설 연휴 2/9~2/12 수거 휴무 안내"
-                          rows={2}
-                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">상세 내용 (클릭 시 팝업, 선택사항)</label>
-                        <textarea
-                          value={globalSettings.globalNoticeDetail || ''}
-                          onChange={(e) => setGlobalSettings({...globalSettings, globalNoticeDetail: e.target.value})}
-                          placeholder="배너를 클릭하면 상세 내용 팝업이 뜹니다."
-                          rows={3}
-                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800 resize-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-                
-                {globalSettings && (
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex justify-between items-center mb-4">
-                      <label className="block text-lg font-bold text-gray-900">🖼️ 홈페이지 팝업 배너</label>
-                      <button 
-                        type="button"
-                        onClick={() => setGlobalSettings({...globalSettings, popupIsActive: !globalSettings.popupIsActive})}
-                        className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${globalSettings.popupIsActive ? 'bg-indigo-600' : 'bg-gray-300'}`}
-                      >
-                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${globalSettings.popupIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
-                      </button>
-                    </div>
-                    <p className="text-sm text-gray-500 mb-4">고객이 홈페이지에 접속했을 때 나타나는 팝업 배너 이미지의 URL을 입력하세요. 팝업은 메인 페이지에만 노출됩니다.</p>
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">팝업 이미지 URL</label>
-                        <input
-                          type="text"
-                          value={globalSettings.popupImageUrl || ''}
-                          onChange={(e) => setGlobalSettings({...globalSettings, popupImageUrl: e.target.value})}
-                          placeholder="https://example.com/popup.png"
-                          className="w-full px-4 py-3 bg-white border border-indigo-200 rounded-xl focus:ring-2 focus:ring-indigo-500 text-gray-800"
-                        />
-                        {globalSettings.popupImageUrl && (
-                          <div className="mt-3">
-                            <p className="text-xs text-gray-500 mb-1">미리보기:</p>
-                            <img src={globalSettings.popupImageUrl} alt="Popup Preview" className="max-w-full h-auto rounded-lg border border-gray-200 max-h-48 object-contain" />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {globalSettings && (
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-2 bg-red-100 rounded-lg text-red-600">
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
-                      </div>
-                      <h4 className="text-lg font-bold text-gray-900">🎥 이벤트 당첨자 발표 영상</h4>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-1">유튜브 링크 (URL)</label>
-                        <input 
-                          type="text" 
-                          className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 text-gray-800 transition-shadow"
-                          placeholder="예: https://www.youtube.com/watch?v=..."
-                          value={globalSettings.eventYoutubeUrl || ''}
-                          onChange={(e) => setGlobalSettings({...globalSettings, eventYoutubeUrl: e.target.value})}
-                        />
-                        <p className="mt-2 text-xs text-gray-500">링크를 등록하시면 랜딩페이지의 이벤트 영역에 당첨자 발표 영상이 재생됩니다. 비워두시면 이벤트 배너 이미지만 표시됩니다.</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {globalSettings && (
-                  <EventProofManager
-                    title={globalSettings.eventProofTitle || ''}
-                    images={globalSettings.eventProofImages || []}
-                    onChangeTitle={(nextTitle) => setGlobalSettings({ ...globalSettings, eventProofTitle: nextTitle })}
-                    onChangeImages={(nextImages) => setGlobalSettings({ ...globalSettings, eventProofImages: nextImages })}
-                    onSave={() => void handleSaveSettings()}
-                    isSaving={isSavingSettings}
-                  />
-                )}
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-2 mb-4">
-                    <span className="text-2xl">✨</span>
-                    <h3 className="text-xl font-bold text-gray-900">프리미엄 알림톡 서비스</h3>
-                    <span className="px-2.5 py-1 bg-gradient-to-r from-orange-600 to-red-500 text-white text-xs font-black rounded-full shadow-sm ml-2 tracking-wide">유료 서비스</span>
-                  </div>
-                  <p className="text-sm text-gray-500 mb-6">파트너님의 수거 단가를 높이고, 재이용률을 극대화하는 카카오 알림톡 기반의 프리미엄 자동화 기능입니다.</p>
-                  
-                  <div className="space-y-6 divide-y divide-gray-100 border-t border-gray-100 pt-4">
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-lg font-bold text-gray-900">💬 기본 알림톡 자동 발송</label>
-                        <button 
-                          type="button"
-                          onClick={() => setSettings({...settings, useBizMessage: !settings.useBizMessage})}
-                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.useBizMessage ? 'bg-orange-500' : 'bg-gray-300'}`}
-                        >
-                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useBizMessage ? 'translate-x-8' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-500 leading-relaxed">수거 단계마다 고객의 개인 카카오톡으로 공식 알림톡이 발송됩니다.</p>
-                    </div>
-
-                    <div className="pt-4">
-                      <div className="flex justify-between items-center mb-2">
-                        <label className="block text-lg font-bold text-gray-900">🎯 CRM 리텐션 자동화</label>
-                        <button 
-                          type="button"
-                          onClick={() => setSettings({...settings, useCrmAutomation: !settings.useCrmAutomation})}
-                          className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.useCrmAutomation ? 'bg-orange-500' : 'bg-gray-300'}`}
-                        >
-                          <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.useCrmAutomation ? 'translate-x-8' : 'translate-x-1'}`} />
-                        </button>
-                      </div>
-                      <p className="text-sm text-gray-500 leading-relaxed">수거 완료 3개월 뒤 자동으로 재수거 유도 알림톡을 발송합니다.</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                  <div className="flex justify-between items-center mb-2">
-                    <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2"><span>🎉</span> 이벤트 및 리뷰 관리</h2>
-                    <button 
-                      type="button"
-                      onClick={() => setSettings({...settings, eventIsActive: !settings.eventIsActive})}
-                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none z-10 ${settings.eventIsActive ? 'bg-orange-500' : 'bg-gray-300'}`}
-                    >
-                      <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-sm ${settings.eventIsActive ? 'translate-x-8' : 'translate-x-1'}`} />
-                    </button>
-                  </div>
-                  <p className="text-sm text-gray-500 leading-relaxed mb-4">수거 완료 문자 최상단(간편리뷰·영수증 링크 바로 위)과 모바일 영수증 상단에 이벤트 문구를 눈에 띄게 노출하여 리뷰 참여율을 높입니다.</p>
-                  {settings.eventIsActive && (
-                    <textarea
-                      value={settings.eventText || ''}
-                      onChange={(e) => setSettings({...settings, eventText: e.target.value})}
-                      placeholder="간편 리뷰 작성 시 추첨을 통해 치킨 기프티콘을 드립니다!"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-black text-sm"
-                      rows={3}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* 오른쪽 단: 단가표, 권역, 계정 관리 */}
-              <div className="space-y-6">
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                  <label className="block text-lg font-bold text-gray-900 mb-2">💰 항목별 수거 단가 설정</label>
-                  <p className="text-sm text-gray-500 mb-4">기사님이 수거 완료 처리 시 고객에게 안내되는 정산 금액의 기준 단가입니다.</p>
-                  <button
-                    type="button"
-                    onClick={() => setIsShowPriceTableModal(true)}
-                    className="w-full py-3 font-bold rounded-xl bg-primary-50 text-primary-600 hover:bg-primary-100 active:scale-95 transition-all shadow-sm"
-                  >
-                    단가표 설정하기
-                  </button>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-bold text-gray-900 mb-2">🗺️ 사용자 정의 권역 관리</h2>
-                  <p className="text-sm text-gray-500 mb-4">기사님들에게 배정할 권역과 포함 지역을 설정하세요.</p>
-                  <div className="space-y-3">
-                    {customRegions.map(cr => (
-                      <div key={cr.id} className="flex justify-between items-center p-3 bg-gray-50 border border-gray-100 rounded-xl">
-                        <div>
-                          <span className="font-bold text-gray-900 mr-2">{cr.name}</span>
-                          <span className="text-xs text-gray-600">{cr.areas.join(', ')}</span>
-                        </div>
-                        <button 
-                          disabled={deletingRegionId === cr.id}
-                          onClick={() => handleDeleteRegion(cr.id)} 
-                          className="text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-500 hover:bg-red-100"
-                        >
-                          삭제
-                        </button>
-                      </div>
-                    ))}
-                    {isAddingRegion ? (
-                      <div className="p-3 bg-primary-50 border border-primary-100 rounded-xl space-y-3">
-                        <input type="text" value={newRegionForm.name} onChange={e => setNewRegionForm({...newRegionForm, name: e.target.value})} placeholder="예: A권역" className="w-full p-2 border border-primary-200 rounded-lg outline-none focus:ring-2 focus:ring-primary-500 bg-white text-sm" />
-                        <div className="max-h-40 overflow-y-auto border border-primary-200 rounded-lg bg-white p-2 space-y-1">
-                          {GYEONGGI_AREAS.map(area => {
-                            const isSelected = newRegionForm.selectedAreas.includes(area);
-                            return (
-                              <div key={area} className={`flex flex-col sm:flex-row sm:items-center justify-between p-1.5 rounded-lg ${isSelected ? 'bg-primary-50' : ''}`}>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                  <input type="checkbox" checked={isSelected} onChange={() => handleToggleArea(area)} className="w-4 h-4 text-primary-600" />
-                                  <span className={`text-sm ${isSelected ? 'font-bold text-primary-900' : 'text-gray-700'}`}>{area}</span>
-                                </label>
-                                {isSelected && (
-                                  <input type="text" value={newRegionForm.exceptions[area] || ''} onChange={(e) => handleExceptionChange(area, e.target.value)} placeholder="-뫄뫄동" className="text-xs p-1 border border-primary-200 rounded w-24" />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <div className="flex gap-2 justify-end pt-1">
-                          <button onClick={() => setIsAddingRegion(false)} className="px-3 py-1.5 bg-gray-200 text-gray-700 font-bold rounded-lg text-xs hover:bg-gray-300">취소</button>
-                          <button onClick={handleAddRegion} disabled={isSubmittingRegion} className="px-3 py-1.5 bg-primary-600 text-white font-bold rounded-lg text-xs hover:bg-primary-700">{isSubmittingRegion ? '저장 중' : '저장'}</button>
-                        </div>
-                      </div>
-                    ) : (
-                      <button onClick={() => setIsAddingRegion(true)} className="w-full py-3 border-2 border-dashed border-gray-300 text-gray-500 font-bold rounded-xl hover:bg-gray-50 hover:border-gray-400 transition-all text-sm">+ 새 권역 추가하기</button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
-                  <h2 className="text-xl font-bold text-gray-900 mb-4">🛠️ 계정 및 관리자 메뉴</h2>
-                  <div className="flex gap-3">
-                    <button onClick={() => setIsDriverModalOpen(true)} className="flex-1 py-3 bg-primary-600 text-white font-bold rounded-xl shadow-sm hover:bg-primary-700 text-sm active:scale-95">기사님 추가</button>
-                    <button onClick={() => setIsPasswordModalOpen(true)} className="flex-1 py-3 bg-gray-800 text-white font-bold rounded-xl shadow-sm hover:bg-gray-900 text-sm active:scale-95">비밀번호 변경</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdminSettingsView
+            settings={settings}
+            setSettings={setSettings}
+            globalSettings={globalSettings}
+            setGlobalSettings={setGlobalSettings}
+            isSavingSettings={isSavingSettings}
+            onSaveSettings={handleSaveSettings}
+            priceTableItems={priceTableItems}
+            onOpenPriceTableModal={() => setIsShowPriceTableModal(true)}
+            customRegions={customRegions}
+            areaOptions={GYEONGGI_AREAS}
+            newRegionForm={newRegionForm}
+            setNewRegionForm={setNewRegionForm}
+            isAddingRegion={isAddingRegion}
+            setIsAddingRegion={setIsAddingRegion}
+            isSubmittingRegion={isSubmittingRegion}
+            deletingRegionId={deletingRegionId}
+            onAddRegion={handleAddRegion}
+            onDeleteRegion={handleDeleteRegion}
+            onToggleArea={handleToggleArea}
+            onExceptionChange={handleExceptionChange}
+            onOpenDriverModal={() => setIsDriverModalOpen(true)}
+            onOpenPasswordModal={() => setIsPasswordModalOpen(true)}
+            onOpenSmsAutoModal={() => setIsSmsAutoModalOpen(true)}
+          />
         )}
         
 {/* 📅 캘린더 뷰 — desiredDate 기준 날짜별 수거 관리 */}

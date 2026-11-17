@@ -262,38 +262,41 @@ export default function PwaInstallButton({
   if (variant === 'settings-card') {
     return (
       <>
-        <div
-          className={`p-4 rounded-2xl bg-blue-50/70 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}
+        <section
+          className={`p-5 rounded-2xl bg-white border border-slate-200 shadow-xs space-y-3.5 ${className}`}
         >
-          <div className="space-y-1 min-w-0">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-800 text-[11px] font-bold">
-              <MonitorSmartphone className="w-3 h-3" />
-              <span>아이폰 · 갤럭시 · 태블릿 · PC 겸용</span>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5">
+                <MonitorSmartphone className="w-4 h-4" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">
+                  배차 콘솔 웹앱(바탕화면·홈화면) 저장
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                  아이폰·갤럭시·태블릿·사무실 PC 바탕화면에 전용 아이콘을 만들어 브라우저 주소 입력 없이 1초 만에 실행합니다.
+                </p>
+              </div>
             </div>
-            <h3 className="text-sm sm:text-base font-bold text-gray-900">
-              사장님 배차 콘솔 웹앱(바탕화면·홈화면) 저장
-            </h3>
-            <p className="text-xs text-gray-600 leading-relaxed">
-              매번 브라우저 주소를 입력할 필요 없이 휴대폰 홈화면이나 사무실 PC 바탕화면에 전용 앱 아이콘을 만들어 1초 만에 실행합니다.
-            </p>
           </div>
 
           {isInstalled ? (
-            <span className="h-10 px-3.5 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold inline-flex items-center justify-center gap-1.5 shrink-0">
+            <div className="h-9 px-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold inline-flex items-center justify-center gap-1.5 w-full">
               <Check className="w-4 h-4" />
-              <span>현재 웹앱으로 실행 중</span>
-            </span>
+              <span>현재 설치된 웹앱 화면으로 실행 중입니다</span>
+            </div>
           ) : (
             <button
               type="button"
               onClick={handleInstallClick}
-              className="h-10 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs sm:text-sm font-bold inline-flex items-center justify-center gap-1.5 shrink-0 transition-colors cursor-pointer shadow-sm"
+              className="w-full h-9 px-4 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 transition-colors cursor-pointer shadow-xs"
             >
-              <Download className="w-4 h-4" />
-              <span>{label || '웹앱 바로 저장하기'}</span>
+              <Download className="w-3.5 h-3.5" />
+              <span>{label || '바탕화면 · 홈화면에 웹앱 저장하기'}</span>
             </button>
           )}
-        </div>
+        </section>
         {renderGuideModal()}
       </>
     );
