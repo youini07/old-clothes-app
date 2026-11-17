@@ -58,6 +58,8 @@ export const REQUEST_LIGHT_SELECT = {
   driverNote: true,
   status: true,
   crmSent: true,
+  requestSource: true,
+  rawSmsText: true,
   createdAt: true,
   updatedAt: true,
 } as const;

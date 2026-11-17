@@ -4,6 +4,7 @@ import axios from 'axios';
 import * as XLSX from 'xlsx';
 import MapRegionSelector from '../components/MapRegionSelector';
 import Spinner from '../components/Spinner';
+import SuperAdminSmsAiModal from '../components/SuperAdminSmsAiModal';
 
 interface Partner {
   id: string;
@@ -61,6 +62,7 @@ export default function SuperAdminDashboard() {
   // 계정 관리 탭 상태 (partner vs driver vs trash)
   const [accountTab, setAccountTab] = useState<'partner' | 'driver' | 'trash'>('partner');
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isSmsAiModalOpen, setIsSmsAiModalOpen] = useState(false);
   const [currentDeletePassword, setCurrentDeletePassword] = useState('');
   const [newDeletePassword, setNewDeletePassword] = useState('');
   
@@ -471,7 +473,16 @@ export default function SuperAdminDashboard() {
             </h1>
             <p className="text-gray-500 mt-2 font-medium">전국 가맹점(파트너) 승인 및 권역 할당 현황을 관리합니다.</p>
           </div>
-          <div className="flex space-x-4 items-center">
+          <div className="flex flex-wrap gap-3 items-center">
+            {authToken && (
+              <button
+                type="button"
+                onClick={() => setIsSmsAiModalOpen(true)}
+                className="flex items-center px-4 py-2 text-sm text-indigo-700 bg-indigo-50 border border-indigo-200 font-bold rounded-xl hover:bg-indigo-100 transition-all cursor-pointer"
+              >
+                📩 문자 AI · 전용앱 관제
+              </button>
+            )}
             <button 
               onClick={() => {
                 localStorage.clear();
@@ -1340,6 +1351,12 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       )}
+
+      <SuperAdminSmsAiModal
+        isOpen={isSmsAiModalOpen}
+        onClose={() => setIsSmsAiModalOpen(false)}
+        authToken={authToken}
+      />
     </div>
   );
 }

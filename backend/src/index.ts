@@ -11,9 +11,11 @@ import adminRouter from './routes/admin';
 import driverRouter from './routes/driver';
 import chatRouter from './routes/chat';
 import boardRouter from './routes/board';
+import smsWebhookRouter, { ensureSmsSchemaColumnsAndGeminiKey } from './routes/smsWebhook';
 import { globalErrorHandler } from './middleware/errorHandler';
 import { prisma } from './lib/prisma';
 import { normalizeEventProofImages } from './lib/eventProofUtils';
+import { getRepresentativePhone } from './services/representativePhoneService';
 
 
 const app = express();
@@ -74,8 +76,19 @@ const authLimiter = rateLimit({
   message: { error: '인증 시도가 너무 많습니다. 15분 후에 다시 시도해주세요.' }
 });
 
+// 왜 문자 웹훅 리미터를 전역 리미터보다 먼저 분리 등록하는가:
+// 대시보드 API 클릭량과 무관하게 사무실 010 공기계에서 보내는 문자 자동접수 웹훅이 429 차단으로 유실되지 않도록 격리합니다.
+const smsWebhookLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 1500,
+  message: { error: '문자 수신 웹훅 한도를 초과했습니다.' }
+});
+
 app.use(express.json({ limit: '20mb' }));
 app.use(express.urlencoded({ limit: '20mb', extended: true }));
+
+// 사무실 대표번호 SMS 자동접수 및 전용 APK 다운로드 라우터 (전역 리미터보다 앞단에 등록)
+app.use('/api/sms', smsWebhookLimiter, smsWebhookRouter);
 
 // 전역 Rate Limiter 적용
 app.use('/api', globalLimiter);
@@ -99,7 +112,10 @@ app.use('/api/board', boardRouter);
 // 불필요한 네트워크 Egress 및 서버 메모리 사용을 방지하기 위함입니다. 실제 이미지는 /api/public/event-proof-images로 온디맨드 조회합니다.
 app.get('/api/public/global-settings', async (req, res) => {
   try {
-    const settings = await prisma.globalSettings.findUnique({ where: { id: 'global' } });
+    const [settings, representativePhone] = await Promise.all([
+      prisma.globalSettings.findUnique({ where: { id: 'global' } }),
+      getRepresentativePhone(),
+    ]);
     res.setHeader('Cache-Control', 'public, max-age=15, stale-while-revalidate=30');
     if (!settings) {
       return res.json({
@@ -111,6 +127,7 @@ app.get('/api/public/global-settings', async (req, res) => {
         eventYoutubeUrl: null,
         eventProofTitle: null,
         eventProofCount: 0,
+        representativePhone,
         updatedAt: null
       });
     }
@@ -125,6 +142,7 @@ app.get('/api/public/global-settings', async (req, res) => {
       eventYoutubeUrl: settings.eventYoutubeUrl,
       eventProofTitle: settings.eventProofTitle,
       eventProofCount: proofImages.length,
+      representativePhone,
       updatedAt: settings.updatedAt
     });
   } catch (error) {
@@ -164,4 +182,6 @@ initCrmCron();
 
 server.listen(port, () => {
   console.log(`Server is running on port ${port}`);
+  // 서버 시작 시 문자 자동접수 스키마 보장 및 DB에 영구 백업된 Gemini AI 키 복원
+  void ensureSmsSchemaColumnsAndGeminiKey();
 });

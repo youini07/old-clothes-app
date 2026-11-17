@@ -13,6 +13,11 @@ import ReviewCustomerContact from '../components/ReviewCustomerContact';
 import { invalidateGlobalSettingsCache } from '../utils/globalSettingsCache';
 import { formatPhoneNumber } from '../utils/phone';
 import EventProofManager from '../components/EventProofManager';
+import { io } from 'socket.io-client';
+import { resolveServerRootUrl } from '../utils/apiUrl';
+import SmsAutoConfigModal from '../components/SmsAutoConfigModal';
+import InstallProgramManualSection from '../components/InstallProgramManualSection';
+import { RequestSourceBadge, RawSmsPreviewBox } from '../components/SmsRequestBadge';
 
 interface RequestItem {
   id: string;
@@ -46,6 +51,8 @@ interface RequestItem {
   sigungu?: string | null;
   bname?: string | null;
   totalPrice?: number;
+  requestSource?: 'WEB' | 'SMS' | 'MANUAL' | string;
+  rawSmsText?: string | null;
   collectionItems?: Array<{
     id?: string;
     categoryLabel: string;
@@ -228,7 +235,7 @@ export default function AdminDashboard() {
   const [inquiryCommentContent, setInquiryCommentContent] = useState('');
   const [isSubmittingInquiryComment, setIsSubmittingInquiryComment] = useState(false);
   const [settings, setSettings] = useState<{ pricePerKg: number; useBizMessage: boolean; useCrmAutomation: boolean; useChat?: boolean; eventText?: string; eventIsActive?: boolean; } | null>(null);
-  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean; eventYoutubeUrl?: string | null; eventProofTitle?: string | null; eventProofImages?: string[] } | null>(null);
+  const [globalSettings, setGlobalSettings] = useState<{ globalNotice: string; noticeIsActive: boolean; globalNoticeDetail?: string; popupImageUrl?: string | null; popupIsActive?: boolean; eventYoutubeUrl?: string | null; eventProofTitle?: string | null; eventProofImages?: string[]; representativePhone?: string | null } | null>(null);
   const [adminInfo, setAdminInfo] = useState<{ address?: string; businessName?: string; name?: string } | null>(null);
   const [page] = useState(1);
   const [isSavingSettings, setIsSavingSettings] = useState(false);
@@ -264,8 +271,10 @@ export default function AdminDashboard() {
   const [addressTarget, setAddressTarget] = useState<'manual' | 'edit'>('manual');
 
   const [isEditRequestModalOpen, setIsEditRequestModalOpen] = useState(false);
-  const [editRequestForm, setEditRequestForm] = useState({ id: '', userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '' });
+  const [editRequestForm, setEditRequestForm] = useState({ id: '', userName: '', phone: '', address: '', detailAddress: '', estimatedVolume: '', desiredDate: '', rawSmsText: '' });
   const [isSubmittingEditRequest, setIsSubmittingEditRequest] = useState(false);
+  const [isSmsAutoModalOpen, setIsSmsAutoModalOpen] = useState(false);
+  const [requestSourceFilter, setRequestSourceFilter] = useState<'ALL' | 'SMS' | 'WEB' | 'MANUAL'>('ALL');
 
   const [isDriverModalOpen, setIsDriverModalOpen] = useState(false);
   const [driverForm, setDriverForm] = useState({ name: '', phone: '', email: '', vehicleInfo: '', customRegionId: '' });
@@ -534,14 +543,18 @@ export default function AdminDashboard() {
   };
 
   const openEditRequestModal = (req: RequestItem) => {
+    const cleanAddr = req.address && req.address.startsWith('[주소확인필요]')
+      ? req.address.replace(/^\[주소확인필요\]\s*/, '')
+      : (req.address || '');
     setEditRequestForm({
       id: req.id,
       userName: req.userName || '',
       phone: req.phone || '',
-      address: req.address || '',
+      address: cleanAddr,
       detailAddress: req.detailAddress || '',
       estimatedVolume: req.estimatedVolume || '',
-      desiredDate: req.desiredDate ? new Date(req.desiredDate).toISOString().split('T')[0] : ''
+      desiredDate: req.desiredDate ? new Date(req.desiredDate).toISOString().split('T')[0] : '',
+      rawSmsText: req.rawSmsText || ''
     });
     setIsEditRequestModalOpen(true);
   };
@@ -609,7 +622,8 @@ export default function AdminDashboard() {
           eventYoutubeUrl: globalSettings.eventYoutubeUrl || null,
           popupIsActive: globalSettings.popupIsActive || false,
           eventProofTitle: globalSettings.eventProofTitle || null,
-          eventProofImages: Array.isArray(globalSettings.eventProofImages) ? globalSettings.eventProofImages : []
+          eventProofImages: Array.isArray(globalSettings.eventProofImages) ? globalSettings.eventProofImages : [],
+          representativePhone: globalSettings.representativePhone ?? ''
         }, {
           headers: { Authorization: `Bearer ${authToken}` }
         });
@@ -751,6 +765,21 @@ export default function AdminDashboard() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken, page]);
+
+  // 왜 Socket.IO 실시간 구독을 추가하는가:
+  // 사무실 공기계의 올클 문자자동접수 앱(allclear-app.apk)이 고객 문자를 서버로 직송하는 즉시
+  // 사장님 PC 대시보드 화면이 새로고침(F5) 없이 1초 만에 신규 문자 카드를 띄우도록 합니다.
+  useEffect(() => {
+    if (!authToken) return;
+    const socket = io(resolveServerRootUrl(), { withCredentials: true });
+    socket.on('requests_reordered', () => {
+      void fetchData();
+    });
+    return () => {
+      socket.disconnect();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken]);
 
   // 배정 건 클릭 시 기사님 탭으로 자동 이동 (모바일 최적화)
   useEffect(() => {
@@ -1340,8 +1369,9 @@ export default function AdminDashboard() {
     const term = requestSearchTerm.toLowerCase();
     const matchName = req.userName && req.userName.toLowerCase().includes(term);
     const matchPhone = req.phone && req.phone.includes(term);
-    const matchAddress = req.address && req.address.includes(term);
-    return matchName || matchPhone || matchAddress;
+    const matchAddress = req.address && req.address.toLowerCase().includes(term);
+    const matchRawSms = Boolean(req.rawSmsText && req.rawSmsText.toLowerCase().includes(term));
+    return matchName || matchPhone || matchAddress || matchRawSms;
   });
 
   // 수락 대기 중인 요청 (아직 아무 사장님도 수락하지 않은 건)
@@ -1349,18 +1379,31 @@ export default function AdminDashboard() {
   // 수락 완료 + 기사 미배정 건 (사장님이 수락했지만 기사 미배정)
   const allAcceptedUnassigned = displayRequests.filter(r => r.partnerId && !r.driverId && r.status !== 'COMPLETED');
 
-  // 현재 탭에 맞는 목록 필터링
+  // 문자 자동접수 대기 건수 뱃지 표시용
+  const smsWaitingCount = [...allPendingRequests, ...allAcceptedUnassigned].filter(
+    r => r.requestSource === 'SMS'
+  ).length;
+
+  const matchesRequestSource = (req: RequestItem) => {
+    if (requestSourceFilter === 'ALL') return true;
+    if (requestSourceFilter === 'SMS') return req.requestSource === 'SMS';
+    if (requestSourceFilter === 'MANUAL') return req.requestSource === 'MANUAL';
+    return !req.requestSource || req.requestSource === 'WEB';
+  };
+
+  // 현재 권역 탭 + 접수 채널 필터에 맞는 목록 필터링
   const getFilteredRequests = (reqList: RequestItem[]) => {
-    if (activeRegionTab === 'ALL') return reqList;
+    const bySource = reqList.filter(matchesRequestSource);
+    if (activeRegionTab === 'ALL') return bySource;
     if (activeRegionTab === 'UNCLASSIFIED') {
-      return reqList.filter(req => {
+      return bySource.filter(req => {
         // 어떤 권역에도 매칭되지 않는 건
         return !customRegions.some(cr => matchesRegion(req, cr.areas));
       });
     }
     const targetRegion = customRegions.find(cr => cr.id === activeRegionTab);
-    if (!targetRegion) return reqList;
-    return reqList.filter(req => matchesRegion(req, targetRegion.areas));
+    if (!targetRegion) return bySource;
+    return bySource.filter(req => matchesRegion(req, targetRegion.areas));
   };
 
   const pendingRequests = getFilteredRequests(allPendingRequests);
@@ -1748,9 +1791,35 @@ export default function AdminDashboard() {
               </button>
             </div>
 
+            {/* 사무실 010 문자 자동접수 전용 앱(allclear-app.apk) 설치 및 웹앱 저장 매뉴얼 */}
+            <div className="mb-6">
+              <InstallProgramManualSection onOpenSmsModal={() => setIsSmsAutoModalOpen(true)} />
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
               {/* 왼쪽 단: 기본 설정 항목들 */}
               <div className="space-y-6">
+                {globalSettings && (
+                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-lg font-bold text-gray-900">📞 홈페이지 · 010 문자접수 대표 전화번호</label>
+                    </div>
+                    <p className="text-sm text-gray-500 mb-4">
+                      고객 홈페이지의 010 간편 문자신청 버튼과 사무실 문자 자동접수 안내에 노출되는 대표 수신 번호입니다.
+                    </p>
+                    <input
+                      type="tel"
+                      value={globalSettings.representativePhone || ''}
+                      onChange={(e) => setGlobalSettings({ ...globalSettings, representativePhone: e.target.value })}
+                      placeholder="공기계 앱 설치 후 입력 (비워두면 홈페이지 문자접수 버튼 숨김)"
+                      className="w-full px-4 py-3 bg-white border border-blue-200 rounded-xl focus:ring-2 focus:ring-blue-500 text-gray-900 font-bold tabular-nums"
+                    />
+                    <p className="mt-2 text-xs text-gray-500 leading-relaxed">
+                      ※ 비워두시면 고객 홈페이지에 <strong>[010 문자 접수] 버튼이 노출되지 않아</strong> 앱 설치 전에도 기존 카카오 수거신청만 안전하게 운영됩니다. 공기계에 전용 앱을 켜신 뒤 번호를 입력·저장하면 홈페이지에 즉시 활성화됩니다.
+                    </p>
+                  </div>
+                )}
+
                 {globalSettings && (
                   <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                     <div className="flex justify-between items-center mb-4">
@@ -2803,14 +2872,59 @@ export default function AdminDashboard() {
           <div 
             className={`xl:col-span-1 bg-white rounded-3xl p-6 border border-gray-100 shadow-[0_8px_30px_rgb(0,0,0,0.04)] xl:sticky xl:top-6 xl:h-[calc(100vh-120px)] overflow-y-auto ${dispatchTab === 'requests' ? 'block' : 'hidden xl:block'}`}
           >
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex flex-wrap justify-between items-center gap-2 mb-3">
               <h2 className="text-xl font-bold text-gray-900">신규/미배정 리스트</h2>
-              <button 
-                onClick={() => setIsManualModalOpen(true)}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-bold shadow transition-colors"
-              >
-                + 비회원(전화) 접수
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setIsSmsAutoModalOpen(true)}
+                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  📩 문자자동
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setIsManualModalOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-xs sm:text-sm font-bold shadow transition-colors cursor-pointer"
+                >
+                  + 비회원(전화) 접수
+                </button>
+              </div>
+            </div>
+
+            {/* 접수 채널 필터 탭 (전체 / 문자자동 / 웹·앱 / 전화) */}
+            <div className="grid grid-cols-4 gap-1 bg-gray-100 p-1 rounded-xl mb-3">
+              {(
+                [
+                  { key: 'ALL', label: '전체' },
+                  { key: 'SMS', label: '문자', badge: smsWaitingCount },
+                  { key: 'WEB', label: '웹/앱' },
+                  { key: 'MANUAL', label: '전화' },
+                ] as const
+              ).map((tab) => {
+                const active = requestSourceFilter === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    type="button"
+                    onClick={() => setRequestSourceFilter(tab.key)}
+                    className={`h-8 px-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all inline-flex items-center justify-center gap-1 cursor-pointer ${
+                      active ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-800'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    {'badge' in tab && tab.badge > 0 && (
+                      <span
+                        className={`px-1.5 rounded-full text-[10px] font-extrabold leading-4 tabular-nums ${
+                          active ? 'bg-indigo-600 text-white' : 'bg-gray-700 text-white'
+                        }`}
+                      >
+                        {tab.badge}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             
             {/* 권역별 탭 */}
@@ -2900,6 +3014,7 @@ export default function AdminDashboard() {
                             <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                               <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
                               <span className="text-sm font-normal text-gray-500 shrink-0">{formatPhoneNumber(req.phone)}</span>
+                              <RequestSourceBadge requestSource={req.requestSource} address={req.address} />
                               {req.isMustPickupDate && (
                                 <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
                                   🚨 지정일 필수
@@ -2908,6 +3023,7 @@ export default function AdminDashboard() {
                             </h3>
                           </div>
                           <p className="text-sm text-gray-700 mt-1.5 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                          <RawSmsPreviewBox rawSmsText={req.rawSmsText} address={req.address} />
                           
                           <div className="flex flex-wrap items-center gap-2 mt-3">
                             <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">
@@ -3043,6 +3159,7 @@ export default function AdminDashboard() {
                           <h3 className="font-bold text-gray-900 flex items-center flex-wrap gap-x-2 gap-y-1 text-base">
                             <span className="truncate max-w-[120px] sm:max-w-none">{req.userName}</span>
                             <span className="text-sm font-normal text-gray-500 shrink-0">{formatPhoneNumber(req.phone)}</span>
+                            <RequestSourceBadge requestSource={req.requestSource} address={req.address} />
                             {req.isMustPickupDate && (
                               <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0">
                                 🚨 지정일 필수
@@ -3054,6 +3171,7 @@ export default function AdminDashboard() {
                           )}
                         </div>
                         <p className="text-sm text-gray-700 mt-1.5 leading-relaxed break-all">{req.address} {req.detailAddress}</p>
+                        <RawSmsPreviewBox rawSmsText={req.rawSmsText} address={req.address} />
                         
                         <div className="flex flex-wrap items-center gap-2 mt-3">
                           <span className="inline-block bg-gray-100 text-gray-700 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0">
@@ -3347,6 +3465,7 @@ export default function AdminDashboard() {
                                                 {req.phone.replace(/^(\d{2,3})(\d{3,4})(\d{4})$/, '$1-$2-$3')}
                                               </span>
                                             )}
+                                            <RequestSourceBadge requestSource={req.requestSource} address={req.address} />
                                             {req.isMustPickupDate && (
                                               <span className="text-[10px] bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
                                                 🚨 필수 수거
@@ -3369,6 +3488,7 @@ export default function AdminDashboard() {
                                           <div>{req.address}</div>
                                           {req.detailAddress && <div>{req.detailAddress}</div>}
                                         </div>
+                                        <RawSmsPreviewBox rawSmsText={req.rawSmsText} address={req.address} compact />
                                       </div>
 
                                       {/* Bottom Row: Tags, Buttons */}
@@ -3869,6 +3989,9 @@ export default function AdminDashboard() {
             </div>
             
             <form onSubmit={handleEditRequestSubmit} className="p-6 overflow-y-auto space-y-5">
+              {editRequestForm.rawSmsText && (
+                <RawSmsPreviewBox rawSmsText={editRequestForm.rawSmsText} address={editRequestForm.address} compact />
+              )}
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-bold text-gray-700 mb-1">고객명 / 상호명</label>
@@ -4066,6 +4189,16 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+
+      <SmsAutoConfigModal
+        isOpen={isSmsAutoModalOpen}
+        onClose={() => setIsSmsAutoModalOpen(false)}
+        authToken={authToken}
+        onSimulatedSuccess={() => {
+          setRequestSourceFilter('SMS');
+          void fetchData();
+        }}
+      />
 
     </div>
   );

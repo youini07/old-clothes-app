@@ -33,3 +33,8 @@ backend/prisma/dev.db-journal
 tiktok-studio/
 start_tiktok_studio.bat
 frontend/make_profile_icons.py
+
+# Android temporary Gradle caches (built APKs in dist/ and public/downloads/ are kept)
+android-app/.gradle/
+android-app/build/
+android-app/app/build/

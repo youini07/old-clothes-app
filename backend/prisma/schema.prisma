@@ -155,8 +155,10 @@ model Request {
   // 항목별 수거 정산 내역 (카테고리별 무게/수량 + 단가 계산)
   collectionItems CollectionItem[]
 
-  status  String  @default("PENDING")
-  crmSent Boolean @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
+  status        String  @default("PENDING")
+  crmSent       Boolean @default(false) // 3개월 자동 리텐션 알림톡 발송 여부
+  requestSource String  @default("WEB") // 접수 채널 구분 ('WEB' | 'SMS' | 'MANUAL')
+  rawSmsText    String? // 010 대표번호 문자 자동접수 시 수신 원문(보충 문자 병합 포함)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -165,6 +167,7 @@ model Request {
   @@index([driverId, status])
   @@index([customerId])
   @@index([status, createdAt])
+  @@index([requestSource, createdAt])
   @@index([desiredDate])
   @@index([confirmedDate])
   @@index([completedDate])
@@ -183,17 +186,19 @@ model CustomRegion {
 }
 
 model GlobalSettings {
-  id                 String   @id @default("global")
-  globalNotice       String?
-  noticeIsActive     Boolean  @default(false)
-  globalNoticeDetail String?
-  popupImageUrl      String?
-  popupIsActive      Boolean  @default(false)
-  deletePassword     String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
-  eventYoutubeUrl    String? // 이벤트 당첨자 발표 유튜브 링크
-  eventProofTitle    String? // 지난달 당첨자 기프티콘 전송 인증 섹션 제목 (선택)
-  eventProofImages   Json? // 지난달 당첨자 기프티콘 전송 인증 스샷 목록 (string[])
-  updatedAt          DateTime @updatedAt
+  id                  String   @id @default("global")
+  globalNotice        String?
+  noticeIsActive      Boolean  @default(false)
+  globalNoticeDetail  String?
+  popupImageUrl       String?
+  popupIsActive       Boolean  @default(false)
+  deletePassword      String   @default("9436") // 슈퍼어드민 계정 삭제 방지용 비밀번호
+  eventYoutubeUrl     String? // 이벤트 당첨자 발표 유튜브 링크
+  eventProofTitle     String? // 지난달 당첨자 기프티콘 전송 인증 섹션 제목 (선택)
+  eventProofImages    Json? // 지난달 당첨자 기프티콘 전송 인증 스샷 목록 (string[])
+  representativePhone String? // 홈페이지 상담 및 010 문자 자동접수 수신 대표 전화번호
+  geminiApiKey        String? // 서버 재배포 후에도 유지되는 문자 분석 Gemini API 키 백업
+  updatedAt           DateTime @updatedAt
 }
 
 // 1:1 채팅방 (고객 - 파트너)

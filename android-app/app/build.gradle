@@ -1,0 +1,33 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.allclear.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.allclear.app"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            // 사내 사무실 공기계 직접 설치용 APK이므로 즉시 서명 가능하도록 구성
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    // 외부 서드파티 의존성 제로(0) 순정 Android SDK 설계 -> 초경량(~100KB) 및 전 기종 호환성 극대화
+}

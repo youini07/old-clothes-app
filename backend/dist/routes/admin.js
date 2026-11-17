@@ -34,6 +34,7 @@ const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
 const socket_1 = require("../socket");
 const eventProofUtils_1 = require("../lib/eventProofUtils");
+const representativePhoneService_1 = require("../services/representativePhoneService");
 const router = express_1.default.Router();
 const demoExcludeFilter = {
     NOT: [
@@ -699,10 +700,31 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
             });
         }
         else {
-            // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 본인 배정 건
+            // 권역 설정됨 → 해당 시(city)의 주소를 가진 미배정 요청 + 주소 확인이 필요한 문자 자동접수 건 + 본인 배정 건
+            const regionIds = coverages.map((c) => c.regionId);
             const cities = coverages.map((c) => c.region.city);
-            const cityFilters = cities.map((city) => ({ address: { contains: city } }));
-            const whereCondition = { AND: [demoExcludeFilter], OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
+            const cityFilters = cities.flatMap((city) => [
+                { address: { contains: city } },
+                { rawSmsText: { contains: city } },
+            ]);
+            const whereCondition = {
+                AND: [demoExcludeFilter],
+                OR: [
+                    {
+                        partnerId: null,
+                        status: 'PENDING',
+                        OR: [{ regionId: { in: regionIds } }, ...cityFilters],
+                    },
+                    // 왜: 고객이 도로명/시군구를 생략하고 동·아파트명만 보낸 문자('[주소확인필요]')도 유실 없이 사장님 화면에 노출함
+                    {
+                        partnerId: null,
+                        status: 'PENDING',
+                        requestSource: 'SMS',
+                        OR: [{ address: { contains: '주소확인필요' } }, { regionId: null }],
+                    },
+                    { partnerId: partnerId },
+                ],
+            };
             totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
             rawRequests = yield prisma_1.prisma.request.findMany({
                 where: whereCondition,
@@ -743,9 +765,24 @@ router.get('/requests/calendar', authMiddleware_1.authenticate, (0, authMiddlewa
             scopeCondition = { OR: [{ partnerId: null, status: 'PENDING' }, { partnerId: partnerId }] };
         }
         else {
+            const regionIds = coverages.map((c) => c.regionId);
             const cities = coverages.map((c) => c.region.city);
-            const cityFilters = cities.map((city) => ({ address: { contains: city } }));
-            scopeCondition = { OR: [{ partnerId: null, status: 'PENDING', OR: cityFilters }, { partnerId: partnerId }] };
+            const cityFilters = cities.flatMap((city) => [
+                { address: { contains: city } },
+                { rawSmsText: { contains: city } },
+            ]);
+            scopeCondition = {
+                OR: [
+                    { partnerId: null, status: 'PENDING', OR: [{ regionId: { in: regionIds } }, ...cityFilters] },
+                    {
+                        partnerId: null,
+                        status: 'PENDING',
+                        requestSource: 'SMS',
+                        OR: [{ address: { contains: '주소확인필요' } }, { regionId: null }],
+                    },
+                    { partnerId: partnerId },
+                ],
+            };
         }
         // 달력 표시 기준(confirmedDate || desiredDate)이 해당 월에 속하는 건만 조회
         const whereCondition = {
@@ -2132,7 +2169,7 @@ router.put('/price-table', authMiddleware_1.authenticate, (0, authMiddleware_1.r
         res.status(500).json({ error: '단가표 저장 중 오류가 발생했습니다.' });
     }
 }));
-// 전역 공지사항 및 홈페이지 이벤트 설정 가져오기
+// 전역 공지사항 및 홈페이지 이벤트·대표번호 설정 가져오기
 router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     try {
         let settings = yield prisma_1.prisma.globalSettings.findUnique({ where: { id: 'global' } });
@@ -2141,15 +2178,16 @@ router.get('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware
                 data: { id: 'global', globalNotice: '', noticeIsActive: false, globalNoticeDetail: '' }
             });
         }
-        const { deletePassword: _dp } = settings, safeSettings = __rest(settings, ["deletePassword"]);
-        res.json(Object.assign(Object.assign({}, safeSettings), { eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(settings.eventProofImages) }));
+        const representativePhone = yield (0, representativePhoneService_1.getRepresentativePhone)();
+        const { deletePassword: _dp, geminiApiKey: _gk } = settings, safeSettings = __rest(settings, ["deletePassword", "geminiApiKey"]);
+        res.json(Object.assign(Object.assign({}, safeSettings), { representativePhone, eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(settings.eventProofImages) }));
     }
     catch (error) {
         console.error('전역 설정 가져오기 오류:', error);
         res.status(500).json({ message: '전역 설정 로드 중 오류가 발생했습니다.' });
     }
 }));
-// 전역 공지사항 및 홈페이지 이벤트 설정 업데이트
+// 전역 공지사항 및 홈페이지 이벤트·대표번호 설정 업데이트
 router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddleware_1.requireRole)(['PARTNER', 'SUPER_ADMIN']), (req, res) => __awaiter(void 0, void 0, void 0, function* () {
     const { globalNotice, noticeIsActive, globalNoticeDetail } = req.body;
     // 인증샷 배열이 전달된 경우 형식/용량/개수 검증
@@ -2187,10 +2225,14 @@ router.patch('/global-settings', authMiddleware_1.authenticate, (0, authMiddlewa
                 eventProofImages: validatedProofImages !== null && validatedProofImages !== void 0 ? validatedProofImages : []
             }
         });
-        const { deletePassword: _dp } = updatedSettings, safeSettings = __rest(updatedSettings, ["deletePassword"]);
+        if (req.body.representativePhone !== undefined) {
+            yield (0, representativePhoneService_1.saveRepresentativePhone)(String(req.body.representativePhone || ''));
+        }
+        const representativePhone = yield (0, representativePhoneService_1.getRepresentativePhone)();
+        const { deletePassword: _dp, geminiApiKey: _gk } = updatedSettings, safeSettings = __rest(updatedSettings, ["deletePassword", "geminiApiKey"]);
         res.json({
             message: '설정이 저장되었습니다.',
-            settings: Object.assign(Object.assign({}, safeSettings), { eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(updatedSettings.eventProofImages) })
+            settings: Object.assign(Object.assign({}, safeSettings), { representativePhone, eventProofImages: (0, eventProofUtils_1.normalizeEventProofImages)(updatedSettings.eventProofImages) })
         });
     }
     catch (error) {
@@ -2234,6 +2276,7 @@ router.post('/requests/manual', authMiddleware_1.authenticate, (0, authMiddlewar
                 partnerId,
                 regionId,
                 customerId: null, // 비회원
+                requestSource: 'MANUAL',
             },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });
@@ -2262,6 +2305,25 @@ router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_
         if (req.user.role === 'PARTNER' && existingReq.partnerId && existingReq.partnerId !== partnerId) {
             return res.status(403).json({ error: '수정 권한이 없습니다.' });
         }
+        // 왜: '[주소확인필요]' 상태였던 문자 접수건을 사장님이 정식 도로명 주소로 수정했을 때
+        // 시/군/구(sigungu)와 권역(regionId)까지 함께 갱신되어야 지도 배차 및 지역별 통계에 정확히 잡힙니다.
+        let nextSigungu = undefined;
+        let nextRegionId = undefined;
+        if (updateData.address !== undefined && !String(updateData.address).startsWith('[주소확인필요]')) {
+            const addrParts = String(updateData.address).trim().split(/\s+/);
+            let prov = addrParts[0] || '';
+            if (prov === '경기')
+                prov = '경기도';
+            const city = addrParts[1] || '';
+            if (city) {
+                nextSigungu = city;
+                if (prov) {
+                    const matchedRegion = yield prisma_1.prisma.region.findFirst({ where: { province: prov, city } });
+                    if (matchedRegion)
+                        nextRegionId = matchedRegion.id;
+                }
+            }
+        }
         const updatedRequest = yield prisma_1.prisma.request.update({
             where: { id: requestId },
             data: {
@@ -2271,6 +2333,8 @@ router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_
                 detailAddress: updateData.detailAddress !== undefined ? updateData.detailAddress : undefined,
                 estimatedVolume: updateData.estimatedVolume !== undefined ? updateData.estimatedVolume : undefined,
                 desiredDate: updateData.desiredDate ? new Date(updateData.desiredDate) : undefined,
+                sigungu: nextSigungu,
+                regionId: nextRegionId,
             },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });

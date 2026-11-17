@@ -9,6 +9,7 @@ import SeoReviewSection, {
 } from '../components/SeoReviewSection';
 import { getGlobalSettingsCached } from '../utils/globalSettingsCache';
 import ChickenEventProofSection from '../components/ChickenEventProofSection';
+import LandingSmsGuideModal, { buildAllClearQuickSmsHref } from '../components/LandingSmsGuideModal';
 
 /**
  * 올클(ALL-CLEAR) 고객용 랜딩 페이지
@@ -180,6 +181,8 @@ export default function Landing() {
   const [eventYoutubeUrl, setEventYoutubeUrl] = useState<string | null>(null);
   const [eventProofTitle, setEventProofTitle] = useState<string | null>(null);
   const [eventProofImages, setEventProofImages] = useState<string[]>([]);
+  const [representativePhone, setRepresentativePhone] = useState<string>('');
+  const [isSmsGuideOpen, setIsSmsGuideOpen] = useState(false);
 
   // 왜 폴백(PROD_API_FALLBACK)을 두는가:
   // 로컬 개발 환경(localhost:5000)의 DB에는 실서버 슈퍼관리자에서 등록한 유튜브 링크나 실제 리뷰가 비어 있을 수 있으므로,
@@ -223,6 +226,9 @@ export default function Landing() {
         if (data?.eventProofTitle) {
           setEventProofTitle(data.eventProofTitle);
         }
+        if (data?.representativePhone) {
+          setRepresentativePhone(String(data.representativePhone).trim());
+        }
         if (typeof data?.eventProofCount === 'number' && data.eventProofCount > 0) {
           await loadProofImagesFrom(localApi, data.updatedAt);
           hasProofImages = true;
@@ -238,6 +244,9 @@ export default function Landing() {
           if (cancelled) return;
           if (!hasYoutube && prodRes.data?.eventYoutubeUrl) {
             setEventYoutubeUrl(prodRes.data.eventYoutubeUrl);
+          }
+          if (prodRes.data?.representativePhone) {
+            setRepresentativePhone((prev) => prev || String(prodRes.data.representativePhone).trim());
           }
           if (!hasProofImages && typeof prodRes.data?.eventProofCount === 'number' && prodRes.data.eventProofCount > 0) {
             await loadProofImagesFrom(PROD_PUBLIC_API, prodRes.data.updatedAt);
@@ -483,6 +492,17 @@ export default function Landing() {
                 💬 카카오로 3초만에 시작
               </a>
 
+              {/* 카카오톡이 어려운 어르신·비회원용 010 문자 접수 버튼 */}
+              {representativePhone && (
+                <button
+                  type="button"
+                  onClick={() => setIsSmsGuideOpen(true)}
+                  className="glass-panel flex items-center justify-center gap-2 px-7 py-4 rounded-full text-blue-700 text-base font-extrabold hover:brightness-105 active:scale-95 transition-all w-full sm:w-auto cursor-pointer"
+                >
+                  📩 010 문자 접수
+                </button>
+              )}
+
               {/* 자세히 알아보기 버튼 (공통 글래스모피즘) */}
               <a
                 href="#how"
@@ -535,10 +555,18 @@ export default function Landing() {
             <div className="w-full flex flex-col items-center mt-auto reveal reveal-delay-3 pt-6">
               <a
                 href={KAKAO_LOGIN_URL}
-                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-[#FEE500]/80 backdrop-blur-md border border-[#FEE500]/40 text-[#391B1B] text-[15px] font-extrabold hover:bg-[#FEE500] active:scale-95 transition-all mb-3 shadow-[0_4px_16px_rgba(254,229,0,0.25)]"
+                className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-[#FEE500]/80 backdrop-blur-md border border-[#FEE500]/40 text-[#391B1B] text-[15px] font-extrabold hover:bg-[#FEE500] active:scale-95 transition-all mb-2.5 shadow-[0_4px_16px_rgba(254,229,0,0.25)]"
               >
                 카카오로 로그인
               </a>
+              {representativePhone && (
+                <a
+                  href={buildAllClearQuickSmsHref(representativePhone)}
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-white/75 backdrop-blur-md border border-blue-200 text-blue-700 text-[14px] font-extrabold hover:bg-white active:scale-95 transition-all mb-2.5 shadow-sm"
+                >
+                  📩 010 문자로 간편 접수
+                </a>
+              )}
               <a
                 href="#how"
                 className="w-full flex items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/40 backdrop-blur-md border border-white/60 text-gray-700 text-[14px] font-bold hover:bg-white/60 active:scale-95 transition-all shadow-sm"
@@ -1010,6 +1038,19 @@ export default function Landing() {
                 A. 수거 신청 시 희망하는 날짜를 선택하실 수 있습니다. 다만 기사님의 동선에 따라 시간이 조율될 수 있으므로, 이삿날처럼 특정 일자에 무조건 수거가 필요한 경우에는 신청 시 '필수 수거'에 체크해주시거나 카카오톡 채널로 미리 문의해 주시면 최대한 일정을 맞춰드립니다. 비대면 수거도 완벽하게 지원하므로 집에 계시지 않아도 문 앞에만 내놓으시면 수거가 가능합니다.
               </p>
             </details>
+            {representativePhone && (
+              <details className="group bg-white rounded-2xl p-6 border border-gray-200 shadow-sm cursor-pointer [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex items-center justify-between font-extrabold text-base sm:text-lg text-gray-900 outline-none">
+                  Q. 카카오톡 로그인이 어려운데 문자로도 수거 신청이 가능한가요?
+                  <span className="transition group-open:rotate-180">
+                    <svg fill="none" height="24" shapeRendering="geometricPrecision" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" viewBox="0 0 24 24" width="24"><path d="M6 9l6 6 6-6"></path></svg>
+                  </span>
+                </summary>
+                <p className="text-gray-600 mt-4 leading-relaxed font-medium text-sm sm:text-base">
+                  A. 네, 가능합니다! 본인 휴대폰으로 대표번호(<strong>{representativePhone}</strong>)에 <strong>도로명 상세주소(동·호수) · 공동현관 출입번호 · 예상 물량(20kg 이상) · 수거 희망일</strong>을 문자로 보내주시면 시스템에 실시간 자동 접수되며, 확인 후 방문 일정을 안내해 드립니다.
+                </p>
+              </details>
+            )}
           </div>
         </div>
       </section>
@@ -1214,7 +1255,11 @@ export default function Landing() {
         </div>
       </div>
 
-      
+      <LandingSmsGuideModal
+        isOpen={isSmsGuideOpen}
+        onClose={() => setIsSmsGuideOpen(false)}
+        representativePhone={representativePhone}
+      />
     </div>
   );
 }
