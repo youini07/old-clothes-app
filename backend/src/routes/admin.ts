@@ -8,7 +8,7 @@ import { validatePartner, validateDriver } from '../middleware/validateMiddlewar
 import { getStatusForAction } from '../services/statusService';
 import { getCoordinates } from '../services/kakaoRoute';
 import { sendAssignmentToCustomer, sendScheduleConfirmedToCustomer } from '../services/notificationService';
-import { sendDriverAssignedSystemMessage } from '../socket';
+import { sendDriverAssignedSystemMessage, getIo } from '../socket';
 import {
   normalizeEventProofImages,
   normalizeEventProofTitle,
@@ -17,6 +17,17 @@ import {
 import { getRepresentativePhone, saveRepresentativePhone } from '../services/representativePhoneService';
 
 const router = express.Router();
+
+// 왜 별도 안전 헬퍼로 감싸는가:
+// 사장님이 기사 배정·해제·순서 변경·일정/주소 수정을 수행할 때 켜져 있는 기사님 앱(PWA) 화면도 새로고침 없이 즉시 자동 갱신되도록 브로드캐스트하되,
+// 소켓 미초기화 등 예외 상황에서도 배차 API 응답이 절대 실패하지 않도록 방어함
+function emitRequestsUpdatedSafely() {
+  try {
+    getIo().emit('requests_reordered');
+  } catch {
+    // 소켓 초기화 전 호출 시 안전 무시
+  }
+}
 
 const demoExcludeFilter = {
   NOT: [
@@ -1051,6 +1062,7 @@ router.delete('/requests/:id', authenticate, requireRole(['SUPER_ADMIN', 'PARTNE
       where: { id }
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '수거 요청이 성공적으로 삭제되었습니다.' });
   } catch (error) {
     console.error('수거 요청 삭제 오류:', error);
@@ -1069,6 +1081,7 @@ router.patch('/requests/:id/estimated-time', authenticate, requireRole(['SUPER_A
       data: { estimatedPickupHour },
       select: REQUEST_LIGHT_SELECT
     });
+    emitRequestsUpdatedSafely();
     res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
   } catch (error) {
     console.error('예상 수거 시간 업데이트 오류:', error);
@@ -1232,6 +1245,7 @@ router.post('/assign-driver', authenticate, requireRole(['PARTNER']), async (req
       );
     }
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '기사 배정이 완료되었습니다.', request });
   } catch (error) {
     res.status(500).json({ error: '기사 배정 실패' });
@@ -1264,6 +1278,7 @@ router.patch('/requests/:id/date', authenticate, requireRole(['PARTNER', 'SUPER_
       select: REQUEST_LIGHT_SELECT
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
   } catch (error) {
     console.error('날짜 변경 에러:', error);
@@ -1364,6 +1379,7 @@ router.post('/requests/batch-update', authenticate, requireRole(['PARTNER', 'SUP
       }
     }
 
+    emitRequestsUpdatedSafely();
     res.json({ message: `${validIds.length}건이 일괄 변경되었습니다.` });
   } catch (error) {
     console.error('일괄 변경 에러:', error);
@@ -1432,6 +1448,7 @@ router.post('/requests/batch-assign-driver', authenticate, requireRole(['PARTNER
       console.error('채팅 일괄 자동 발송 에러:', e);
     }
 
+    emitRequestsUpdatedSafely();
     res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
   } catch (error) {
     console.error('일괄 기사 배정 에러:', error);
@@ -1469,6 +1486,7 @@ router.post('/requests/reorder', authenticate, requireRole(['PARTNER']), async (
       )
     );
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '순서가 성공적으로 저장되었습니다.' });
   } catch (error) {
     console.error('순서 변경 에러:', error);
@@ -1603,6 +1621,7 @@ router.post('/drivers/:driverId/optimize-route', authenticate, requireRole(['PAR
       orderBy: { orderIndex: 'asc' }
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '동선 최적화가 완료되었습니다!', requests: updatedRequests });
   } catch (error) {
     console.error('관리자 동선 최적화 에러:', error);
@@ -1636,6 +1655,7 @@ router.post('/requests/:id/unassign', authenticate, requireRole(['PARTNER']), as
       select: REQUEST_LIGHT_SELECT
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
   } catch (error) {
     console.error('배정 취소 에러:', error);
@@ -1675,6 +1695,7 @@ router.post('/requests/batch-unassign', authenticate, requireRole(['PARTNER']), 
       }
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
   } catch (error) {
     console.error('일괄 배정 취소 에러:', error);
@@ -2642,6 +2663,7 @@ router.patch('/requests/:id', authenticate, requireRole(['PARTNER', 'SUPER_ADMIN
       select: REQUEST_LIGHT_SELECT
     });
 
+    emitRequestsUpdatedSafely();
     res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
   } catch (error) {
     console.error('수거 요청 수정 에러:', error);

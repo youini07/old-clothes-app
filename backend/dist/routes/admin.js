@@ -36,6 +36,17 @@ const socket_1 = require("../socket");
 const eventProofUtils_1 = require("../lib/eventProofUtils");
 const representativePhoneService_1 = require("../services/representativePhoneService");
 const router = express_1.default.Router();
+// 왜 별도 안전 헬퍼로 감싸는가:
+// 사장님이 기사 배정·해제·순서 변경·일정/주소 수정을 수행할 때 켜져 있는 기사님 앱(PWA) 화면도 새로고침 없이 즉시 자동 갱신되도록 브로드캐스트하되,
+// 소켓 미초기화 등 예외 상황에서도 배차 API 응답이 절대 실패하지 않도록 방어함
+function emitRequestsUpdatedSafely() {
+    try {
+        (0, socket_1.getIo)().emit('requests_reordered');
+    }
+    catch (_a) {
+        // 소켓 초기화 전 호출 시 안전 무시
+    }
+}
 const demoExcludeFilter = {
     NOT: [
         {
@@ -950,6 +961,7 @@ router.delete('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware
         yield prisma_1.prisma.request.delete({
             where: { id }
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '수거 요청이 성공적으로 삭제되었습니다.' });
     }
     catch (error) {
@@ -967,6 +979,7 @@ router.patch('/requests/:id/estimated-time', authMiddleware_1.authenticate, (0, 
             data: { estimatedPickupHour },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '예상 수거 시간이 업데이트되었습니다.', request: updatedRequest });
     }
     catch (error) {
@@ -1105,6 +1118,7 @@ router.post('/assign-driver', authMiddleware_1.authenticate, (0, authMiddleware_
             // confirmedDate가 아직 null일 수 있으므로 any로 안전하게 넘기거나, schema상 Date|null로 처리
             (0, socket_1.sendDriverAssignedSystemMessage)(request.customerId, request.partnerId, driverPhone, request.confirmedDate);
         }
+        emitRequestsUpdatedSafely();
         res.json({ message: '기사 배정이 완료되었습니다.', request });
     }
     catch (error) {
@@ -1133,6 +1147,7 @@ router.patch('/requests/:id/date', authMiddleware_1.authenticate, (0, authMiddle
             data: { confirmedDate: new Date(confirmedDate) },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '방문 확정일이 변경되었습니다.', request: updated });
     }
     catch (error) {
@@ -1213,6 +1228,7 @@ router.post('/requests/batch-update', authMiddleware_1.authenticate, (0, authMid
                 console.error('채팅/알림톡 일괄 발송 에러:', e);
             }
         }
+        emitRequestsUpdatedSafely();
         res.json({ message: `${validIds.length}건이 일괄 변경되었습니다.` });
     }
     catch (error) {
@@ -1269,6 +1285,7 @@ router.post('/requests/batch-assign-driver', authMiddleware_1.authenticate, (0, 
         catch (e) {
             console.error('채팅 일괄 자동 발송 에러:', e);
         }
+        emitRequestsUpdatedSafely();
         res.json({ message: `${validIds.length}건이 기사에게 일괄 배정되었습니다.` });
     }
     catch (error) {
@@ -1297,6 +1314,7 @@ router.post('/requests/reorder', authMiddleware_1.authenticate, (0, authMiddlewa
             data: { orderIndex: index },
             select: { id: true }
         })));
+        emitRequestsUpdatedSafely();
         res.json({ message: '순서가 성공적으로 저장되었습니다.' });
     }
     catch (error) {
@@ -1408,6 +1426,7 @@ router.post('/drivers/:driverId/optimize-route', authMiddleware_1.authenticate, 
             select: prisma_1.REQUEST_LIGHT_SELECT,
             orderBy: { orderIndex: 'asc' }
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '동선 최적화가 완료되었습니다!', requests: updatedRequests });
     }
     catch (error) {
@@ -1438,6 +1457,7 @@ router.post('/requests/:id/unassign', authMiddleware_1.authenticate, (0, authMid
             },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '기사 배정이 취소되었습니다.', request: updated });
     }
     catch (error) {
@@ -1471,6 +1491,7 @@ router.post('/requests/batch-unassign', authMiddleware_1.authenticate, (0, authM
                 etaMinutes: null
             }
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: `${updatedResult.count}건의 배정이 취소되었습니다.` });
     }
     catch (error) {
@@ -2338,6 +2359,7 @@ router.patch('/requests/:id', authMiddleware_1.authenticate, (0, authMiddleware_
             },
             select: prisma_1.REQUEST_LIGHT_SELECT
         });
+        emitRequestsUpdatedSafely();
         res.json({ message: '수거 요청이 수정되었습니다.', request: updatedRequest });
     }
     catch (error) {

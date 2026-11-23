@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { io } from 'socket.io-client';
 import DriverMap from '../components/DriverMap';
 import Spinner from '../components/Spinner';
 import CalendarView from '../components/CalendarView';
-import { Camera, X, Plus, Trash2, ChevronRight, Receipt } from 'lucide-react';
+import { resolveServerRootUrl } from '../utils/apiUrl';
+import { Camera, X, Plus, Trash2, ChevronRight, Receipt, RefreshCw } from 'lucide-react';
 
 interface RequestItem {
   id: string;
@@ -304,9 +306,7 @@ export default function DriverDashboard() {
   // 서버에서 로드한 단가표 (파트너 커스텀 단가 우선, 없으면 기본 단가표)
   const [priceTable, setPriceTable] = useState<PriceTableItem[]>(DEFAULT_PRICE_TABLE);
   const [page] = useState(1);
-  // totalPages removed to fix build error
-
-
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleDemoLogin = async () => {
     try {
@@ -317,20 +317,52 @@ export default function DriverDashboard() {
     } catch { alert('데모 로그인 실패'); setLoading(false); }
   };
 
-  async function fetchDriverRequests(currentPage = page) {
+  async function fetchDriverRequests(currentPage = page, options: { silent?: boolean } = {}) {
+    if (!options.silent) {
+      setIsRefreshing(true);
+    }
     try {
-      // 페이지 나누지 않고 한 페이지에 모든 건수 표시 (limit 1000)
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&limit=1000`, {
+      // 왜 completedLimit=300으로 요청하는가:
+      // 백엔드에서 미완료(수거 대기) 건은 개수 제한 없이 100% 전량 반환하고,
+      // 완료 건만 최신 완료순 300건으로 분리 조회하여 동선 누락 방지와 트래픽 절감을 동시에 달성함
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&completedLimit=300`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
-      setRequests(res.data.requests || []);
+      const incomingRequests: RequestItem[] = res.data.requests || [];
+
+      // 왜 기존 customerPackedPhotoUrl을 보존하는가:
+      // 백그라운드 자동 갱신 시 기사님이 이미 눌러서 불러온 포장 사진 캐시가 날아가지 않도록 유지함
+      setRequests(prev => {
+        if (prev.length === 0) return incomingRequests;
+        const cachedPhotoMap = new Map<string, string>();
+        prev.forEach(item => {
+          if (item.customerPackedPhotoUrl) {
+            cachedPhotoMap.set(item.id, item.customerPackedPhotoUrl);
+          }
+        });
+        if (cachedPhotoMap.size === 0) return incomingRequests;
+        return incomingRequests.map(item =>
+          cachedPhotoMap.has(item.id)
+            ? { ...item, customerPackedPhotoUrl: cachedPhotoMap.get(item.id) }
+            : item
+        );
+      });
     } catch (error) {
       if (axios.isAxiosError(error) && error.response?.status === 401) {
-        setAuthToken(null); localStorage.removeItem('driver_token');
+        setAuthToken(null);
+        localStorage.removeItem('driver_token');
+        setRequests([]);
+      } else {
+        // 왜 일시적 네트워크 오류 시 기존 목록을 비우지 않는가:
+        // 지하주차장·음영지역 이동 중 앱 복귀(visibilitychange) 자동 갱신이 실패하더라도
+        // 이미 화면에 로드된 수거 동선 목록이 백지로 증발하지 않도록 보호함
+        console.error('수거 동선 목록 조회 실패:', error);
       }
-      setRequests([]);
-    } finally { setLoading(false); }
-  };
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  }
 
   async function fetchDriverInfo() {
     try {
@@ -377,6 +409,31 @@ export default function DriverDashboard() {
       fetchDriverInfo();
       fetchPriceTable();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authToken, page]);
+
+  // 왜 Socket.IO 실시간 구독과 화면 복귀(visibilitychange) 자동 갱신을 함께 두는가:
+  // 1) 사장님이 10번째 수거 건을 추가 배정하거나 순서를 바꾸는 즉시 켜져 있는 기사님 앱에 자동 반영하기 위함
+  // 2) T맵 길안내·전화·문자 앱 사용 후 PWA 앱으로 돌아왔을 때 소켓이 끊겼더라도 최신 동선을 보장하기 위함
+  useEffect(() => {
+    if (!authToken) return;
+
+    const socket = io(resolveServerRootUrl(), { withCredentials: true });
+    socket.on('requests_reordered', () => {
+      void fetchDriverRequests(page, { silent: true });
+    });
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void fetchDriverRequests(page, { silent: true });
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      socket.disconnect();
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authToken, page]);
 
@@ -580,6 +637,16 @@ export default function DriverDashboard() {
     }
   };
 
+  const pendingCount = React.useMemo(
+    () => requests.filter(r => r.status !== 'COMPLETED').length,
+    [requests]
+  );
+
+  const completedCount = React.useMemo(
+    () => requests.filter(r => r.status === 'COMPLETED').length,
+    [requests]
+  );
+
   const filteredRequests = React.useMemo(() => {
     let filtered = requests.filter(r => (activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'));
     
@@ -698,7 +765,9 @@ export default function DriverDashboard() {
       const ui = JSON.parse(uiStr);
       isCoBoss = ui.isCoBoss;
     }
-  } catch(e) {}
+  } catch {
+    // 왜 무시하는가: 손상된 user_info 문자열이 있더라도 화면 렌더링이 중단되지 않고 일반 기사 모드로 동작하도록 방어함
+  }
 
   return (
     <>
@@ -719,6 +788,17 @@ export default function DriverDashboard() {
           {isCoBoss && (
             <button onClick={() => window.location.href = '/admin'} className="px-2.5 py-2 bg-purple-100 text-purple-700 font-bold rounded-xl text-xs hover:bg-purple-200 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1">
               👑 사장님 모드
+            </button>
+          )}
+          {authToken && (
+            <button
+              onClick={() => fetchDriverRequests(page)}
+              disabled={isRefreshing}
+              title="수거 동선 새로고침"
+              className="px-2.5 py-2 bg-emerald-100 text-emerald-700 font-bold rounded-xl text-xs hover:bg-emerald-200 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1 disabled:opacity-60"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+              새로고침
             </button>
           )}
           {isLargeText ? (
@@ -808,8 +888,12 @@ export default function DriverDashboard() {
 
           {/* Tab Bar */}
           <div className="flex bg-white border-b border-gray-200 sticky top-[88px] z-10">
-            <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>수거 대기</button>
-            <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>수거 완료</button>
+            <button onClick={() => setActiveTab('pending')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'pending' ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-400'}`}>
+              수거 대기 ({pendingCount})
+            </button>
+            <button onClick={() => setActiveTab('completed')} className={`flex-1 py-3 text-sm font-bold text-center border-b-2 transition-colors ${activeTab === 'completed' ? 'border-green-600 text-green-600' : 'border-transparent text-gray-400'}`}>
+              수거 완료 ({completedCount})
+            </button>
           </div>
 
           {/* Content */}

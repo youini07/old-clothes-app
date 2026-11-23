@@ -19,6 +19,18 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const kakaoRoute_1 = require("../services/kakaoRoute");
 const notificationService_1 = require("../services/notificationService");
 const statusService_1 = require("../services/statusService");
+const socket_1 = require("../socket");
+// 왜 별도 안전 헬퍼로 분리하는가:
+// 기사 앱에서 수거 완료·출발·동선 변경 시 사장님 대시보드 화면도 즉시 갱신되도록 브로드캐스트하되,
+// 소켓 미초기화 등 예외 상황에서도 본연의 API 응답이 절대 실패하지 않도록 방어함
+function emitRequestsUpdatedSafely() {
+    try {
+        (0, socket_1.getIo)().emit('requests_reordered');
+    }
+    catch (_a) {
+        // 소켓 초기화 전 호출 시 안전 무시
+    }
+}
 // ==========================================
 // 항목별 수거 단가표 (카테고리별 단가 정의)
 // 왜 코드에 정의하는가: 현재 모든 파트너가 동일 단가를 사용.
@@ -93,8 +105,13 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
     try {
         const userId = req.user.userId;
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50; // 기사는 동선 정렬을 위해 기본 50건
-        const skip = (page - 1) * limit;
+        const parsedCompletedLimit = parseInt(req.query.completedLimit);
+        // 왜 완료 건만 최근 300건으로 상한을 두는가:
+        // 과거 완료(COMPLETED) 건이 수천 건 누적되더라도 오늘/예정된 미완료(수거 대기) 동선은 단 1건도 잘리지 않도록 전량 조회하고,
+        // 완료 건만 최신 완료순(completedDate DESC)으로 최근 내역을 가져와 서버 메모리 및 트래픽(Egress) 낭비를 방지하기 위함
+        const completedLimit = !Number.isNaN(parsedCompletedLimit) && parsedCompletedLimit > 0
+            ? Math.min(parsedCompletedLimit, 1000)
+            : 300;
         // 기사 프로필 찾기
         const driverProfile = yield prisma_1.prisma.driverProfile.findUnique({
             where: { userId }
@@ -102,25 +119,47 @@ router.get('/requests', authMiddleware_1.authenticate, (0, authMiddleware_1.requ
         if (!driverProfile) {
             return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
         }
-        const whereCondition = Object.assign({ driverId: driverProfile.id }, demoExcludeFilter);
-        const totalCount = yield prisma_1.prisma.request.count({ where: whereCondition });
-        // 왜: 기사 대시보드 목록 조회(최대 1000건) 시 Base64 사진(포장사진, 증빙사진, 품목사진)을 모두 불러오면
-        // 수십 MB의 Egress와 메모리 스파이크가 발생하므로 경량 필드만 조회하고 사진 존재 플래그만 첨부함
-        const rawRequests = yield prisma_1.prisma.request.findMany({
-            where: whereCondition,
-            orderBy: [
-                { orderIndex: 'asc' },
-                { createdAt: 'asc' }
-            ], // 동선 순서, 그 다음 생성일 순으로 정렬하여 순서 고정
-            skip,
-            take: limit,
-            select: Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } })
+        const baseDriverWhere = Object.assign({ driverId: driverProfile.id }, demoExcludeFilter);
+        // 왜 경량 필드만 select하는가:
+        // 목록 조회 시 대용량 Base64 사진(포장사진, 증빙사진, 품목사진)을 모두 불러오면 수십 MB의 Egress와 메모리 스파이크가 발생하므로
+        // 텍스트·정산 필드만 조회하고 사진 유무 플래그만 별도로 첨부함
+        const lightSelect = Object.assign(Object.assign({}, prisma_1.REQUEST_LIGHT_SELECT), { collectionItems: { select: prisma_1.COLLECTION_ITEM_LIGHT_SELECT } });
+        // 왜 미완료 건과 완료 건 쿼리를 반드시 분리해야 하는가:
+        // 기존에는 완료 여부를 구분하지 않고 orderIndex ASC, createdAt ASC + take(1000) 단일 쿼리로 조회했기 때문에,
+        // 과거 완료된 수거 건(orderIndex 0~9 유지, 과거 createdAt)이 1,000건 이상 누적되자 오늘 새로 배정된 뒷번호 동선(최신 createdAt)이
+        // 1,001번째 밖으로 밀려 잘려 나가는 누락 버그가 발생했음.
+        // 따라서 미완료(수거 대기) 건은 개수 제한 없이 100% 전량 조회하고, 완료 건만 최신 완료순으로 별도 조회함.
+        const [pendingRawRequests, completedRawRequests, totalCount] = yield Promise.all([
+            prisma_1.prisma.request.findMany({
+                where: Object.assign(Object.assign({}, baseDriverWhere), { status: { not: 'COMPLETED' } }),
+                orderBy: [
+                    { orderIndex: 'asc' },
+                    { createdAt: 'asc' }
+                ],
+                select: lightSelect
+            }),
+            prisma_1.prisma.request.findMany({
+                where: Object.assign(Object.assign({}, baseDriverWhere), { status: 'COMPLETED' }),
+                orderBy: [
+                    { completedDate: 'desc' },
+                    { createdAt: 'desc' }
+                ],
+                take: completedLimit,
+                select: lightSelect
+            }),
+            prisma_1.prisma.request.count({ where: baseDriverWhere })
+        ]);
+        const requests = yield (0, prisma_1.attachPhotoFlags)([...pendingRawRequests, ...completedRawRequests]);
+        res.json({
+            requests,
+            totalPages: 1,
+            currentPage: page,
+            totalCount,
+            pendingCount: pendingRawRequests.length
         });
-        const requests = yield (0, prisma_1.attachPhotoFlags)(rawRequests);
-        const totalPages = Math.ceil(totalCount / limit);
-        res.json({ requests, totalPages, currentPage: page, totalCount });
     }
     catch (error) {
+        console.error('기사 수거 일정 조회 에러:', error);
         res.status(500).json({ error: '수거 일정 조회 실패' });
     }
 }));
@@ -135,6 +174,7 @@ router.put('/reorder', authMiddleware_1.authenticate, (0, authMiddleware_1.requi
             data: { orderIndex: reqItem.orderIndex },
             select: { id: true }
         })));
+        emitRequestsUpdatedSafely();
         res.json({ message: '동선 순서가 업데이트 되었습니다.' });
     }
     catch (error) {
@@ -212,6 +252,7 @@ router.post('/complete/:id', authMiddleware_1.authenticate, (0, authMiddleware_1
             totalPrice, request.partner.useBizMessage).catch(err => console.error('완료 안내 알림톡 전송 실패:', err));
         }
         // 6. 구글 시트 연동 제거됨
+        emitRequestsUpdatedSafely();
         res.json({ message: '수거가 완료되었습니다!', request });
     }
     catch (error) {
@@ -269,6 +310,7 @@ router.post('/depart/:id', authMiddleware_1.authenticate, (0, authMiddleware_1.r
         // 7. 고객에게 알림톡/문자 발송 (비동기로 실행하여 응답 속도 최적화)
         (0, notificationService_1.sendDepartureNotification)(request.phone, request.userName, etaMinutes, useBizMessage, driverPhone)
             .catch(err => console.error('출발 알림톡 전송 실패:', err));
+        emitRequestsUpdatedSafely();
         res.json({ message: '출발 처리가 완료되었습니다.', request: updatedRequest });
     }
     catch (error) {
@@ -457,6 +499,7 @@ router.post('/optimize-route', authMiddleware_1.authenticate, (0, authMiddleware
                 data: { todayDistanceKm }
             });
         }
+        emitRequestsUpdatedSafely();
         res.json({
             message: '현위치 기반 동선 최적화가 완료되었습니다!',
             totalTimeSec,
