@@ -771,7 +771,8 @@ export default function DriverDashboard() {
 
   return (
     <>
-      <div className="min-h-screen app-bg pb-20 custom-scrollbar print:hidden">
+      {/* 모바일에서 내부 요소가 뷰포트 너비를 넘어 가로 여백이 생기는 것을 방지하되 sticky 헤더 동작을 유지하기 위해 overflow-x-clip 사용 */}
+      <div className="min-h-screen w-full max-w-full overflow-x-clip app-bg pb-20 custom-scrollbar print:hidden">
       {isLargeText && (
         <style>{`
           html { font-size: 19px !important; }
@@ -779,12 +780,13 @@ export default function DriverDashboard() {
       )}
       
       {/* Header */}
-      <div className="glass-header px-4 md:px-6 py-4 sticky top-0 z-20 flex flex-wrap justify-between items-center gap-y-3 gap-x-2">
+      <div className="glass-header w-full max-w-full px-4 md:px-6 py-4 sticky top-0 z-20 flex flex-wrap justify-between items-center gap-y-3 gap-x-2">
         <div className="shrink-0 mr-2">
           <h1 className="text-xl font-extrabold text-gray-900">{'오늘의 수거 동선 🚚'}</h1>
           <p className="text-sm text-gray-500 mt-0.5">안전 운전하세요!</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
+        {/* 모바일에서 버튼들이 한 줄로 넘쳐 화면이 좌측으로 쏠리는 현상을 막기 위해 shrink-0 제거 및 너비 제한 적용 */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto max-w-full min-w-0">
           {isCoBoss && (
             <button onClick={() => window.location.href = '/admin'} className="px-2.5 py-2 bg-purple-100 text-purple-700 font-bold rounded-xl text-xs hover:bg-purple-200 transition-colors whitespace-nowrap flex-shrink-0 flex items-center gap-1">
               👑 사장님 모드
