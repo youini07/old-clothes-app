@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { io } from 'socket.io-client';
 import DriverMap from '../components/DriverMap';
@@ -249,6 +249,13 @@ export default function DriverDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'completed'>('pending');
   const [activeMainTab, setActiveMainTab] = useState<'route' | 'calendar' | 'profile'>('route');
+  const [calendarRequests, setCalendarRequests] = useState<RequestItem[]>([]);
+  const calendarRangeRef = useRef<{ year: number; month: number }>({
+    year: new Date().getFullYear(),
+    month: new Date().getMonth() + 1,
+  });
+  const calendarFetchSeqRef = useRef(0);
+  const calendarInFlightRef = useRef<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(localStorage.getItem('driver_token') || localStorage.getItem('admin_token'));
   const [showMap, setShowMap] = useState(false);
 
@@ -317,15 +324,46 @@ export default function DriverDashboard() {
     } catch { alert('데모 로그인 실패'); setLoading(false); }
   };
 
+  async function fetchDriverCalendarData(year?: number, month?: number) {
+    if (!authToken) return;
+    const y = year ?? calendarRangeRef.current.year;
+    const m = month ?? calendarRangeRef.current.month;
+    const key = `${y}-${m}`;
+    // 동일한 연/월에 대해 이미 진행 중인 요청이 있으면 중복 호출 방지
+    if (calendarInFlightRef.current === key) return;
+    calendarInFlightRef.current = key;
+    const seq = ++calendarFetchSeqRef.current;
+    try {
+      const res = await axios.get(
+        `${import.meta.env.VITE_API_URL}/driver/requests/calendar?year=${y}&month=${m}`,
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      // 빠른 월 이동 시 늦게 도착한 이전 응답이 최신 데이터를 덮어쓰지 않도록 방어
+      if (seq !== calendarFetchSeqRef.current) return;
+      setCalendarRequests(res.data.requests || []);
+    } catch (error) {
+      console.error('기사 캘린더 수거 내역 조회 실패:', error);
+    } finally {
+      if (calendarInFlightRef.current === key) {
+        calendarInFlightRef.current = null;
+      }
+    }
+  }
+
+  const handleCalendarMonthChange = (year: number, month: number) => {
+    calendarRangeRef.current = { year, month };
+    void fetchDriverCalendarData(year, month);
+  };
+
   async function fetchDriverRequests(currentPage = page, options: { silent?: boolean } = {}) {
     if (!options.silent) {
       setIsRefreshing(true);
     }
     try {
-      // 왜 completedLimit=300으로 요청하는가:
-      // 백엔드에서 미완료(수거 대기) 건은 개수 제한 없이 100% 전량 반환하고,
-      // 완료 건만 최신 완료순 300건으로 분리 조회하여 동선 누락 방지와 트래픽 절감을 동시에 달성함
-      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&completedLimit=300`, {
+      // 왜 completedScope=today로 요청하는가:
+      // 동선 화면의 '수거 완료' 탭에는 당일 완료 건만 표시해 과거 수백 건 로딩에 따른 트래픽/렌더링 부하를 없애고,
+      // 이전 날짜의 완료 내역은 캘린더 탭에서 월별 API(/driver/requests/calendar)로 조회하도록 분리함
+      const res = await axios.get(`${import.meta.env.VITE_API_URL}/driver/requests?page=${currentPage}&completedScope=today`, {
         headers: { Authorization: `Bearer ${authToken}` }
       });
       const incomingRequests: RequestItem[] = res.data.requests || [];
@@ -637,18 +675,31 @@ export default function DriverDashboard() {
     }
   };
 
+  const isTodayCompleted = (req: RequestItem) => {
+    if (req.status !== 'COMPLETED' || !req.completedDate) return false;
+    const d = new Date(req.completedDate);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+
   const pendingCount = React.useMemo(
     () => requests.filter(r => r.status !== 'COMPLETED').length,
     [requests]
   );
 
   const completedCount = React.useMemo(
-    () => requests.filter(r => r.status === 'COMPLETED').length,
+    () => requests.filter(isTodayCompleted).length,
     [requests]
   );
 
   const filteredRequests = React.useMemo(() => {
-    let filtered = requests.filter(r => (activeTab === 'pending' ? r.status !== 'COMPLETED' : r.status === 'COMPLETED'));
+    let filtered = requests.filter(r =>
+      activeTab === 'pending' ? r.status !== 'COMPLETED' : isTodayCompleted(r)
+    );
     
     if (activeTab === 'completed') {
       filtered = filtered.sort((a, b) => {
@@ -993,9 +1044,9 @@ export default function DriverDashboard() {
           </div>
         </>
       ) : activeMainTab === 'calendar' ? (
-        /* 📅 캘린더 뷰 — 기사님에게 배정된 수거 건만 캘린더에 표시 */
+        /* 📅 캘린더 뷰 — 기사님에게 배정된 수거 건만 월별 API로 조회해 표시 */
         <div className="p-4">
-          <CalendarView requests={requests} compact />
+          <CalendarView requests={calendarRequests} onMonthChange={handleCalendarMonthChange} compact />
         </div>
       ) : (
         <div className="p-4">

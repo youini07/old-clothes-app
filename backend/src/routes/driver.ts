@@ -97,15 +97,28 @@ const demoExcludeFilter = {
 // [DRIVER 전용] 수거 기사 앱 기능
 // ==========================================
 
+// 서버 OS 타임존(UTC/KST)에 무관하게 한국 시간(KST) 기준 오늘 00:00:00 ~ 23:59:59 범위를 반환
+function getKstTodayRange(): { startOfDay: Date; endOfDay: Date } {
+  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  const yyyy = kstNow.getUTCFullYear();
+  const mm = String(kstNow.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(kstNow.getUTCDate()).padStart(2, '0');
+  return {
+    startOfDay: new Date(`${yyyy}-${mm}-${dd}T00:00:00.000+09:00`),
+    endOfDay: new Date(`${yyyy}-${mm}-${dd}T23:59:59.999+09:00`),
+  };
+}
+
 // 1. 배정된 오늘의 수거 동선 목록 조회
 router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
   try {
     const userId = req.user!.userId;
     const page = parseInt(req.query.page as string) || 1;
+    const completedScope = req.query.completedScope as string | undefined;
     const parsedCompletedLimit = parseInt(req.query.completedLimit as string);
-    // 왜 완료 건만 최근 300건으로 상한을 두는가:
+    // 왜 완료 건만 최근 300건(또는 당일 건만)으로 제한하는가:
     // 과거 완료(COMPLETED) 건이 수천 건 누적되더라도 오늘/예정된 미완료(수거 대기) 동선은 단 1건도 잘리지 않도록 전량 조회하고,
-    // 완료 건만 최신 완료순(completedDate DESC)으로 최근 내역을 가져와 서버 메모리 및 트래픽(Egress) 낭비를 방지하기 위함
+    // 완료 건은 당일 완료(completedScope=today) 또는 최신 완료순 상한을 두어 서버 메모리 및 트래픽(Egress) 낭비를 방지하기 위함
     const completedLimit =
       !Number.isNaN(parsedCompletedLimit) && parsedCompletedLimit > 0
         ? Math.min(parsedCompletedLimit, 1000)
@@ -121,6 +134,14 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
     }
 
     const baseDriverWhere = { driverId: driverProfile.id, ...demoExcludeFilter };
+    const completedWhere: any = {
+      ...baseDriverWhere,
+      status: 'COMPLETED'
+    };
+    if (completedScope === 'today') {
+      const { startOfDay, endOfDay } = getKstTodayRange();
+      completedWhere.completedDate = { gte: startOfDay, lte: endOfDay };
+    }
     // 왜 경량 필드만 select하는가:
     // 목록 조회 시 대용량 Base64 사진(포장사진, 증빙사진, 품목사진)을 모두 불러오면 수십 MB의 Egress와 메모리 스파이크가 발생하므로
     // 텍스트·정산 필드만 조회하고 사진 유무 플래그만 별도로 첨부함
@@ -133,7 +154,7 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
     // 기존에는 완료 여부를 구분하지 않고 orderIndex ASC, createdAt ASC + take(1000) 단일 쿼리로 조회했기 때문에,
     // 과거 완료된 수거 건(orderIndex 0~9 유지, 과거 createdAt)이 1,000건 이상 누적되자 오늘 새로 배정된 뒷번호 동선(최신 createdAt)이
     // 1,001번째 밖으로 밀려 잘려 나가는 누락 버그가 발생했음.
-    // 따라서 미완료(수거 대기) 건은 개수 제한 없이 100% 전량 조회하고, 완료 건만 최신 완료순으로 별도 조회함.
+    // 따라서 미완료(수거 대기) 건은 개수 제한 없이 100% 전량 조회하고, 완료 건만 당일 또는 최신 완료순으로 별도 조회함.
     const [pendingRawRequests, completedRawRequests, totalCount] = await Promise.all([
       prisma.request.findMany({
         where: {
@@ -147,15 +168,12 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
         select: lightSelect
       }),
       prisma.request.findMany({
-        where: {
-          ...baseDriverWhere,
-          status: 'COMPLETED'
-        },
+        where: completedWhere,
         orderBy: [
           { completedDate: 'desc' },
           { createdAt: 'desc' }
         ],
-        take: completedLimit,
+        take: completedScope === 'today' ? 1000 : completedLimit,
         select: lightSelect
       }),
       prisma.request.count({ where: baseDriverWhere })
@@ -173,6 +191,59 @@ router.get('/requests', authenticate, requireRole(['DRIVER', 'PARTNER']), async 
   } catch (error) {
     console.error('기사 수거 일정 조회 에러:', error);
     res.status(500).json({ error: '수거 일정 조회 실패' });
+  }
+});
+
+// 1-1. 기사 앱 캘린더용 월 단위 수거 조회 (과거 완료 건 포함, 해당 월 데이터만 경량 반환)
+router.get('/requests/calendar', authenticate, requireRole(['DRIVER', 'PARTNER']), async (req: any, res: any) => {
+  try {
+    const userId = req.user!.userId;
+    const year = parseInt(req.query.year as string);
+    const month = parseInt(req.query.month as string); // 1~12
+
+    if (!year || !month || month < 1 || month > 12) {
+      return res.status(400).json({ error: 'year와 month(1~12) 파라미터가 필요합니다.' });
+    }
+
+    const driverProfile = await prisma.driverProfile.findUnique({
+      where: { userId }
+    });
+
+    if (!driverProfile) {
+      return res.status(404).json({ error: '기사 프로필을 찾을 수 없습니다.' });
+    }
+
+    // 서버/클라이언트 타임존 차이(KST 등)로 인한 경계일 누락 방지를 위해 ±2일 여유를 둠
+    const startDate = new Date(year, month - 1, -1);
+    const endDate = new Date(year, month, 3);
+
+    const lightSelect = {
+      ...REQUEST_LIGHT_SELECT,
+      collectionItems: { select: COLLECTION_ITEM_LIGHT_SELECT }
+    };
+
+    const rawRequests = await prisma.request.findMany({
+      where: {
+        driverId: driverProfile.id,
+        ...demoExcludeFilter,
+        OR: [
+          { desiredDate: { gte: startDate, lt: endDate } },
+          { confirmedDate: { gte: startDate, lt: endDate } },
+          { completedDate: { gte: startDate, lt: endDate } }
+        ]
+      },
+      orderBy: [
+        { completedDate: 'desc' },
+        { createdAt: 'desc' }
+      ],
+      select: lightSelect
+    });
+
+    const requests = await attachPhotoFlags(rawRequests);
+    res.json({ requests });
+  } catch (error) {
+    console.error('기사 캘린더 수거 조회 에러:', error);
+    res.status(500).json({ error: '캘린더 수거 조회 실패' });
   }
 });
 
